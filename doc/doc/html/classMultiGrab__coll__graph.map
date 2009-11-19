@@ -1,0 +1,26 @@
+<area shape="rect" href="$classCalibModel.html" title="CalibModel" alt="" coords="1312,157,1397,184">
+<area shape="rect" href="$classLightMap.html" title="Irradiance map computation, storage and augmentation." alt="" coords="1096,81,1171,108">
+<area shape="rect" href="$classIplTexture.html" title="IplTexture" alt="" coords="715,5,792,32">
+<area shape="rect" href="$classCvGrowMat.html" title="CvGrowMat" alt="" coords="709,56,797,83">
+<area shape="rect" href="$classLightCollector.html" title="LightCollector" alt="" coords="704,107,803,133">
+<area shape="rect" href="$classCamAugmentation.html" title="Turns homographies into 2D poses from calibrated views." alt="" coords="1069,157,1197,184">
+<area shape="rect" title="The optimal structure." alt="" coords="637,157,869,184">
+<area shape="rect" href="$classplanar__object__recognizer.html" title="Planar object detector." alt="" coords="1051,580,1216,607">
+<area shape="rect" href="$classimage__class__example.html" title="A representant of an image class." alt="" coords="679,605,828,632">
+<area shape="rect" href="$classkeypoint.html" title="A 2D feature point as detected by a point detector (yape for example)." alt="" coords="259,451,328,477">
+<area shape="rect" href="$classimage__object__point__match.html" title="image_object_point_match" alt="" coords="665,397,841,424">
+<area shape="rect" href="$classobject__view.html" title="object_view" alt="" coords="249,661,337,688">
+<area shape="rect" href="$classaffine__image__generator.html" title="An affine image generator." alt="" coords="676,555,831,581">
+<area shape="rect" href="$classPyrImage.html" title="Multi&#45;resolution pyramidal image." alt="" coords="20,713,97,740">
+<area shape="rect" href="$classpyr__yape.html" title="Pyramidal YAPE (Feature point extractor)." alt="" coords="716,765,791,792">
+<area shape="rect" href="$classexample__generator.html" title="Generates random representants of image classes." alt="" coords="228,580,359,607">
+<area shape="rect" href="$classkeypoint__orientation__corrector.html" title="Normalize local patches against rotation." alt="" coords="196,529,391,556">
+<area shape="rect" href="$classobject__keypoint.html" title="object_keypoint" alt="" coords="237,297,349,324">
+<area shape="rect" href="$classyape.html" title="YAPE feature point detector." alt="" coords="269,796,317,823">
+<area shape="rect" href="$structyape_1_1dir__table.html" title="yape::dir_table" alt="" coords="5,796,112,823">
+<area shape="rect" href="$classimage__classification__forest.html" title="Set of classifier trees." alt="" coords="664,816,843,843">
+<area shape="rect" href="$classimage__classifier.html" title="Image classifier." alt="" coords="236,847,351,873">
+<area shape="rect" href="$classls__minimizer2.html" title="ls_minimizer2" alt="" coords="703,867,804,893">
+<area shape="rect" href="$classls__step__solver.html" title="ls_step_solver" alt="" coords="241,897,345,924">
+<area shape="rect" href="$classhomography.html" title="Static class for the estimation of homographies.Provides functions to estimate the..." alt="" coords="708,917,799,944">
+<area shape="rect" href="$classaffinity.html" title="affinity" alt="" coords="724,208,783,235">

@@ -1,0 +1,12 @@
+# Package Information for pkg-config
+
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include/bazar
+
+Name: garfeild
+Description: Garfeild Library for augmented reality tools
+Version: 1.3.1
+Libs: -L${libdir} -lstarter -lgarfeild
+Cflags: -I${includedir}

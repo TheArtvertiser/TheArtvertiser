@@ -1,0 +1,13 @@
+  if(cache && detector.build_with_cache(
+                string(modelfile), // mode image file name
+                200,               // maximum number of keypoints on the model
+                //32,                // patch size in pixels
+                32,                // patch size in pixels
+                //3,                 // yape radius. Use 3,5 or 7.
+                3,                 // yape radius. Use 3,5 or 7.
+                30,                // number of trees for the classifier.
+Somewhere between 12-50
+                3                  // number of levels in the gaussian pyramid
+                ))
+    {
+recording                                                     56

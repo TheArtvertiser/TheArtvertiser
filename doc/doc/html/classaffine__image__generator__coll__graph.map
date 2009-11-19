@@ -1,0 +1,5 @@
+<area shape="rect" href="$classexample__generator.html" title="Generates random representants of image classes." alt="" coords="5,128,136,155">
+<area shape="rect" href="$classkeypoint__orientation__corrector.html" title="Normalize local patches against rotation." alt="" coords="160,128,355,155">
+<area shape="rect" href="$classobject__view.html" title="object_view" alt="" coords="379,128,467,155">
+<area shape="rect" href="$classPyrImage.html" title="Multi&#45;resolution pyramidal image." alt="" coords="384,5,461,32">
+<area shape="rect" href="$classobject__keypoint.html" title="object_keypoint" alt="" coords="577,128,689,155">

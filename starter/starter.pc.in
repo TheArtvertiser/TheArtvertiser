@@ -1,0 +1,12 @@
+# Package Information for pkg-config
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@/bazar
+
+Name: starter
+Description: Library of commonly used structures and algorithms
+Version: @VERSION@
+Libs: -L${libdir} -lstarter
+Cflags: -I${includedir}

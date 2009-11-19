@@ -1,0 +1,60 @@
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls  Ts/call  Ts/call  name    
+ 17.12      1.78     1.78                             keypoint_orientation_corrector::orientation_bucket_index(_IplImage const*, _IplImage const*, int, int)
+ 15.00      3.34     1.56                             image_classification_forest::posterior_probabilities(image_class_example*, float*, int)
+ 13.08      4.70     1.36                             yape::perform_one_point(unsigned char const*, int, short*, int, int, short const*, unsigned char, unsigned char)
+ 11.63      5.91     1.21                             planar_object_recognizer::compute_support_for_affine_transformation(affinity*)
+ 11.44      7.10     1.19                             yape::raw_detect(_IplImage*)
+  7.88      7.92     0.82                             image_classification_tree::posterior_probabilities(image_class_example*, int)
+  6.92      8.64     0.72                             PyrImage::convCoordf(float, int, int)
+  4.81      9.14     0.50                             keypoint_orientation_corrector::rotate_patch(_IplImage*, int, int, _IplImage*, int, int)
+  2.50      9.40     0.26                             planar_object_recognizer::match_points(bool)
+  2.12      9.62     0.22                             yape::get_local_maxima(_IplImage*, int, float)
+  1.44      9.77     0.15                             affinity::transform_point(float, float, float*, float*)
+  1.44      9.92     0.15                             void std::__introsort_loop<__gnu_cxx::__normal_iterator<keypoint*, std::vector<keypoint, std::allocator<keypoint> > >, int>(__gnu_cxx::__normal_iterator<keypoint*, std::vector<keypoint, std::allocator<keypoint> > >, __gnu_cxx::__normal_iterator<keypoint*, std::vector<keypoint, std::allocator<keypoint> > >, int)
+  1.06     10.03     0.11                             yape::subpix_refine(_IplImage*, keypoint*)
+  0.67     10.10     0.07                             planar_object_recognizer::three_random_correspondences(int*, int*, int*)
+  0.58     10.16     0.06                             yape::pick_best_points(keypoint*, unsigned int)
+  0.48     10.21     0.05                             planar_object_recognizer::estimate_affine_transformation()
+  0.38     10.25     0.04                             affinity::estimate(float, float, float, float, float, float, float, float, float, float, float, float)
+  0.29     10.28     0.03                             twomat_gradian(double, double, double, double, double (*) [3], double, double, double, CvMat*, double (*) [3], double, double, double, CvMat*, double*, double*, double*)
+  0.19     10.30     0.02                             affine_image_generator::preprocess_point_view(image_class_example*, object_view*)
+  0.19     10.32     0.02                             PoseObs::eval_func(double const*, double*, double*, void**) const
+  0.10     10.33     0.01                             add_detected_homography(int, planar_object_recognizer&, CamAugmentation&)
+  0.10     10.34     0.01                             cvMat(int, int, int, void*)
+  0.10     10.35     0.01                             cvmGet(CvMat const*, int, int)
+  0.10     10.36     0.01                             ls_minimizer2::build_eps(double*, double, bool)
+  0.10     10.37     0.01                             affine_image_generator::set_noise_level(int)
+  0.10     10.38     0.01                             affine_image_generator::set_roi(int, int, int, int, int, int, int, int)
+  0.10     10.39     0.01                             planar_object_recognizer::preprocess_points()
+  0.10     10.40     0.01                             operator>>(std::istream&, image_classification_node&)
+
+ %         the percentage of the total running time of the
+time       program used by this function.
+
+cumulative a running sum of the number of seconds accounted
+ seconds   for by this function and those listed above it.
+
+ self      the number of seconds accounted for by this
+seconds    function alone.  This is the major sort for this
+           listing.
+
+calls      the number of times this function was invoked, if
+           this function is profiled, else blank.
+ 
+ self      the average number of milliseconds spent in this
+ms/call    function per call, if this function is profiled,
+	   else blank.
+
+ total     the average number of milliseconds spent in this
+ms/call    function and its descendents per call, if this 
+	   function is profiled, else blank.
+
+name       the name of the function.  This is the minor sort
+           for this listing. The index shows the location of
+	   the function in the gprof listing. If the index is
+	   in parenthesis it shows where it would appear in
+	   the gprof listing if it were to be printed.

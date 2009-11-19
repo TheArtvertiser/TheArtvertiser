@@ -1,0 +1,37 @@
+<area shape="rect" href="$example__generator_8h.html" title="/home/julian/devel/artvertiser/garfeild/viewsets/example_generator.h" alt="" coords="1584,80,1997,107">
+<area shape="rect" href="$image__classifier_8h.html" title="/home/julian/devel/artvertiser/garfeild/viewsets/image_classifier.h" alt="" coords="1892,155,2289,181">
+<area shape="rect" href="$image__class__example_8cpp.html" title="/home/julian/devel/artvertiser/garfeild/viewsets/image_class_example.cpp" alt="" coords="2179,80,2627,107">
+<area shape="rect" href="$image__classification__node_8h.html" title="/home/julian/devel/artvertiser/garfeild/viewsets/image_classification_node.h" alt="" coords="2531,155,2987,181">
+<area shape="rect" href="$garfeild_8h.html" title="/home/julian/devel/artvertiser/garfeild/garfeild.h" alt="" coords="1683,453,1973,480">
+<area shape="rect" href="$affine__image__generator_8h.html" title="/home/julian/devel/artvertiser/garfeild/viewsets/affine_image_generator.h" alt="" coords="1109,304,1547,331">
+<area shape="rect" href="$artvertiser_2calibmodel_8h.html" title="/home/julian/devel/artvertiser/samples/artvertiser/calibmodel.h" alt="" coords="220,528,599,555">
+<area shape="rect" href="$artvertiser_2augment3d_8cpp.html" title="/home/julian/devel/artvertiser/samples/artvertiser/augment3d.cpp" alt="" coords="623,528,1017,555">
+<area shape="rect" href="$filedetect_8cpp.html" title="A planar_object_recognizer example." alt="" coords="1041,528,1420,555">
+<area shape="rect" href="$fullcalib_2calibmodel_8h.html" title="/home/julian/devel/artvertiser/samples/fullcalib/calibmodel.h" alt="" coords="1444,528,1809,555">
+<area shape="rect" href="$interactive_8cpp.html" title="An interactive example of 2D planar object training and detection. This example uses..." alt="" coords="1833,528,2228,555">
+<area shape="rect" href="$multicam_2calibmodel_8h.html" title="/home/julian/devel/artvertiser/samples/multicam/calibmodel.h" alt="" coords="2252,528,2628,555">
+<area shape="rect" href="$singlecalib_2augment3d_8cpp.html" title="/home/julian/devel/artvertiser/samples/singlecalib/augment3d.cpp" alt="" coords="2652,528,3052,555">
+<area shape="rect" href="$singlecalib_8cpp.html" title="A single camera geometric calibration interactive example." alt="" coords="3076,528,3471,555">
+<area shape="rect" href="$artvertiser_2multigrab_8h.html" title="/home/julian/devel/artvertiser/samples/artvertiser/multigrab.h" alt="" coords="424,603,795,629">
+<area shape="rect" href="$artvertiser_2calibmodel_8cpp.html" title="/home/julian/devel/artvertiser/samples/artvertiser/calibmodel.cpp" alt="" coords="5,603,400,629">
+<area shape="rect" href="$artvertiser_8cpp.html" title="/home/julian/devel/artvertiser/samples/artvertiser/artvertiser.cpp" alt="" coords="1225,677,1615,704">
+<area shape="rect" href="$draw_8cpp.html" title="/home/julian/devel/artvertiser/samples/artvertiser/draw.cpp" alt="" coords="28,677,385,704">
+<area shape="rect" href="$artvertiser_2multicam_8cpp.html" title="/home/julian/devel/artvertiser/samples/artvertiser/multicam.cpp" alt="" coords="409,677,793,704">
+<area shape="rect" href="$artvertiser_2multigrab_8cpp.html" title="/home/julian/devel/artvertiser/samples/artvertiser/multigrab.cpp" alt="" coords="817,677,1201,704">
+<area shape="rect" href="$fullcalib_2calibmodel_8cpp.html" title="/home/julian/devel/artvertiser/samples/fullcalib/calibmodel.cpp" alt="" coords="1036,603,1415,629">
+<area shape="rect" href="$fullcalib-gl_8cpp.html" title="/home/julian/devel/artvertiser/samples/fullcalib/fullcalib&#45;gl.cpp" alt="" coords="1439,603,1815,629">
+<area shape="rect" href="$fullcalib_8cpp.html" title="All in one geometric and photometric calibration example." alt="" coords="1839,603,2201,629">
+<area shape="rect" href="$multicam_2calibmodel_8cpp.html" title="/home/julian/devel/artvertiser/samples/multicam/calibmodel.cpp" alt="" coords="2629,603,3019,629">
+<area shape="rect" href="$multicam_2multigrab_8h.html" title="/home/julian/devel/artvertiser/samples/multicam/multigrab.h" alt="" coords="2240,603,2605,629">
+<area shape="rect" href="$multicam_2multicam_8cpp.html" title="/home/julian/devel/artvertiser/samples/multicam/multicam.cpp" alt="" coords="1837,677,2216,704">
+<area shape="rect" href="$multigl_8cpp.html" title="Real&#45;time augmentation using OpenGL and shaders." alt="" coords="2240,677,2605,704">
+<area shape="rect" href="$multicam_2multigrab_8cpp.html" title="/home/julian/devel/artvertiser/samples/multicam/multigrab.cpp" alt="" coords="2629,677,3008,704">
+<area shape="rect" href="$affine__image__generator_8cpp.html" title="/home/julian/devel/artvertiser/garfeild/viewsets/affine_image_generator.cpp" alt="" coords="723,379,1173,405">
+<area shape="rect" href="$planar__object__recognizer_8h.html" title="/home/julian/devel/artvertiser/garfeild/viewsets/planar_object_recognizer.h" alt="" coords="1248,379,1696,405">
+<area shape="rect" href="$planar__object__recognizer_8cpp.html" title="/home/julian/devel/artvertiser/garfeild/viewsets/planar_object_recognizer.cpp" alt="" coords="1197,453,1659,480">
+<area shape="rect" href="$image__classification__forest_8h.html" title="/home/julian/devel/artvertiser/garfeild/viewsets/image_classification_forest.h" alt="" coords="1771,304,2232,331">
+<area shape="rect" href="$image__classification__tree_8h.html" title="/home/julian/devel/artvertiser/garfeild/viewsets/image_classification_tree.h" alt="" coords="2371,229,2821,256">
+<area shape="rect" href="$image__classifier_8cpp.html" title="/home/julian/devel/artvertiser/garfeild/viewsets/image_classifier.cpp" alt="" coords="1885,229,2296,256">
+<area shape="rect" href="$image__classification__forest_8cpp.html" title="/home/julian/devel/artvertiser/garfeild/viewsets/image_classification_forest.cpp" alt="" coords="1821,379,2296,405">
+<area shape="rect" href="$image__classification__tree_8cpp.html" title="/home/julian/devel/artvertiser/garfeild/viewsets/image_classification_tree.cpp" alt="" coords="2421,304,2885,331">
+<area shape="rect" href="$image__classification__node_8cpp.html" title="/home/julian/devel/artvertiser/garfeild/viewsets/image_classification_node.cpp" alt="" coords="2960,229,3432,256">

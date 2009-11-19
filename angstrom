@@ -1,0 +1,5 @@
+opkg install gcc-symlinks g++-symlinks libgcc1
+
+manually symlink cc1 and cc1plus to /usr/bin
+
+symlink stdarg.h and stddef.h to /usr/include
