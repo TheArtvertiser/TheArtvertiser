@@ -709,6 +709,7 @@ static void draw(void)
 		last_frame=cvCloneImage(this_frame);
 		// calculate white pixels (pixel shift)
 		int pixel_shift = cvCountNonZero(bit_frame);
+		//cvSaveImage("diff.png", bit_frame);
 		cout << pixel_shift << endl;
 
 		// Fetch object -> image, world->image and world -> object matrices
@@ -722,8 +723,8 @@ static void draw(void)
 		CvMat cvMoveObject = cvMat(3,4,CV_64FC1, moveObject.m);
 		CvMat movedRT=cvMat(3,4,CV_64FC1,movedRT_.m);
 
-		// should we check estimate pose?
-		if (pixel_shift >= 10 || !have_proj)
+		// pose only during movement
+		if (pixel_shift >= 1000 || !have_proj)
 		{	
 			// memcpy or vectorisation speedup?
 			for( int i = 0; i < 3; i++ )

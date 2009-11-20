@@ -7,7 +7,8 @@ CalibModel::CalibModel(const char *modelfile)
 	win = "The Artvertiser 0.4";
 }
 
-CalibModel::~CalibModel() {
+CalibModel::~CalibModel() 
+{
 	if (image) cvReleaseImage(&image);
 }
 
@@ -15,10 +16,12 @@ CalibModel *objectPtr=0;
 
 void CalibModel::onMouse(int event, int x, int y, int flags)
 {
-	if (event == CV_EVENT_LBUTTONDOWN) {
+	if (event == CV_EVENT_LBUTTONDOWN) 
+	{
 		// try to grab something
 		grab = -1;
-		for (int i=0; i<4; i++) {
+		for (int i=0; i<4; i++) 
+		{
 			int dx = x-corners[i].x;
 			int dy = y-corners[i].y;
 			if (sqrt((double)(dx*dx+dy*dy)) <10) {
@@ -28,12 +31,14 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
 		}
 	}
 	
-	if (grab!=-1) {
+	if (grab!=-1) 
+	{
 		corners[grab].x = x;
 		corners[grab].y = y;
 	}
 
-	if (event == CV_EVENT_LBUTTONUP) {
+	if (event == CV_EVENT_LBUTTONUP) 
+	{
 		grab=-1;
 	}
 }
@@ -55,10 +60,13 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 	// Should we train or load the classifier ?
 	if(cache && detector.build_with_cache(
 				string(modelfile), // mode image file name
-				200,               // maximum number of keypoints on the model
+				500,               // maximum number of keypoints on the model
+				//200,               // maximum number of keypoints on the model
 				32,                // patch size in pixels
-				3,                 // yape radius. Use 3,5 or 7.
-				30,                // number of trees for the classifier. Somewhere between 12-50
+				5,                 // yape radius. Use 3,5 or 7.
+				//3,                 // yape radius. Use 3,5 or 7.
+				12,                // number of trees for the classifier. Somewhere between 12-50
+				//20,                // number of trees for the classifier. Somewhere between 12-50
 				3                  // number of levels in the gaussian pyramid
 				))
 	{
@@ -72,12 +80,15 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 		corners[3].x = detector.new_images_generator.u_corner4;
 		corners[3].y = detector.new_images_generator.v_corner4;
 		image = cvLoadImage(modelfile, cvQueryFrame(capture)->nChannels == 3);
-	} else {
+	} 
+	else 
+	{
 		// ask the user the take a shot of the model
 		if (!interactiveSetup(capture)) return false;
 
 		// train the classifier to detect this model
-		if (!detector.build(image, 200, 32, 3, 30, 3,0, 0))
+		if (!detector.build(image, 500, 32, 3, 12, 3,0, 0))
+		//if (!detector.build(image, 200, 32, 5, 20, 3,0, 0))
 			return false;
 
 		// save the image
@@ -96,7 +107,8 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 	}
 
 	float cn[4][2];
-	for (int i=0; i<4; i++) {
+	for (int i=0; i<4; i++) 
+	{
 		cn[i][0] = corners[i].x;
 		cn[i][1] = corners[i].y;
 	}
