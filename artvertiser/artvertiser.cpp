@@ -710,7 +710,7 @@ static void draw(void)
 		// calculate white pixels (pixel shift)
 		int pixel_shift = cvCountNonZero(bit_frame);
 		//cvSaveImage("diff.png", bit_frame);
-		cout << pixel_shift << endl;
+		//cout << pixel_shift << endl;
 
 		// Fetch object -> image, world->image and world -> object matrices
 		CvMat *proj = multi->model.augm.GetProjectionMatrix(current_cam);
