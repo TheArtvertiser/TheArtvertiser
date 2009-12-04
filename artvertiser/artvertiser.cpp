@@ -79,9 +79,9 @@
 #endif
 #define GL_MIRROR_CLAMP_EXT 0x8742
 
-#define WIDTH 320 
-#define HEIGHT 240
-#define V4LDEVICE 0
+#define WIDTH 640 
+#define HEIGHT 480
+#define V4LDEVICE 1
 
 #define NUMARTVERTS 5
 
@@ -724,7 +724,7 @@ static void draw(void)
 		CvMat movedRT=cvMat(3,4,CV_64FC1,movedRT_.m);
 
 		// pose only during movement
-		if (pixel_shift >= 10000 || !have_proj)
+		if (pixel_shift >= 200 || !have_proj)
 		{	
 			// memcpy or vectorisation speedup?
 			for( int i = 0; i < 3; i++ )
