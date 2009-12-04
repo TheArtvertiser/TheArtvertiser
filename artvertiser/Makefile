@@ -15,9 +15,9 @@
 
 
 
-pkgdatadir = $(datadir)/bazar
-pkglibdir = $(libdir)/bazar
-pkgincludedir = $(includedir)/bazar
+pkgdatadir = $(datadir)/artvertiser
+pkglibdir = $(libdir)/artvertiser
+pkgincludedir = $(includedir)/artvertiser
 am__cd = CDPATH="$${ZSH_VERSION+.}$(PATH_SEPARATOR)" && cd
 install_sh_DATA = $(install_sh) -c -m 644
 install_sh_PROGRAM = $(install_sh) -c
@@ -113,12 +113,12 @@ MKDIR_P = /bin/mkdir -p
 OBJEXT = o
 OPENCV_CFLAGS = -I/usr/local/include/opencv  
 OPENCV_LIBS = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml  
-PACKAGE = bazar
-PACKAGE_BUGREPORT = julien.pilet@epfl.ch
-PACKAGE_NAME = bazar
-PACKAGE_STRING = bazar 1.3.1
-PACKAGE_TARNAME = bazar
-PACKAGE_VERSION = 1.3.1
+PACKAGE = artvertiser 
+PACKAGE_BUGREPORT = julian@julianoliver.com 
+PACKAGE_NAME = The Artvertiser
+PACKAGE_STRING = The Artvertiser 0.4 
+PACKAGE_TARNAME =  artvertiser
+PACKAGE_VERSION = 0.4
 PATH_SEPARATOR = :
 PKG_CONFIG = /usr/bin/pkg-config
 PTHREAD_CC = gcc
