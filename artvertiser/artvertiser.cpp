@@ -81,7 +81,7 @@
 
 #define WIDTH 320 
 #define HEIGHT 240
-#define V4LDEVICE 1
+#define V4LDEVICE 0
 
 #define NUMARTVERTS 5
 

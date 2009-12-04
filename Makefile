@@ -81,7 +81,7 @@ CC = gcc
 CCDEPMODE = depmode=gcc3
 CFLAGS = -g -O2
 CPP = gcc -E
-CPPFLAGS = 
+CPPFLAGS = -I/usr/include/freetype2 -Iglut -IGL -IFTGL
 CXX = g++
 CXXDEPMODE = depmode=gcc3
 CXXFLAGS = -g -O2
@@ -108,7 +108,7 @@ INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LDFLAGS = 
 LIBOBJS = 
-LIBS = 
+LIBS = -lglut -lGL -lftgl 
 LTLIBOBJS = 
 MAKEINFO = ${SHELL} /home/julian/devel/artvertiser/missing --run makeinfo
 MKDIR_P = /bin/mkdir -p

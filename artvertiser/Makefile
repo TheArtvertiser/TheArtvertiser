@@ -15,9 +15,9 @@
 
 
 
-pkgdatadir = $(datadir)/artvertiser
-pkglibdir = $(libdir)/artvertiser
-pkgincludedir = $(includedir)/artvertiser
+pkgdatadir = $(datadir)/bazar
+pkglibdir = $(libdir)/bazar
+pkgincludedir = $(includedir)/bazar
 am__cd = CDPATH="$${ZSH_VERSION+.}$(PATH_SEPARATOR)" && cd
 install_sh_DATA = $(install_sh) -c -m 644
 install_sh_PROGRAM = $(install_sh) -c
@@ -65,7 +65,7 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 SOURCES = $(artvertiser_SOURCES) 
-DIST_SOURCES = $(artvertiser_SOURCES) 
+DIST_SOURCES = $(artvertiser_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -79,7 +79,7 @@ CC = gcc
 CCDEPMODE = depmode=gcc3
 CFLAGS = -g -O2
 CPP = gcc -E
-CPPFLAGS = 
+CPPFLAGS = -I/usr/include/freetype2
 CXX = g++
 CXXDEPMODE = depmode=gcc3
 CXXFLAGS = -g -O2
@@ -91,7 +91,7 @@ ECHO_N = -n
 ECHO_T = 
 EGREP = /bin/grep -E
 EXEEXT = 
-GLEW_LIBS = -lGLEW -lGL  -lm
+GLEW_LIBS = -lGLEW -lGL -lglut -lftgl -lm
 GLUT_CFLAGS = -pthread
 GLUT_LIBS = -lglut  -lSM -lICE -lXmu -lXi  -lGLU -lGL  -lm
 GLU_CFLAGS = -pthread
@@ -106,19 +106,19 @@ INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LDFLAGS = 
 LIBOBJS = 
-LIBS = 
+LIBS = -lglut -lftgl
 LTLIBOBJS = 
 MAKEINFO = ${SHELL} /home/julian/devel/artvertiser/missing --run makeinfo
 MKDIR_P = /bin/mkdir -p
 OBJEXT = o
 OPENCV_CFLAGS = -I/usr/local/include/opencv  
 OPENCV_LIBS = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml  
-PACKAGE = artvertiser 
-PACKAGE_BUGREPORT = julian@julianoliver.com 
-PACKAGE_NAME = The Artvertiser
-PACKAGE_STRING = The Artvertiser 0.4 
-PACKAGE_TARNAME =  artvertiser
-PACKAGE_VERSION = 0.4
+PACKAGE = bazar
+PACKAGE_BUGREPORT = julien.pilet@epfl.ch
+PACKAGE_NAME = bazar
+PACKAGE_STRING = bazar 1.3.1
+PACKAGE_TARNAME = bazar
+PACKAGE_VERSION = 1.3.1
 PATH_SEPARATOR = :
 PKG_CONFIG = /usr/bin/pkg-config
 PTHREAD_CC = gcc
@@ -186,9 +186,10 @@ target_alias =
 top_builddir = ..
 top_srcdir = ..
 #openglprogs = 
-artvertiser_CXXFLAGS = -I/usr/local/include/opencv -I/usr/include/FTGL -I/usr/include/freetype2 -I../garfeild -I../starter
+openglprogs = artvertiser
+artvertiser_CXXFLAGS = -I/usr/local/include/opencv   -I../garfeild -I../starter
 artvertiser_LDADD = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml   ../garfeild/libgarfeild.a ../starter/libstarter.a \
-		 -lGLEW -lGL -lglut -lm -lftgl
+		 -lGLEW -lGL  -lm
 
 artvertiser_SOURCES = artvertiser.cpp calibmodel.cpp calibmodel.h \
 		 multigrab.h multigrab.cpp
