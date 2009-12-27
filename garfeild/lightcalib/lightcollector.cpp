@@ -2,6 +2,7 @@
 #include <math.h>
 #include "lightcollector.h"
 #include <geometry/homography.h>
+#include <stdio.h>
 
 LightCollector::LightCollector() {
 	vertices=0;

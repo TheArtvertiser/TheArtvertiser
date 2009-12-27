@@ -23,7 +23,7 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 #include <cv.h>
 #include <highgui.h>
-
+#include <stdio.h>
 #include "mcv.h"
 
 using namespace std;
