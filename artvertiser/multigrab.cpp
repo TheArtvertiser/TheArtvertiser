@@ -3,21 +3,21 @@
 int W;
 int H;
 
-int MultiGrab::init(bool cacheTraining, char *modelfile, char *avi_bg_path, int WIDTH, int HEIGHT, int V4LDEVICE)
+int MultiGrab::init(bool cacheTraining, char *modelfile, char *avi_bg_path, int width, int height, int v4l_device, int detect_width, int detect_height )
 {
 
 	CvCapture *c;
 	cams.clear();
-	
+
 	// if artvertiser is presented an argv of a background file (-b /path/to/avi), accept it as a capture device.
 
 	if (strlen(avi_bg_path) > 0)
 	{
 		CvCapture *c = cvCaptureFromAVI(avi_bg_path);
-		cams.push_back(new Cam(c, WIDTH, HEIGHT));
+		cams.push_back(new Cam(c, width, height, detect_width, detect_height ));
 	}
 	// else capture from the V4L2 device
-	else 
+	else
 	{
 		/*
 		while (1) {
@@ -26,9 +26,9 @@ int MultiGrab::init(bool cacheTraining, char *modelfile, char *avi_bg_path, int 
 			cams.push_back(new Cam(c));
 		}
 		*/
-		cout << WIDTH << " " << HEIGHT << endl;	
-		CvCapture *c = cvCaptureFromCAM(V4LDEVICE);
-		cams.push_back(new Cam(c, WIDTH, HEIGHT));
+		cout << "MultiGrab::init creating camera capture at " << width << "x" << height << " detect at " << detect_width << "x" << detect_height << endl;
+		CvCapture *c = cvCaptureFromCAM(v4l_device);
+		cams.push_back(new Cam(c, width, height, detect_width, detect_height ));
 	}
 	if (cams.size()==0) {
 		 return 0;
@@ -42,8 +42,8 @@ int MultiGrab::init(bool cacheTraining, char *modelfile, char *avi_bg_path, int 
 		//! TODO mem to mem copy from cams[0]
 		cams[i]->detector.load(string(modelfile)+".bmp.classifier");
 	}
-	W=WIDTH;
-	H=HEIGHT;
+	W=width;
+	H=height;
 
 	return 1;
 }
@@ -62,23 +62,28 @@ void MultiGrab::allocLightCollector()
 		(*it)->lc = new LightCollector(model.map.reflc);
 }
 
-void MultiGrab::Cam::setCam(CvCapture *c, int WIDTH, int HEIGHT) {
+void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_width, int _detect_height ) {
 	if (cam) cvReleaseCapture(&cam);
 	if (c==0) return;
 	cam = c;
 	// avoid saturating the firewire bus
 	cvSetCaptureProperty(cam, CV_CAP_PROP_FPS, 30);
-	cvSetCaptureProperty(cam, CV_CAP_PROP_FRAME_WIDTH, WIDTH);
-	cvSetCaptureProperty(cam, CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
+	//cout << "setting cv capture property for size to " << _width << "x" << _height << endl;
+	cvSetCaptureProperty(cam, CV_CAP_PROP_FRAME_WIDTH, _width);
+	cvSetCaptureProperty(cam, CV_CAP_PROP_FRAME_HEIGHT, _height);
 	IplImage *f = myQueryFrame(cam);
 	assert(f != 0);
 
 	// downsample the video to accelerate computation
+    detect_width = _detect_width;
+    detect_height = _detect_height;
 	width = f->width; //cvRound(cvGetCaptureProperty(cam, CV_CAP_PROP_FRAME_WIDTH));
 	height = f->height; //cvRound(cvGetCaptureProperty(cam, CV_CAP_PROP_FRAME_HEIGHT));
 	double fps = cvGetCaptureProperty(cam, CV_CAP_PROP_FPS);
-	cout << "Camera " << width << "x" << height << " at " 
-		<< fps << " fps, " << f->nChannels << " channels.\n";
+	cout << "Camera capturing " << width << "x" << height << " at "
+		<< fps << " fps, " << f->nChannels << " channels.\n"
+		" Detecting at "<< detect_width <<"x" << detect_height << endl;
+
 }
 
 MultiGrab::Cam::~Cam() {
@@ -88,24 +93,54 @@ MultiGrab::Cam::~Cam() {
 }
 
 // this could be run in a separate thread
-bool MultiGrab::Cam::detect() 
+bool MultiGrab::Cam::detect()
 {
 	IplImage *f = myRetrieveFrame(cam);
 	if (f == 0) return false;
-	if (frame == 0) frame = cvCloneImage(f);
-	else cvCopy(f, frame);
+	// construct frame if necessary
+	CvSize frame_size = cvGetSize( f );
+	if (frame == 0)
+        frame = cvCreateImage( frame_size, f->depth, f->nChannels );
+        //frame = cvCloneImage(f);
+    // store
+    cvCopy(f,frame);
+
+    // resize input if necessary
+	if ( frame_size.width == detect_width && frame_size.height == detect_height )
+        cvCopy(f, frame);
+    else
+        cvResize( f, frame );
 
 	// convert it to gray levels, if required
-	if (frame->nChannels >1) {
-		if( !gray ) 
-			gray = cvCreateImage( cvGetSize(frame), IPL_DEPTH_8U, 1 );
+
+    // avoid unnecessary copying when camera is already grayscale
+	IplImage* resize_src = frame;
+    if (frame->nChannels >1)
+	{
+        if ( !gray )
+        {
+            gray = cvCreateImage( frame_size, IPL_DEPTH_8U, 1 );
+        }
 		cvCvtColor(frame, gray, CV_RGBA2GRAY);
-	} else {
-		gray = frame;
+	}
+	else
+	{
+	    gray = frame;
 	}
 
+    // resize if necessary to detect size
+	if ( frame_size.width != detect_width || frame_size.height != detect_height )
+	{
+	    if ( !gray_detect )
+            gray_detect = cvCreateImage( cvSize( detect_width, detect_height ), IPL_DEPTH_8U, 1 );
+        cvResize( gray, gray_detect );
+	}
+	else
+        gray_detect = gray;
+
+
 	// run the detector
-	if (detector.detect(gray)) {
+	if (detector.detect(gray_detect)) {
 		if (lc) lc->averageImage(frame, detector.H);
 		return true;
 	}

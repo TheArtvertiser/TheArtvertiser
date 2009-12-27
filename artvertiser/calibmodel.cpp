@@ -7,7 +7,7 @@ CalibModel::CalibModel(const char *modelfile)
 	win = "The Artvertiser 0.4";
 }
 
-CalibModel::~CalibModel() 
+CalibModel::~CalibModel()
 {
 	if (image) cvReleaseImage(&image);
 }
@@ -16,11 +16,11 @@ CalibModel *objectPtr=0;
 
 void CalibModel::onMouse(int event, int x, int y, int flags)
 {
-	if (event == CV_EVENT_LBUTTONDOWN) 
+	if (event == CV_EVENT_LBUTTONDOWN)
 	{
 		// try to grab something
 		grab = -1;
-		for (int i=0; i<4; i++) 
+		for (int i=0; i<4; i++)
 		{
 			int dx = x-corners[i].x;
 			int dy = y-corners[i].y;
@@ -30,14 +30,14 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
 			}
 		}
 	}
-	
-	if (grab!=-1) 
+
+	if (grab!=-1)
 	{
 		corners[grab].x = x;
 		corners[grab].y = y;
 	}
 
-	if (event == CV_EVENT_LBUTTONUP) 
+	if (event == CV_EVENT_LBUTTONUP)
 	{
 		grab=-1;
 	}
@@ -80,8 +80,8 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 		corners[3].x = detector.new_images_generator.u_corner4;
 		corners[3].y = detector.new_images_generator.v_corner4;
 		image = cvLoadImage(modelfile, cvQueryFrame(capture)->nChannels == 3);
-	} 
-	else 
+	}
+	else
 	{
 		// ask the user the take a shot of the model
 		if (!interactiveSetup(capture)) return false;
@@ -98,7 +98,7 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 		string roifn = string(modelfile) + ".roi";
 		ofstream roif(roifn.c_str());
 		if (!roif.good()) return false;
-		for (int i=0;i<4; i++) 
+		for (int i=0;i<4; i++)
 			roif << corners[i].x << " " << corners[i].y << "\n";
 		roif.close();
 
@@ -107,7 +107,7 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 	}
 
 	float cn[4][2];
-	for (int i=0; i<4; i++) 
+	for (int i=0; i<4; i++)
 	{
 		cn[i][0] = corners[i].x;
 		cn[i][1] = corners[i].y;
@@ -131,11 +131,13 @@ IplImage *myRetrieveFrame(CvCapture *capture)
 	if (frame == 0) return 0;
 	IplImage *ret=frame;
 	if (frame->nChannels==1) {
+	    printf("  PERFORMANCE WARNING: myRetrieveFrame converting colour\n");
 		if (!s) s=cvCreateImage(cvSize(frame->width,frame->height), IPL_DEPTH_8U, 3);
 		cvCvtColor(frame,s,CV_GRAY2BGR);
 		ret = s;
 	}
 	if (ret->origin) {
+	    printf("  PERFORMANCE WARNING: myRetrieveFrame flipping\n");
 		if (!s) s=cvCreateImage(cvSize(frame->width,frame->height), IPL_DEPTH_8U, 3);
 		cvFlip(ret, s);
 		ret->origin=0;
@@ -143,6 +145,7 @@ IplImage *myRetrieveFrame(CvCapture *capture)
 	}
 	return ret;
 }
+
 IplImage *myQueryFrame(CvCapture *capture)
 {
 	cvGrabFrame(capture);
@@ -160,7 +163,7 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 
 	cvNamedWindow(win, CV_WINDOW_AUTOSIZE);
 	grab=-1;
-	
+
 	objectPtr = this;
 	cvSetMouseCallback(win, onMouseStatic, this);
 
@@ -196,10 +199,10 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 				corners[2].y = frame->height-d;
 				corners[3].x = d;
 				corners[3].y = frame->height-d;
-			} 
+			}
 			if (frame->nChannels==1)
 				cvCvtColor(frame, text, CV_GRAY2BGR);
-			else 
+			else
 				cvCopy(frame,text);
 		} else {
 			if (shot->nChannels==1)

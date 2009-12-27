@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="artvertiser" />
+		<Option makefile_is_custom="1" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="all">
+				<Option output="bin/Debug/artvertiser" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+		</Compiler>
+		<Unit filename="artvertiser/artvertiser.cpp" />
+		<Unit filename="artvertiser/calibmodel.cpp" />
+		<Unit filename="artvertiser/calibmodel.h" />
+		<Unit filename="artvertiser/glm.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="artvertiser/glm.h" />
+		<Unit filename="artvertiser/multigrab.cpp" />
+		<Unit filename="artvertiser/multigrab.h" />
+		<Unit filename="config.h" />
+		<Unit filename="garfeild/calib/CamAugmentation.cpp" />
+		<Unit filename="garfeild/calib/CamAugmentation.h" />
+		<Unit filename="garfeild/calib/CamCalibration.cpp" />
+		<Unit filename="garfeild/calib/CamCalibration.h" />
+		<Unit filename="garfeild/calib/camera.cpp" />
+		<Unit filename="garfeild/calib/camera.h" />
+		<Unit filename="garfeild/calib/gradient.cpp" />
+		<Unit filename="garfeild/calib/matvec.cpp" />
+		<Unit filename="garfeild/calib/matvec.h" />
+		<Unit filename="garfeild/garfeild.h" />
+		<Unit filename="garfeild/keypoints/keypoint.h" />
+		<Unit filename="garfeild/keypoints/keypoint_match.h" />
+		<Unit filename="garfeild/keypoints/keypoint_orientation_corrector.cpp" />
+		<Unit filename="garfeild/keypoints/keypoint_orientation_corrector.h" />
+		<Unit filename="garfeild/keypoints/yape.cpp" />
+		<Unit filename="garfeild/keypoints/yape.h" />
+		<Unit filename="garfeild/lightcalib/ipltexture.cpp" />
+		<Unit filename="garfeild/lightcalib/ipltexture.h" />
+		<Unit filename="garfeild/lightcalib/lightcalib.h" />
+		<Unit filename="garfeild/lightcalib/lightcollector.cpp" />
+		<Unit filename="garfeild/lightcalib/lightcollector.h" />
+		<Unit filename="garfeild/lightcalib/lightmap.cpp" />
+		<Unit filename="garfeild/lightcalib/lightmap.h" />
+		<Unit filename="garfeild/lightcalib/tri.cpp" />
+		<Unit filename="garfeild/viewsets/affine_image_generator.cpp" />
+		<Unit filename="garfeild/viewsets/affine_image_generator.h" />
+		<Unit filename="garfeild/viewsets/example_generator.h" />
+		<Unit filename="garfeild/viewsets/image_class_example.cpp" />
+		<Unit filename="garfeild/viewsets/image_class_example.h" />
+		<Unit filename="garfeild/viewsets/image_classification_forest.cpp" />
+		<Unit filename="garfeild/viewsets/image_classification_forest.h" />
+		<Unit filename="garfeild/viewsets/image_classification_node.cpp" />
+		<Unit filename="garfeild/viewsets/image_classification_node.h" />
+		<Unit filename="garfeild/viewsets/image_classification_tree.cpp" />
+		<Unit filename="garfeild/viewsets/image_classification_tree.h" />
+		<Unit filename="garfeild/viewsets/image_classifier.cpp" />
+		<Unit filename="garfeild/viewsets/image_classifier.h" />
+		<Unit filename="garfeild/viewsets/image_object_point_match.h" />
+		<Unit filename="garfeild/viewsets/object_keypoint.h" />
+		<Unit filename="garfeild/viewsets/object_view.cpp" />
+		<Unit filename="garfeild/viewsets/object_view.h" />
+		<Unit filename="garfeild/viewsets/planar_object_recognizer.cpp" />
+		<Unit filename="garfeild/viewsets/planar_object_recognizer.h" />
+		<Unit filename="starter/general/general.h" />
+		<Unit filename="starter/geometry/affinity.cpp" />
+		<Unit filename="starter/geometry/affinity.h" />
+		<Unit filename="starter/geometry/homography.cpp" />
+		<Unit filename="starter/geometry/homography.h" />
+		<Unit filename="starter/geometry/projection_matrix.cpp" />
+		<Unit filename="starter/geometry/projection_matrix.h" />
+		<Unit filename="starter/image/mcv.cpp" />
+		<Unit filename="starter/image/mcv.h" />
+		<Unit filename="starter/image/pyrimage.cpp" />
+		<Unit filename="starter/image/pyrimage.h" />
+		<Unit filename="starter/math/growmat.cpp" />
+		<Unit filename="starter/math/growmat.h" />
+		<Unit filename="starter/math/linear_algebra.cpp" />
+		<Unit filename="starter/math/linear_algebra.h" />
+		<Unit filename="starter/math/linear_systems.cpp" />
+		<Unit filename="starter/math/linear_systems.h" />
+		<Unit filename="starter/math/mcvm.cpp" />
+		<Unit filename="starter/math/mcvm.h" />
+		<Unit filename="starter/math/polynom_solver.cpp" />
+		<Unit filename="starter/math/polynom_solver.h" />
+		<Unit filename="starter/math/robust_estimators.h" />
+		<Unit filename="starter/optimization/ls_minimizer.h" />
+		<Unit filename="starter/optimization/ls_minimizer2.cpp" />
+		<Unit filename="starter/optimization/ls_minimizer2.h" />
+		<Unit filename="starter/optimization/ls_step_solver.cpp" />
+		<Unit filename="starter/optimization/ls_step_solver.h" />
+		<Unit filename="starter/optimization/observation_types.h" />
+		<Unit filename="starter/optimization/prosac_function_types.h" />
+		<Unit filename="starter/starter.h" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
