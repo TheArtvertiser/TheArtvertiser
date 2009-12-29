@@ -55,6 +55,7 @@
 #include <stdio.h>
 #include <time.h>
 
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -70,6 +71,11 @@
 
 #include "/usr/include/freetype2/freetype/config/ftconfig.h"
 #include <FTGL/ftgl.h>
+
+
+// framerate counter
+#include "framerate.h"
+
 
 #define IsRGB(s) ((s[0] == 'R') && (s[1] == 'G') && (s[2] == 'B'))
 #define IsBGR(s) ((s[0] == 'B') && (s[1] == 'G') && (s[2] == 'R'))
@@ -103,6 +109,7 @@ IplImage *this_frame = 0;
 IplImage *last_frame  = 0;
 IplImage *diff= 0;
 IplImage *bit_frame= 0;
+bool show_framerate = false;
 
 int v4l_device = V4LDEVICE;
 int video_width = WIDTH;
@@ -310,17 +317,17 @@ static void reshape(int width, int height)
 static void usage(const char *s) {
 	cerr << "usage:\n" << s
 		<< "[-m <model image>] [-r]\n"
-		"   -a  specify path to AVI (instead of v4l device)\n"
-		"	-b	specify path to AVI video artvert\n"
-		"	-m	specifies model image\n"
-		"	-r	do not load any data\n"
-		"	-t	train a new classifier\n"
-		"	-g	recompute geometric calibration\n"
-		" 	-a  <path> load an AVI movie as an artvert\n"
-		"	-l	rebuild irradiance map from scratch\n"
-		"	-vd <num> V4L video device number (0-n)\n"
-		"	-vs <width> <height> video width and height (default 640x480)\n"
-		"   -ds <width> <height> frame size at which to run the detector (default to video size)\n";
+		//"   -a <path>  specify path to AVI (instead of v4l device)\n"
+		"   -b <path>  specify path to AVI (instead of v4l device) MUST ALSO SPECIFY -vs"
+		"   -m	specifies model image\n"
+		"   -r	do not load any data\n"
+		"   -t	train a new classifier\n"
+		"   -g	recompute geometric calibration\n"
+		"   -a <path>  load an AVI movie as an artvert\n"
+		"   -l	rebuild irradiance map from scratch\n"
+		"   -vd <num>  V4L video device number (0-n)\n"
+		"   -vs <width> <height>  video width and height (default 640x480)\n"
+		"   -ds <width> <height>  frame size at which to run the detector (default to video width/height)\n";
 	exit(1);
 }
 
@@ -340,6 +347,7 @@ static bool init( int argc, char** argv )
 	bool redo_lighting=false;
 	char *avi_bg_path="";
 	bool got_ds = false;
+	bool video_source_is_avi = false;
 
 	// parse command line
 	for (int i=1; i<argc; i++) {
@@ -359,7 +367,9 @@ static bool init( int argc, char** argv )
 			avi_capture=cvCaptureFromAVI(argv[i+1]);
 			avi_play=true;
 		} else if (strcmp(argv[i], "-b")==0) {
+		    video_source_is_avi = true;
 			avi_bg_path=argv[i+1];
+			printf(" -b: loading from avi '%s'\n", avi_bg_path );
 		} else if (strcmp(argv[i], "-i")==0) {
 			image_path=argv[i+1];
 		} else if (strcmp(argv[i], "-vd")==0) {
@@ -396,9 +406,26 @@ static bool init( int argc, char** argv )
         } else if (argv[i][0]=='-') {
 			usage(argv[0]);
 		}
+
 	}
 
-	cout << avi_bg_path << endl;
+    // check for video size arg if necessary
+    if ( video_source_is_avi )
+    {
+        // try to read from video
+        CvCapture* temp_cap = cvCaptureFromAVI(avi_bg_path);
+        video_width = (int)cvGetCaptureProperty( temp_cap, CV_CAP_PROP_FRAME_WIDTH );
+        video_height = (int)cvGetCaptureProperty( temp_cap, CV_CAP_PROP_FRAME_HEIGHT );
+        printf(" -b: read video width/height %i/%i from avi (ignoring -vs)\n", video_width, video_height );
+        if ( !got_ds )
+        {
+            detect_width = video_width;
+            detect_height = video_height;
+        }
+        cvReleaseCapture(&temp_cap);
+    }
+
+	//cout << avi_bg_path << endl;
 	cache_light = !redo_lighting;
 
 	multi = new MultiGrab(model_file);
@@ -461,13 +488,15 @@ static void keyboard(unsigned char c, int x, int y)
 		case '-': if (current_cam >= 1)
 				  current_cam--;
 			  break;
-		case 'q': exit(0); break;
+		case 'q':
+		case 27 /*esc*/: exit(0); break;
 		case 'd': dynamic_light = !dynamic_light; break;
 		case 'a': if (avi_play == true)
 				  avi_play = false;
 			  else
 				  avi_play = true;
 		case 'f': glutFullScreen(); break;
+		case 'F': show_framerate = !show_framerate; break;
 		case 'i': if (cnt >= NUMARTVERTS-1)
 				  cnt = 0;
 			  else
@@ -705,6 +734,7 @@ static void geomCalibStart(bool cache)
  */
 static void draw(void)
 {
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glDisable(GL_LIGHTING);
 
@@ -1044,6 +1074,15 @@ static void draw(void)
 	// reset the ftgl font size for next pass
 	ftglFont->FaceSize(12);
 
+
+	if ( show_framerate )
+	{
+	    // not using exactly as defined in framerate.h because it's stupid
+        frameEnd(GLUT_BITMAP_HELVETICA_12, 0.8f, 0.8f, 0.8f, 0.9, 0.95 );
+	    frameStart();
+	}
+
+
 	glutSwapBuffers();
 	cvReleaseImage(&image); // cleanup used image
 	glFlush();
@@ -1088,6 +1127,8 @@ static void idle()
 		for (int j=0;j<3;j++) normal[j] = cvGet2D(mat, j, 2).val[0];
 		cvReleaseMat(&mat);
 	}
+
+
 	glutPostRedisplay();
 }
 

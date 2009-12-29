@@ -13,7 +13,13 @@ int MultiGrab::init(bool cacheTraining, char *modelfile, char *avi_bg_path, int 
 
 	if (strlen(avi_bg_path) > 0)
 	{
+		cout << "MultiGrab::init creating capture from avi " << avi_bg_path << " size " << width << "x" << height << " detect at " << detect_width << "x" << detect_height << endl;
 		CvCapture *c = cvCaptureFromAVI(avi_bg_path);
+		if ( c == 0 )
+		{
+		    cerr << "cvCaptureFromAVI return null" << endl;
+		    return 0;
+		}
 		cams.push_back(new Cam(c, width, height, detect_width, detect_height ));
 	}
 	// else capture from the V4L2 device
@@ -95,6 +101,9 @@ MultiGrab::Cam::~Cam() {
 // this could be run in a separate thread
 bool MultiGrab::Cam::detect()
 {
+    // profile this bit
+    PROFILE_THIS_FUNCTION();
+
 	IplImage *f = myRetrieveFrame(cam);
 	if (f == 0) return false;
 	// construct frame if necessary
