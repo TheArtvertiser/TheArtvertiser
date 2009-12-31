@@ -1,6 +1,6 @@
 /*
-Copyright 2005, 2006 Computer Vision Lab, 
-Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland. 
+Copyright 2005, 2006 Computer Vision Lab,
+Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland.
 All rights reserved.
 
 This file is part of BazAR.
@@ -16,7 +16,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 BazAR; if not, write to the Free Software Foundation, Inc., 51 Franklin
-Street, Fifth Floor, Boston, MA 02110-1301, USA 
+Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 #include <iostream>
 #include <iomanip>
@@ -405,7 +405,7 @@ ls_minimizer2::flt_t ls_minimizer2::build_eps(flt_t * state, flt_t current_best_
       o->outlier = false;
       nb_inliers++;
       if (o->weight != 1.) {
-        for(int j = 0; j < n*state_size; j++) 
+        for(int j = 0; j < n*state_size; j++)
           (newJ->data.db + im_n * state_size)[j] *= o->sqrt_weight;
       }
       for (int i=0; i<n; ++i)
@@ -473,7 +473,7 @@ bool ls_minimizer2::build_J(flt_t * state)
       int n = obs->get_nb_measures();
       assert(im_n+n <= real_J_size);
       obs->eval_func(state, b, J->data.db + im_n*state_size, user_data);
-      if (obs->weight != 1.) for(int j = 0; j < n*state_size; j++) 
+      if (obs->weight != 1.) for(int j = 0; j < n*state_size; j++)
         (J->data.db + im_n * state_size)[j] *= obs->sqrt_weight;
       im_n += n;
     }
@@ -571,16 +571,21 @@ int ls_minimizer2::count_measures()
 }
 
 /*!
-\return an error code <0 if something went wrong. 
+\return an error code <0 if something went wrong.
 2: unable to improve result after N iterations.
 3: termination criterion reached.
 4: iterations limit exceeded.
+5: no measures to optimize
 */
 int ls_minimizer2::minimize_using_levenberg_marquardt_from(flt_t * initial_state)
 {
   msg(1, "LM: Beginning optimization using Levenberg-Marquardt:" << endl);
 
-  alloc_matrices(count_measures());
+  int num_measures = count_measures();
+  if ( num_measures == 0 )
+    return -5;
+
+  alloc_matrices(num_measures);
 
   assert(step_solver!=0);
   set_new_state(initial_state);
@@ -634,7 +639,7 @@ int ls_minimizer2::minimize_using_levenberg_marquardt_from(flt_t * initial_state
 
         set_new_state(state);
         r = build_eps(state);
-        rho = r_previous - r;      
+        rho = r_previous - r;
         if (rho > 0) {
           rho /= lambda * cvDotProduct(ds, ds) + cvDotProduct(ds, Jteps);
 
@@ -651,7 +656,7 @@ int ls_minimizer2::minimize_using_levenberg_marquardt_from(flt_t * initial_state
           build_J_and_stuff(state);
           cvCopy(JtJ, aug_JtJ);
           r_previous = r;
-          lambda = lambda / 10; 
+          lambda = lambda / 10;
 
           failures_in_a_row = 0;
           msg(2, "LM: iteration succeeded: new lambda = " << lambda << endl);
@@ -769,8 +774,8 @@ int ls_minimizer2::minimize_using_dogleg_from(flt_t * initial_state)
         else {
           cvSub(dl_delta_gn, dl_delta_sd, dl_delta_diff);
           flt_t beta1, beta2, beta;
-          solve_deg2(cvDotProduct(dl_delta_diff, dl_delta_diff), 
-            2 * cvDotProduct(dl_delta_sd, dl_delta_diff), 
+          solve_deg2(cvDotProduct(dl_delta_diff, dl_delta_diff),
+            2 * cvDotProduct(dl_delta_sd, dl_delta_diff),
             cvDotProduct(dl_delta_sd, dl_delta_sd) - Delta * Delta,
             beta1, beta2);
           beta = (beta1 > 0) ? beta1 : beta2;
@@ -838,11 +843,11 @@ dl_end:
   return reason;
 }
 
-bool ls_minimizer2::line_search(CvMat * dir, 
-                                flt_t lambda_min, flt_t lambda_max, 
+bool ls_minimizer2::line_search(CvMat * dir,
+                                flt_t lambda_min, flt_t lambda_max,
                                 flt_t residual0, flt_t & new_residual, flt_t & new_lambda)
 {
-  lambda_min = lambda_max = 0.; // 
+  lambda_min = lambda_max = 0.; //
 
   alloc_matrices(count_measures());
 
@@ -950,7 +955,7 @@ int ls_minimizer2::minimize_using_cattail_from(flt_t * initial_state)
       msg(2, "CT: Taking the gauss-newton step." << endl);
     else if (method == 2)
       msg(2, "CT: Taking the corrected linear model step (lambda = " << best_lambda << ")." << endl);
-    else 
+    else
     {
       cerr << "bug in ls_minimizer2::minimize_using_cattail_from" << endl;
       exit(0);
@@ -1005,7 +1010,7 @@ static inline unsigned mymin(unsigned a, unsigned b) {
   return (a>b? b : a);
 }
 
-ls_minimizer2::flt_t ls_minimizer2::minimize_using_prosac(sample_consensus_func f, 
+ls_minimizer2::flt_t ls_minimizer2::minimize_using_prosac(sample_consensus_func f,
                                                           int nb_samples,
                                                           int min_number_of_inliers, int max_number_of_iterations)
 {
@@ -1120,7 +1125,7 @@ void ls_minimizer2::check_jacobians_around(flt_t * state0, flt_t state_step)
         flt_t analytic = J[i*state_size + j];
         flt_t numeric = (b[i] - b0[i])/state_step;
 
-        cout << " (df" << i << "/ds" << j << ") = " 
+        cout << " (df" << i << "/ds" << j << ") = "
           << analytic << " = " << numeric << endl;
       }
     }

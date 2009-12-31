@@ -3,6 +3,10 @@
 
 #include "calibmodel.h"
 
+#define USE_MULTITHREADCAPTURE
+
+#include "multithreadcapture.h"
+
 class MultiGrab {
 public:
 
@@ -16,29 +20,31 @@ public:
 
 	struct Cam {
 		CvCapture *cam;
-		IplImage *frame, *gray, *gray_detect, *f;
+		IplImage *frame, *frame_detectsize, *gray;
 		int width,height;
 		int detect_width, detect_height;
 		planar_object_recognizer detector;
 		LightCollector *lc;
+		MultiThreadCapture *mtc;
 
 		void setCam(CvCapture *c, int capture_width, int capture_height, int detect_width, int detect_height );
 		bool detect();
 
 		Cam(CvCapture *c=0, int _width=0, int _height=0, int _detect_width=320, int _detect_height=240)
 		{
-			f=0;
+		    frame = 0;
 			width=0;
 			height=0;
 			detect_width=_detect_width;
 			detect_height=_detect_height;
 			cam=0;
 			lc=0;
+			mtc=0;
 			if (c) setCam(c, _width, _height, _detect_width, _detect_height );
-			frame=f;
 			gray=0;
-			gray_detect = 0;
+			frame_detectsize=0;
 		}
+		Cam( const Cam& other ) { assert( false && "copy constructor called, arrgh" ); }
 		~Cam();
 	};
 

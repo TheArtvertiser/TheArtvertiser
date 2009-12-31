@@ -46,10 +46,11 @@ CONFIG_CLEAN_FILES =
 PROGRAMS = $(noinst_PROGRAMS)
 am_artvertiser_OBJECTS = artvertiser-artvertiser.$(OBJEXT) \
 	artvertiser-calibmodel.$(OBJEXT) \
-	artvertiser-multigrab.$(OBJEXT)
-artvertiser_OBJECTS = $(am_artvertiser_OBJECTS)
+	artvertiser-multigrab.$(OBJEXT) \
+	artvertiser-multithreadcapture.$(OBJEXT)
+artvertiser_OBJECTS = $(am_artvertiser_OBJECTS) 
 artvertiser_DEPENDENCIES = ../garfeild/libgarfeild.a \
-	../starter/libstarter.a
+	../starter/libstarter.a FProfiler/libfprofiler.a
 artvertiser_LINK = $(CXXLD) $(artvertiser_CXXFLAGS) $(CXXFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I. -I$(top_builddir)
@@ -188,11 +189,11 @@ top_srcdir = ..
 #openglprogs = 
 openglprogs = artvertiser
 artvertiser_CXXFLAGS = -I/usr/local/include/opencv   -I../garfeild -I../starter
-artvertiser_LDADD = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml   ../garfeild/libgarfeild.a ../starter/libstarter.a \
+artvertiser_LDADD = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml FProfiler/libfprofiler.a  ../garfeild/libgarfeild.a ../starter/libstarter.a \
 		 -lGLEW -lGL  -lm
 
 artvertiser_SOURCES = artvertiser.cpp calibmodel.cpp calibmodel.h \
-		 multigrab.h multigrab.cpp
+		 multigrab.h multigrab.cpp multithreadcapture.cpp multithreadcapture.h
 
 all: all-am
 
@@ -243,6 +244,7 @@ distclean-compile:
 include ./$(DEPDIR)/artvertiser-artvertiser.Po
 include ./$(DEPDIR)/artvertiser-calibmodel.Po
 include ./$(DEPDIR)/artvertiser-multigrab.Po
+include ./$(DEPDIR)/artvertiser-multithreadcapture.Po
 
 .cpp.o:
 	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -286,6 +288,8 @@ artvertiser-calibmodel.obj: calibmodel.cpp
 #	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
 #	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(artvertiser_CXXFLAGS) $(CXXFLAGS) -c -o artvertiser-calibmodel.obj `if test -f 'calibmodel.cpp'; then $(CYGPATH_W) 'calibmodel.cpp'; else $(CYGPATH_W) '$(srcdir)/calibmodel.cpp'; fi`
 
+
+
 artvertiser-multigrab.o: multigrab.cpp
 	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(artvertiser_CXXFLAGS) $(CXXFLAGS) -MT artvertiser-multigrab.o -MD -MP -MF $(DEPDIR)/artvertiser-multigrab.Tpo -c -o artvertiser-multigrab.o `test -f 'multigrab.cpp' || echo '$(srcdir)/'`multigrab.cpp
 	mv -f $(DEPDIR)/artvertiser-multigrab.Tpo $(DEPDIR)/artvertiser-multigrab.Po
@@ -299,6 +303,21 @@ artvertiser-multigrab.obj: multigrab.cpp
 #	source='multigrab.cpp' object='artvertiser-multigrab.obj' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
 #	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(artvertiser_CXXFLAGS) $(CXXFLAGS) -c -o artvertiser-multigrab.obj `if test -f 'multigrab.cpp'; then $(CYGPATH_W) 'multigrab.cpp'; else $(CYGPATH_W) '$(srcdir)/multigrab.cpp'; fi`
+
+artvertiser-multithreadcapture.o: multithreadcapture.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(artvertiser_CXXFLAGS) $(CXXFLAGS) -MT artvertiser-multithreadcapture.o -MD -MP -MF $(DEPDIR)/artvertiser-multithreadcapture.Tpo -c -o artvertiser-multithreadcapture.o `test -f 'multithreadcapture.cpp' || echo '$(srcdir)/'`multithreadcapture.cpp
+	mv -f $(DEPDIR)/artvertiser-multithreadcapture.Tpo $(DEPDIR)/artvertiser-multithreadcapture.Po
+#	source='multigrab.cpp' object='artvertiser-multigrab.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(artvertiser_CXXFLAGS) $(CXXFLAGS) -c -o artvertiser-multigrab.o `test -f 'multigrab.cpp' || echo '$(srcdir)/'`multigrab.cpp
+
+artvertiser-multithreadcapture.obj: multithreadcapture.cpp
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(artvertiser_CXXFLAGS) $(CXXFLAGS) -MT artvertiser-multithreadcapture.obj -MD -MP -MF $(DEPDIR)/artvertiser-multithreadcapture.Tpo -c -o artvertiser-multithreadcapture.obj `if test -f 'multithreadcapture.cpp'; then $(CYGPATH_W) 'multithreadcapture.cpp'; else $(CYGPATH_W) '$(srcdir)/multithreadcapture.cpp'; fi`
+	mv -f $(DEPDIR)/artvertiser-multithreadcapture.Tpo $(DEPDIR)/artvertiser-multithreadcapture.Po
+#	source='multigrab.cpp' object='artvertiser-multigrab.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
+#	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(artvertiser_CXXFLAGS) $(CXXFLAGS) -c -o artvertiser-multigrab.obj `if test -f 'multigrab.cpp'; then $(CYGPATH_W) 'multigrab.cpp'; else $(CYGPATH_W) '$(srcdir)/multigrab.cpp'; fi`
+
 
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)

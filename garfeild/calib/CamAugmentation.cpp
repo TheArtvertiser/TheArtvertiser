@@ -25,7 +25,7 @@ extern void twomat_gradian (
                             double Rx,
                             double Ry,
                             double Rz,
-                            CvMat *R_jacobian, 
+                            CvMat *R_jacobian,
                             double S_matrix[3][3],
                             double Sx,
                             double Sy,
@@ -113,7 +113,7 @@ bool CamAugmentation::LoadOptimalStructureFromFile( char* cam_c_file, char *cam_
     int num,width,height;
     while( fscanf( stream, "no: %i\nwidth: %i\nheight: %i\n", &num, &width, &height ) != EOF ){
       float h;
-      CvMat* m = cvCreateMat( 3, 3, CV_64FC1 );			
+      CvMat* m = cvCreateMat( 3, 3, CV_64FC1 );
       for(int i=0; i < 3; i++)
         for(int j=0; j < 3; j++) {
           fscanf( stream, "%f", &h );
@@ -473,11 +473,10 @@ bool CamAugmentation::OptimizeCurrentView( int iter, double eps ){
   //FillLsqParams( lsqData, &v_opt_param[0], 0, 0 );
 
   // Add the observations for ...
-  int test = 0;
   for( int c = 0; c < (int)v_homography.size(); c++ )   // ... cameras
-    if( v_homography[c]->m_homography ){                   
+    if( v_homography[c]->m_homography ){
       int points = (int)v_homography[c]->v_point.size();
-      for( int point = 0; point < points; point++ ){ // ... points 
+      for( int point = 0; point < points; point++ ){ // ... points
         PoseObs *o = new PoseObs();
         o->cam = c;
         o->point = point;

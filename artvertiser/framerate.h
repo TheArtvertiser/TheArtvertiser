@@ -58,34 +58,14 @@ struct timeval frameStartTime, frameEndTime;
 // for smoothed fps
 float fps_accumulator = 0;
 
-void frameStart(void) {
-  gettimeofday(&frameStartTime, NULL);
-}
 
-void frameEnd(void *font, GLclampf r, GLclampf g, GLclampf b,
-              GLfloat x, GLfloat y) {
-  /* font: font to use, e.g., GLUT_BITMAP_HELVETICA_10
-     r, g, b: text colour
-     x, y: text position in window: range [0,0] (bottom left of window)
-           to [1,1] (top right of window). */
-
-  float elapsedTime;
-  char str[30];
-  char *ch;
+/// r, g, b, x, y [0..1]
+void drawGlutString( const char* str, GLclampf r, GLclampf g, GLclampf b, GLfloat x, GLfloat y )
+{
+    void* font = GLUT_BITMAP_8_BY_13;
+    const char* ch;
   GLint matrixMode;
   GLboolean lightingOn;
-
-  gettimeofday(&frameEndTime, NULL);
-
-  elapsedTime= frameEndTime.tv_sec - frameStartTime.tv_sec +
-             ((frameEndTime.tv_usec - frameStartTime.tv_usec)/1.0E6);
-
-  // cheap lpf smoothing
-  fps_accumulator = (fps_accumulator*7 + 1.0f/elapsedTime) / 8;
-
-  sprintf(str, "fps: %2.1f", fps_accumulator);
-  //printf("%s\n",str);
-
  lightingOn= glIsEnabled(GL_LIGHTING);        /* lighting on? */
  if (lightingOn) glDisable(GL_LIGHTING);
 
@@ -102,7 +82,13 @@ void frameEnd(void *font, GLclampf r, GLclampf g, GLclampf b,
        glColor3f(r, g, b);
        glRasterPos3f(x, y, 0.0);
        for(ch= str; *ch; ch++) {
-          glutBitmapCharacter(font, (int)*ch);
+           if ( *ch == '\n' )
+           {
+               y -= 0.03f;
+               glRasterPos3f( x, y, 0.0 );
+           }
+           else
+                glutBitmapCharacter(font, (int)*ch);
        }
      glPopAttrib();
    glPopMatrix();
@@ -110,6 +96,35 @@ void frameEnd(void *font, GLclampf r, GLclampf g, GLclampf b,
  glPopMatrix();
  glMatrixMode(matrixMode);
  if (lightingOn) glEnable(GL_LIGHTING);
+}
+
+
+void frameStart(void) {
+  gettimeofday(&frameStartTime, NULL);
+}
+
+void frameEnd( GLclampf r, GLclampf g, GLclampf b,
+              GLfloat x, GLfloat y) {
+  /* font: font to use, e.g., GLUT_BITMAP_HELVETICA_10
+     r, g, b: text colour
+     x, y: text position in window: range [0,0] (bottom left of window)
+           to [1,1] (top right of window). */
+
+  float elapsedTime;
+  char str[30];
+
+  gettimeofday(&frameEndTime, NULL);
+
+  elapsedTime= frameEndTime.tv_sec - frameStartTime.tv_sec +
+             ((frameEndTime.tv_usec - frameStartTime.tv_usec)/1.0E6);
+
+  // cheap lpf smoothing
+  fps_accumulator = (fps_accumulator*7 + 1.0f/elapsedTime) / 8;
+
+  sprintf(str, "fps: %2.1f", fps_accumulator);
+  //printf("%s\n",str);
+  drawGlutString( str, r, g, b, x, y );
+
 }
 
 /* end of frames.h */

@@ -1,4 +1,5 @@
 #include "calibmodel.h"
+#include "multigrab.h"
 
 CalibModel::CalibModel(const char *modelfile)
 	: modelfile (modelfile)
@@ -46,8 +47,9 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
 bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_object_recognizer &detector)
 {
 
-	detector.ransac_dist_threshold = 5;
-	detector.max_ransac_iterations = 800;
+	detector.ransac_dist_threshold = 10;
+	detector.max_ransac_iterations = 500;
+	detector.ransac_stop_support = 15;
 	detector.non_linear_refine_threshold = 1.5;
 
 	// A lower threshold will allow detection in harder conditions, but
@@ -79,7 +81,27 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 		corners[2].y = detector.new_images_generator.v_corner3;
 		corners[3].x = detector.new_images_generator.u_corner4;
 		corners[3].y = detector.new_images_generator.v_corner4;
-		image = cvLoadImage(modelfile, cvQueryFrame(capture)->nChannels == 3);
+
+        #ifdef USE_MULTITHREADCAPTURE
+        IplImage* init_image = NULL;
+        MultiThreadCapture* mtc = MultiThreadCaptureManager::getInstance()->getCaptureForCam(capture);
+        int timeout = 10000;
+        do {
+            init_image = mtc->getCopyOfLastFrame();
+        }
+        while ( init_image == NULL &&
+               !usleep( 100000 ) &&
+               (timeout-=100) > 0 );
+        if ( init_image == NULL )
+        {
+            printf("capture failed\n");
+            return false;
+        }
+		image = cvLoadImage(modelfile, init_image->nChannels == 3);
+		cvReleaseImage(&init_image);
+		#else
+		image = cvLoadImage(modelfile, cvQueryFrame(capture)->nChannels==3 );
+		#endif
 	}
 	else
 	{
@@ -126,6 +148,10 @@ static void putText(IplImage *im, const char *text, CvPoint p, CvFont *f1)
 
 IplImage *myRetrieveFrame(CvCapture *capture)
 {
+    #ifdef USE_MULTITHREADCAPTURE
+    assert(false && "don't call myRetrieveFrame when USE_MULTITHREADCAPTURE");
+    #endif
+
 	static IplImage *s=0;
 	IplImage *frame =cvRetrieveFrame(capture);
 	if (frame == 0) return 0;
@@ -148,6 +174,10 @@ IplImage *myRetrieveFrame(CvCapture *capture)
 
 IplImage *myQueryFrame(CvCapture *capture)
 {
+    #ifdef USE_MULTITHREADCAPTURE
+    assert(false && "don't call myQueryFrame when USE_MULTITHREADCAPTURE");
+    #endif
+
 	cvGrabFrame(capture);
 	return myRetrieveFrame(capture);
 }
@@ -168,7 +198,24 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 	cvSetMouseCallback(win, onMouseStatic, this);
 
 	bool pause=false;
+	#ifdef USE_MULTITHREADCAPTURE
+    IplImage* frame = NULL;
+    MultiThreadCapture* mtc = MultiThreadCaptureManager::getInstance()->getCaptureForCam(capture);
+    int timeout = 10000;
+    do {
+        mtc->getLastProcessedFrame( NULL, &frame );
+    }
+    while ( frame == NULL &&
+           !usleep( 100000 ) &&
+           (timeout-=100) > 0 );
+    if ( frame == NULL )
+    {
+        printf("capture failed\n");
+        return false;
+    }
+    #else
 	IplImage *frame = myQueryFrame(capture);
+	#endif
 	IplImage *shot=0, *text=0;
 
 	state = TAKE_SHOT;
@@ -187,7 +234,11 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 
 		// clear text or grab the image to display
 		if (!pause || shot==0) {
+            #ifdef USE_MULTITHREADCAPTURE
+            mtc->getLastProcessedFrame( NULL, &frame, /*block until available*/true );
+            #else
 			frame = myQueryFrame(capture);
+			#endif
 			if (!text) {
 				text=cvCreateImage(cvGetSize(frame), IPL_DEPTH_8U, 3);
 				int d = 30;
@@ -250,6 +301,8 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 
 	cvReleaseImage(&text);
 	image = shot;
+
+
 	return true;
 }
 

@@ -1,22 +1,58 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_layout_file>
 	<ActiveTarget name="all" />
+	<File name="artvertiser/FProfiler/FProfiler.cpp" open="0" top="0" tabpos="0">
+		<Cursor position="2887" topLine="106" />
+	</File>
+	<File name="artvertiser/FProfiler/FProfiler.h" open="0" top="0" tabpos="0">
+		<Cursor position="4182" topLine="135" />
+	</File>
+	<File name="artvertiser/FProfiler/FSemaphore.h" open="0" top="0" tabpos="0">
+		<Cursor position="239" topLine="0" />
+	</File>
+	<File name="artvertiser/FProfiler/FThread.h" open="0" top="0" tabpos="0">
+		<Cursor position="833" topLine="35" />
+	</File>
+	<File name="artvertiser/FProfiler/FTime.cpp" open="0" top="0" tabpos="0">
+		<Cursor position="187" topLine="0" />
+	</File>
+	<File name="artvertiser/FProfiler/FTime.h" open="0" top="0" tabpos="0">
+		<Cursor position="304" topLine="0" />
+	</File>
 	<File name="artvertiser/artvertiser.cpp" open="1" top="0" tabpos="1">
-		<Cursor position="9211" topLine="369" />
+		<Cursor position="2774" topLine="87" />
 	</File>
 	<File name="artvertiser/calibmodel.cpp" open="0" top="0" tabpos="0">
-		<Cursor position="3776" topLine="118" />
+		<Cursor position="1105" topLine="37" />
 	</File>
-	<File name="artvertiser/multigrab.cpp" open="1" top="1" tabpos="2">
-		<Cursor position="2870" topLine="96" />
+	<File name="artvertiser/framerate.h" open="0" top="0" tabpos="0">
+		<Cursor position="2306" topLine="66" />
 	</File>
-	<File name="artvertiser/multigrab.h" open="1" top="0" tabpos="3">
-		<Cursor position="630" topLine="19" />
+	<File name="artvertiser/glm.c" open="0" top="0" tabpos="0">
+		<Cursor position="12852" topLine="481" />
 	</File>
-	<File name="garfeild/calib/camera.cpp" open="1" top="0" tabpos="4">
+	<File name="artvertiser/multigrab.cpp" open="1" top="1" tabpos="3">
+		<Cursor position="5584" topLine="154" />
+	</File>
+	<File name="artvertiser/multigrab.h" open="1" top="0" tabpos="4">
+		<Cursor position="811" topLine="13" />
+	</File>
+	<File name="garfeild/calib/CamAugmentation.cpp" open="0" top="0" tabpos="0">
+		<Cursor position="16655" topLine="81" />
+	</File>
+	<File name="garfeild/calib/camera.cpp" open="0" top="0" tabpos="4">
 		<Cursor position="10578" topLine="430" />
+	</File>
+	<File name="garfeild/viewsets/planar_object_recognizer.cpp" open="0" top="0" tabpos="0">
+		<Cursor position="23075" topLine="709" />
+	</File>
+	<File name="garfeild/viewsets/planar_object_recognizer.h" open="1" top="0" tabpos="2">
+		<Cursor position="9791" topLine="247" />
 	</File>
 	<File name="starter/geometry/projection_matrix.cpp" open="0" top="0" tabpos="0">
 		<Cursor position="4597" topLine="161" />
+	</File>
+	<File name="starter/optimization/ls_minimizer2.cpp" open="0" top="0" tabpos="0">
+		<Cursor position="14597" topLine="565" />
 	</File>
 </CodeBlocks_layout_file>

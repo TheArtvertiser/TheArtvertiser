@@ -20,6 +20,7 @@ FProfileContext* FProfiler::GetContext()
 {
 	FThreadContext thread_context;
 	lock.Wait();
+	// try to get current thread context
 	for ( FProfileContexts::const_iterator i = contexts.begin();
 		  i!= contexts.end();
 		  ++i )
@@ -30,8 +31,8 @@ FProfileContext* FProfiler::GetContext()
 			return *i;
 		}
 	}
-	
-	// must create a new one
+
+	// no context found for this thread: must create a new one
 	FProfileContext* context = new FProfileContext();
 	// add it to the vector
 	contexts.push_back( context );
@@ -39,19 +40,35 @@ FProfileContext* FProfiler::GetContext()
 	context->thread_context.Set();
 	context->toplevel = new FProfileSection();
 	context->current = context->toplevel;
-	
+
 	// return
 	lock.Signal();
 	return context;
 }
 
+void FProfiler::Clear()
+{
+    // get lock
+    lock.Wait();
+    // delete everything
+    for ( int i=0; i<contexts.size(); i++ )
+    {
+        delete contexts[i];
+    }
+    contexts.clear();
 
-void FProfiler::SectionStart(const std::string &name)
+    // done
+    lock.Signal();
+
+}
+
+void FProfiler::SectionPush(const std::string &name)
 {
 	FProfileContext* context = GetContext();
 	assert( context->current );
-	
+
 	// try to grab the section out of the db
+	// we store by name so that we can accumulate results over multiple frames
 	FProfileSection* s = context->current->children[name];
 	if ( s == NULL )
 	{
@@ -59,48 +76,53 @@ void FProfiler::SectionStart(const std::string &name)
 		s->parent = context->current;
 		context->current->children[name] = s;
 	}
-	
+
 	// shift current to us
 	context->current = s;
-	
+
 	// store start time
 	context->current->start_time.SetNow();
 //	QueryPerformanceCounter(&s->start_time);
-	
+
 }
 
 
-void FProfiler::SectionEnd()
+void FProfiler::SectionPop()
 {
 	FTime stop_time;
 	stop_time.SetNow();
-	
+
 	// grab the section
 	FProfileContext* context = GetContext();
 	FProfileSection* s = context->current;
-	
+
+    // check we're not popping up too far
+	if ( context->current->parent == NULL )
+        return;
+
 	// get time for this run
 /*	LARGE_INTEGER freq;
 	QueryPerformanceFrequency(&freq);
 	double time = 1000*(double)(stop_time.QuadPart - s->start_time.QuadPart)/(double)freq.QuadPart;
 	*/
-	
+
 	stop_time -= s->start_time;
 	double time = stop_time.ToMillis();
-	
+
 	// work out the new avg time and increment the call count
 	double total_time = time + s->avg_time * s->call_count++;
 	s->avg_time = total_time/(double)s->call_count;
-	
+
 	// shift current up
 	context->current = context->current->parent;
 }
 
-void FProfiler::Display( FProfiler::SORT_BY sort )
+void FProfiler::Display( /*FProfiler::SORT_BY sort*/ )
 {
-	printf("-------------------------------------------------------------------------------\n" );
-	printf("name\t\t\t\t\t\t\t\t\t\t\t\t\ttotal     \tavg        \tcount \n");
-	printf("-------------------------------------------------------------------------------\n" );
+	printf("---------------------------------------------------------------------------------------\n" );
+    // re-use formatting from individual lines
+    printf( "%-50s  %10s  %10s  %6s\n", "name                            values in ms -> ", "total ", "average ", "count" );
+    printf("---------------------------------------------------------------------------------------\n" );
 	lock.Wait();
 	for ( FProfileContexts::iterator i = contexts.begin();
 		  i != contexts.end();
@@ -110,7 +132,7 @@ void FProfiler::Display( FProfiler::SORT_BY sort )
 		(*i)->toplevel->Display("");
 	}
 	lock.Signal();
-	printf("-------------------------------------------------------------------------------\n" );
+	printf("---------------------------------------------------------------------------------------\n" );
 }
 
 
@@ -119,6 +141,17 @@ FProfileSection::FProfileSection()
 	parent = NULL;
 	avg_time = 0;
 	call_count = 0;
+}
+
+FProfileSection::~FProfileSection()
+{
+    for ( FProfileSections::iterator i = children.begin();
+        i != children.end();
+        ++i )
+    {
+        delete (*i).second;
+    }
+    children.clear();
 }
 
 bool less_than_comparator( FProfileSection* a, FProfileSection* b )
@@ -133,9 +166,9 @@ void FProfileSection::Display( const std::string& prefix )
 		  ++i )
 	{
 		std::string name = prefix + (*i).first;
-		printf( "%-50s %7.2f\t%3.5f\t%9d\n", name.c_str(), 
-				  (*i).second->avg_time * (*i).second->call_count, 
+		printf( "%-50s  %10.2f  %10.5f  %6d\n", name.c_str(),
+				  (*i).second->avg_time * (*i).second->call_count,
 				  (*i).second->avg_time, (*i).second->call_count );
-		(*i).second->Display( prefix + "- " );
+		(*i).second->Display( prefix + "| " );
 	}
 }

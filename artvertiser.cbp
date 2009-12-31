@@ -20,9 +20,16 @@
 		<Compiler>
 			<Add option="-Wall" />
 		</Compiler>
+		<Unit filename="artvertiser/FProfiler/FProfiler.cpp" />
+		<Unit filename="artvertiser/FProfiler/FProfiler.h" />
+		<Unit filename="artvertiser/FProfiler/FSemaphore.h" />
+		<Unit filename="artvertiser/FProfiler/FThread.h" />
+		<Unit filename="artvertiser/FProfiler/FTime.cpp" />
+		<Unit filename="artvertiser/FProfiler/FTime.h" />
 		<Unit filename="artvertiser/artvertiser.cpp" />
 		<Unit filename="artvertiser/calibmodel.cpp" />
 		<Unit filename="artvertiser/calibmodel.h" />
+		<Unit filename="artvertiser/framerate.h" />
 		<Unit filename="artvertiser/glm.c">
 			<Option compilerVar="CC" />
 		</Unit>
