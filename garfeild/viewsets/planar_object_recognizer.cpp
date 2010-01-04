@@ -33,7 +33,6 @@ using namespace std;
 #include "planar_object_recognizer.h"
 
 // damian
-#define PROFILE
 #include "../artvertiser/FProfiler/FProfiler.h"
 
 planar_object_recognizer::planar_object_recognizer()
@@ -500,7 +499,8 @@ bool planar_object_recognizer::detect(IplImage * input_image)
 
     PROFILE_SECTION_PUSH("estimate affine");
 
-    object_is_detected = estimate_affine_transformation(); // Estimation of "affine_motion" using Ransac.
+    //object_is_detected = estimate_affine_transformation(); // Estimation of "affine_motion" using Ransac.
+    object_is_detected = estimate_affine_transformation_unrolled();
 
     affine_motion->transform_point(float(new_images_generator.u_corner1),
                                  float(new_images_generator.v_corner1), &detected_u_corner1, &detected_v_corner1);
@@ -551,7 +551,6 @@ bool planar_object_recognizer::detect(IplImage * input_image)
 
 bool planar_object_recognizer::three_random_correspondences(int * n1, int * n2, int * n3)
 {
-    PROFILE_THIS_FUNCTION();
 
   if (match_number == 0)
     return false;
@@ -584,6 +583,38 @@ bool planar_object_recognizer::three_random_correspondences(int * n1, int * n2, 
 }
 
 #define RANSAC_DIST_THRESHOLD ransac_dist_threshold
+
+int planar_object_recognizer::compute_support_for_affine_transformation_readonly(affinity * A)
+{
+  int result = 0;
+
+  if (!valid(A))
+  {
+    return 0;
+  }
+
+  for(int i = 0; i < match_number; i++)
+  {
+    image_object_point_match * match = &(matches[i]);
+
+    float mu = PyrImage::convCoordf(float(match->object_point->M[0]), int(match->object_point->scale), 0);
+    float mv = PyrImage::convCoordf(float(match->object_point->M[1]), int(match->object_point->scale), 0);
+
+    float du = PyrImage::convCoordf(match->image_point->u, int(match->image_point->scale), 0);
+    float dv = PyrImage::convCoordf(match->image_point->v, int(match->image_point->scale), 0);
+    float tu, tv;
+
+    A->transform_point(mu, mv, &tu, &tv);
+
+    if ((du - tu) * (du - tu) + (dv - tv) * (dv - tv) < RANSAC_DIST_THRESHOLD * RANSAC_DIST_THRESHOLD)
+    {
+      result++;
+    }
+  }
+
+  return result;
+}
+
 
 int planar_object_recognizer::compute_support_for_affine_transformation(affinity * A)
 {
@@ -632,6 +663,284 @@ bool planar_object_recognizer::valid(affinity * A)
   return true;
 }
 
+
+class EstimateAffineThreadData
+{
+public:
+    planar_object_recognizer* detector;
+    affinity A;
+    int A_support;
+    int num_ransac_iterations;
+};
+
+
+void* planar_object_recognizer::estimate_affine_transformation_thread_func( void* _data )
+{
+    //PROFILE_THIS_FUNCTION();
+
+    EstimateAffineThreadData* data = (EstimateAffineThreadData*)_data;
+
+    planar_object_recognizer* detector = data->detector;
+
+    // first, unroll everything
+
+    // construct random correspondencies
+    int randoms[3*data->num_ransac_iterations];
+    int actual_ransac_iterations = data->num_ransac_iterations;
+    {
+        //PROFILE_THIS_BLOCK("three random");
+        bool three_random = true;
+        int i;
+        for ( i=0; i < data->num_ransac_iterations && three_random; i++ )
+        {
+            // create 3 random correspondencies, bail if three_random_corr returns false
+            three_random &= detector->three_random_correspondences( &randoms[3*i], &randoms[3*i+1], &randoms[3*i+2] );
+        }
+        // in case three_random_correpsondencies fails early, we store how many we actually have
+        actual_ransac_iterations = i;
+    }
+
+
+    // transform points
+    float transformed_points[4*3*actual_ransac_iterations];
+    {
+        //PROFILE_THIS_BLOCK( "transform" );
+        for ( int i=0; i<actual_ransac_iterations; i++ )
+        {
+            image_object_point_match *m1 = detector->matches + randoms[3*i+0];
+            image_object_point_match *m2 = detector->matches + randoms[3*i+1];
+            image_object_point_match *m3 = detector->matches + randoms[3*i+2];
+
+            transformed_points[4*3*i+0 ] = PyrImage::convCoordf(float(m1->object_point->M[0]), int(m1->object_point->scale), 0);
+            transformed_points[4*3*i+1 ] = PyrImage::convCoordf(float(m1->object_point->M[1]), int(m1->object_point->scale), 0);
+            transformed_points[4*3*i+2 ] = PyrImage::convCoordf(float(m1->image_point->u), int(m1->image_point->scale), 0);
+            transformed_points[4*3*i+3 ] = PyrImage::convCoordf(float(m1->image_point->v), int(m1->image_point->scale), 0);
+
+            transformed_points[4*3*i+4 ] = PyrImage::convCoordf(float(m2->object_point->M[0]), int(m2->object_point->scale), 0);
+            transformed_points[4*3*i+5 ] = PyrImage::convCoordf(float(m2->object_point->M[1]), int(m2->object_point->scale), 0);
+            transformed_points[4*3*i+6 ] = PyrImage::convCoordf(float(m2->image_point->u), int(m2->image_point->scale), 0);
+            transformed_points[4*3*i+7 ] = PyrImage::convCoordf(float(m2->image_point->v), int(m2->image_point->scale), 0);
+
+            transformed_points[4*3*i+8 ] = PyrImage::convCoordf(float(m3->object_point->M[0]), int(m3->object_point->scale), 0);
+            transformed_points[4*3*i+9 ] = PyrImage::convCoordf(float(m3->object_point->M[1]), int(m3->object_point->scale), 0);
+            transformed_points[4*3*i+10] = PyrImage::convCoordf(float(m3->image_point->u), int(m3->image_point->scale), 0);
+            transformed_points[4*3*i+11] = PyrImage::convCoordf(float(m3->image_point->v), int(m3->image_point->scale), 0);
+        }
+    }
+
+    // so now go through and compute support for each point
+    int support[actual_ransac_iterations];
+    {
+        //PROFILE_THIS_BLOCK("estimate");
+        affinity A;// = new affinity();
+
+        for ( int i=0; i<actual_ransac_iterations; i++ )
+        {
+            /*float *nums = &(transformed_points[4*3*i]);
+            A.estimate( nums[0], nums[1], nums[2], nums[3],
+                       nums[4], nums[5], nums[6], nums[7],
+                       nums[8], nums[9], nums[10], nums[11] );*/
+
+            //A.estimate( &(transformed_points[4*3*i]) );
+            A.estimate( transformed_points + 4*3*i );
+
+            support[i] = detector->compute_support_for_affine_transformation_readonly(&A);
+        }
+    }
+
+    // find best support
+    int best_support = -1;
+    int best_index = 0;
+    {
+        //PROFILE_THIS_BLOCK("finalize");
+        for ( int i=0; i<actual_ransac_iterations; i++ )
+        {
+            if ( support[i] > best_support )
+            {
+                best_support = support[i];
+                best_index = i;
+            }
+        }
+    }
+
+    // re-estimate for the output
+    if ( best_support > 10 )
+    {
+        data->A.estimate( transformed_points + 4*3*best_index );
+        data->A_support = best_support;
+    }
+    else
+        data->A_support = -1;
+
+    pthread_exit(0);
+}
+
+
+bool planar_object_recognizer::estimate_affine_transformation_mt(void)
+{
+    PROFILE_THIS_FUNCTION();
+
+    // spawn worker threads
+    int num_threads = 1;
+    pthread_t threads[num_threads];
+    EstimateAffineThreadData thread_data[num_threads];
+
+    // make threads joinable
+    pthread_attr_t thread_attr;
+    pthread_attr_init(&thread_attr);
+    pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
+    for ( int i=0; i<num_threads; i++ )
+    {
+        // setup data
+        thread_data[i].detector = this;
+        thread_data[i].num_ransac_iterations = max_ransac_iterations/num_threads;
+        thread_data[i].A_support = -1;
+        // start the thread
+        pthread_create(&threads[i], &thread_attr, estimate_affine_transformation_thread_func, (void*)&thread_data[i] );
+    }
+    pthread_attr_destroy(&thread_attr);
+
+    // now wait for threads to finish, and get best support
+    affinity* best_A = NULL;
+    int best_support = -1;
+    for ( int i=0; i<num_threads; i++ )
+    {
+        void* status;
+        pthread_join( threads[i], &status );
+        // read data back from the thread
+        if ( thread_data[i].A_support > best_support)
+        {
+            best_A = &thread_data[i].A;
+            best_support = thread_data[i].A_support;
+        }
+    }
+
+    // found?
+    if ( best_support > 10 )
+    {
+        cvmCopy( best_A, affine_motion );
+        int support = compute_support_for_affine_transformation(affine_motion);
+        assert( support == best_support );
+
+        return true;
+    }
+    else
+        return false;
+
+}
+
+
+bool planar_object_recognizer::estimate_affine_transformation_unrolled(void)
+{
+    PROFILE_THIS_FUNCTION();
+
+    // first, unroll everything
+
+    // construct random correspondencies
+    int randoms[3*max_ransac_iterations];
+    int actual_ransac_iterations = max_ransac_iterations;
+    {
+        PROFILE_THIS_BLOCK("three random");
+        bool three_random = true;
+        int i;
+        for ( i=0; i < max_ransac_iterations && three_random; i++ )
+        {
+            // create 3 random correspondencies, bail if three_random_corr returns false
+            three_random &= three_random_correspondences( &randoms[3*i], &randoms[3*i+1], &randoms[3*i+2] );
+        }
+        // in case three_random_correpsondencies fails early, we store how many we actually have
+        actual_ransac_iterations = i;
+    }
+
+
+    // transform points
+    float transformed_points[4*3*actual_ransac_iterations];
+    {
+        PROFILE_THIS_BLOCK( "transform" );
+        for ( int i=0; i<actual_ransac_iterations; i++ )
+        {
+            image_object_point_match *m1 = matches + randoms[3*i+0];
+            image_object_point_match *m2 = matches + randoms[3*i+1];
+            image_object_point_match *m3 = matches + randoms[3*i+2];
+
+            transformed_points[4*3*i+0 ] = PyrImage::convCoordf(float(m1->object_point->M[0]), int(m1->object_point->scale), 0);
+            transformed_points[4*3*i+1 ] = PyrImage::convCoordf(float(m1->object_point->M[1]), int(m1->object_point->scale), 0);
+            transformed_points[4*3*i+2 ] = PyrImage::convCoordf(float(m1->image_point->u), int(m1->image_point->scale), 0);
+            transformed_points[4*3*i+3 ] = PyrImage::convCoordf(float(m1->image_point->v), int(m1->image_point->scale), 0);
+
+            transformed_points[4*3*i+4 ] = PyrImage::convCoordf(float(m2->object_point->M[0]), int(m2->object_point->scale), 0);
+            transformed_points[4*3*i+5 ] = PyrImage::convCoordf(float(m2->object_point->M[1]), int(m2->object_point->scale), 0);
+            transformed_points[4*3*i+6 ] = PyrImage::convCoordf(float(m2->image_point->u), int(m2->image_point->scale), 0);
+            transformed_points[4*3*i+7 ] = PyrImage::convCoordf(float(m2->image_point->v), int(m2->image_point->scale), 0);
+
+            transformed_points[4*3*i+8 ] = PyrImage::convCoordf(float(m3->object_point->M[0]), int(m3->object_point->scale), 0);
+            transformed_points[4*3*i+9 ] = PyrImage::convCoordf(float(m3->object_point->M[1]), int(m3->object_point->scale), 0);
+            transformed_points[4*3*i+10] = PyrImage::convCoordf(float(m3->image_point->u), int(m3->image_point->scale), 0);
+            transformed_points[4*3*i+11] = PyrImage::convCoordf(float(m3->image_point->v), int(m3->image_point->scale), 0);
+        }
+    }
+
+    // so now go through and compute support for each point
+    int support[actual_ransac_iterations];
+    {
+        PROFILE_THIS_BLOCK("estimate");
+        affinity A;// = new affinity();
+
+        for ( int i=0; i<actual_ransac_iterations; i++ )
+        {
+            /*float *nums = &(transformed_points[4*3*i]);
+            A.estimate( nums[0], nums[1], nums[2], nums[3],
+                       nums[4], nums[5], nums[6], nums[7],
+                       nums[8], nums[9], nums[10], nums[11] );*/
+
+            //A.estimate( &(transformed_points[4*3*i]) );
+            A.estimate( transformed_points + 4*3*i );
+
+            support[i] = compute_support_for_affine_transformation(&A);
+        }
+    }
+
+    // find best support
+    int best_support = -1;
+    int best_index = 0;
+    {
+        PROFILE_THIS_BLOCK("finalize");
+        for ( int i=0; i<actual_ransac_iterations; i++ )
+        {
+            if ( support[i] > best_support )
+            {
+                best_support = support[i];
+                best_index = i;
+            }
+        }
+    }
+
+    // store average
+    avg_ransac_iterations = (avg_ransac_iterations*7 + actual_ransac_iterations)/8;
+
+
+    // finally
+    if ( best_support > 10 )
+    {
+        PROFILE_THIS_BLOCK( "return result " );
+        affine_motion->estimate( transformed_points + 4*3*best_index );
+        //affine_motion->estimate( &(transformed_points[4*3*best_index]) );
+        /*float *nums = &(transformed_points[4*3*best_index]);
+        affine_motion->estimate( nums[0], nums[1], nums[2], nums[3],
+                   nums[4], nums[5], nums[6], nums[7],
+                   nums[8], nums[9], nums[10], nums[11] );*/
+
+        int support = compute_support_for_affine_transformation(affine_motion);
+        assert( best_support == support );
+
+        return true;
+    }
+    else
+        return false;
+
+
+}
+
 bool planar_object_recognizer::estimate_affine_transformation(void)
 {
     PROFILE_THIS_FUNCTION();
@@ -640,9 +949,10 @@ bool planar_object_recognizer::estimate_affine_transformation(void)
   int iteration = 0;
 
   int best_support = -1;
-  int support_found_count = 0;
-  int support_notfound_count = 0;
-  //printf("estimate_affine_transformation: max iterations %i, support thresh %i\n", max_ransac_iterations, ransac_stop_support );
+  //printf("match number %i\n", match_number);
+
+  // we can thread this.
+
   do
   {
       PROFILE_THIS_BLOCK( "do loop" );
@@ -650,8 +960,11 @@ bool planar_object_recognizer::estimate_affine_transformation(void)
 
     iteration++;
 
+    PROFILE_SECTION_PUSH( "three random" );
+    bool three_random = three_random_correspondences(&n1, &n2, &n3);
+    PROFILE_SECTION_POP();
     // Choose three correspondences randomly
-    if (!three_random_correspondences(&n1, &n2, &n3))
+    if (!three_random )
     {
       //cerr << "No three random correspondences found." << endl;
       break;
@@ -693,20 +1006,13 @@ bool planar_object_recognizer::estimate_affine_transformation(void)
     {
       best_support = support;
 
-/*        if ( support_found_count>0 && (support_found_count%4) == 0 )
-            printf("\n");
-        printf("%5i (%5i misses), ", best_support, support_notfound_count );
-        support_notfound_count = 0;
-        support_found_count++;*/
-
       cvmCopy(A, affine_motion);
       if (best_support > ransac_stop_support)
         break;
     }
-    /*else
-        support_notfound_count++;*/
   } while(iteration < max_ransac_iterations);
-  //printf("\n%i iterations, %i final misses\n", iteration, support_notfound_count );
+
+  avg_ransac_iterations = (avg_ransac_iterations*7 + iteration)/8;
 
   delete A;
 

@@ -720,6 +720,9 @@ ps: ps-am
 
 ps-am:
 
+profile: CXXFLAGS+=-DPROFILE
+profile: all
+
 uninstall-am: uninstall-libLIBRARIES \
 	uninstall-nobase_pkgincludeHEADERS uninstall-pkgconfigDATA
 

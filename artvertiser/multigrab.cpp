@@ -1,10 +1,21 @@
 #include "multigrab.h"
 
-#define PROFILE
 #include "FProfiler/FProfiler.h"
 
 int W;
 int H;
+
+MultiGrab::~MultiGrab()
+{
+    printf("in ~MultiGrab\n");
+    // delete all the cameras;
+    for ( int i=0; i<cams.size(); i++ )
+    {
+        delete cams[i];
+    }
+    cams.clear();
+
+}
 
 int MultiGrab::init(bool cacheTraining, char *modelfile, char *avi_bg_path, int width, int height, int v4l_device, int detect_width, int detect_height )
 {

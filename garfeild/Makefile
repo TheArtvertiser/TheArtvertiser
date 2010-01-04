@@ -851,6 +851,9 @@ ps: ps-am
 
 ps-am:
 
+profile: CXXFLAGS+=-DPROFILE
+profile: all
+
 uninstall-am: uninstall-libLIBRARIES \
 	uninstall-nobase_pkgincludeHEADERS uninstall-pkgconfigDATA
 
@@ -869,7 +872,7 @@ uninstall-am: uninstall-libLIBRARIES \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic pdf pdf-am ps ps-am tags uninstall \
 	uninstall-am uninstall-libLIBRARIES \
-	uninstall-nobase_pkgincludeHEADERS uninstall-pkgconfigDATA
+	uninstall-nobase_pkgincludeHEADERS uninstall-pkgconfigDATA profile
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

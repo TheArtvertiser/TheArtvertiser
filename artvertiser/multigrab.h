@@ -13,6 +13,7 @@ public:
 	CalibModel model;
 
 	MultiGrab(const char *modelfile="model.bmp") : model(modelfile) {}
+    ~MultiGrab();
 
 	int init(bool cacheTraining, char *modelfile, char *avi_bg_path, int capture_width, int capture_height, int v4l_device, int detect_width, int detect_height );
 	void grabFrames();

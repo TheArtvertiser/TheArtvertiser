@@ -1,5 +1,5 @@
 CC=gcc 
-CFLAGS=-g -o2
+CPPFLAGS=-g -o2
 
 OUT=libfprofiler.a
 OBJ=FProfiler.o FTime.o FThread.o
@@ -7,8 +7,11 @@ OBJ=FProfiler.o FTime.o FThread.o
 $(OUT): $(OBJ)
 	ar rcs $(OUT) $(OBJ)
 
+profile: CPPFLAGS+=-DPROFILE
+profile: all
+
 clean:
-	rm -f libfprofiler.a FProfiler.o FTime.o
+	rm -f $(OUT) $(OBJ)
 
 all: $(OUT)
 

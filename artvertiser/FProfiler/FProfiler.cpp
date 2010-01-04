@@ -16,6 +16,15 @@
 FProfiler::FProfileContexts FProfiler::contexts;
 FSemaphore FProfiler::lock;
 
+int FProfileSection::EXEC_ORDER_ID = 0;
+
+
+FProfileContext::~FProfileContext()
+{
+    if ( toplevel )
+        delete toplevel;
+}
+
 FProfileContext* FProfiler::GetContext()
 {
 	FThreadContext thread_context;
@@ -46,6 +55,8 @@ FProfileContext* FProfiler::GetContext()
 	return context;
 }
 
+
+
 void FProfiler::Clear()
 {
     // get lock
@@ -74,6 +85,7 @@ void FProfiler::SectionPush(const std::string &name)
 	{
 		s = new FProfileSection();
 		s->parent = context->current;
+		s->name = name;
 		context->current->children[name] = s;
 	}
 
@@ -117,10 +129,11 @@ void FProfiler::SectionPop()
 	context->current = context->current->parent;
 }
 
-void FProfiler::Display( /*FProfiler::SORT_BY sort*/ )
+void FProfiler::Display( FProfiler::SORT_BY sort )
 {
 	printf("---------------------------------------------------------------------------------------\n" );
     // re-use formatting from individual lines
+    printf( "PRofiler output: sorted by %s\n", (sort==SORT_EXECUTION?"execution order":"total time"));
     printf( "%-50s  %10s  %10s  %6s\n", "name                            values in ms -> ", "total ", "average ", "count" );
     printf("---------------------------------------------------------------------------------------\n" );
 	lock.Wait();
@@ -128,8 +141,8 @@ void FProfiler::Display( /*FProfiler::SORT_BY sort*/ )
 		  i != contexts.end();
 		  ++i )
 	{
-		printf("Thread %x\n", &((*i)->thread_context) );
-		(*i)->toplevel->Display("");
+		printf("Thread %x\n", (unsigned int)&((*i)->thread_context) );
+		(*i)->toplevel->Display("", sort );
 	}
 	lock.Signal();
 	printf("---------------------------------------------------------------------------------------\n" );
@@ -141,6 +154,7 @@ FProfileSection::FProfileSection()
 	parent = NULL;
 	avg_time = 0;
 	call_count = 0;
+	exec_order_id = EXEC_ORDER_ID++;
 }
 
 FProfileSection::~FProfileSection()
@@ -154,21 +168,58 @@ FProfileSection::~FProfileSection()
     children.clear();
 }
 
-bool less_than_comparator( FProfileSection* a, FProfileSection* b )
+bool reverse_time_comparator( FProfileSection* a, FProfileSection* b )
 {
-	return a->avg_time*a->call_count < b->avg_time*b->call_count;
+    return a->avg_time*a->call_count > b->avg_time*b->call_count;
 }
 
-void FProfileSection::Display( const std::string& prefix )
+bool execution_order_comparator( FProfileSection* a, FProfileSection* b )
 {
+    return a->exec_order_id < b->exec_order_id;
+}
+
+void FProfileSection::Display( const std::string& prefix, FProfiler::SORT_BY sort_by )
+{
+    std::vector<FProfileSection* > children_vect;
 	for ( FProfileSections::iterator i = children.begin();
 		  i!= children.end();
 		  ++i )
 	{
-		std::string name = prefix + (*i).first;
+        children_vect.push_back( (*i).second );
+	}
+
+    // sort by ..
+    if ( sort_by == FProfiler::SORT_TIME )
+    {
+        std::sort( children_vect.begin(), children_vect.end(), reverse_time_comparator );
+    }
+    else if ( sort_by == FProfiler::SORT_EXECUTION )
+    {
+        std::sort( children_vect.begin(), children_vect.end(), execution_order_comparator );
+    }
+
+    for ( int i=0; i<children_vect.size(); i++ )
+    {
+        FProfileSection* sect = children_vect[i];
+	    // replace '+' with '|';
+		std::string name;
+		if ( prefix.size()>1 )
+            name = prefix.substr( 0, prefix.size()-2 ) + std::string("+ ") + sect->name;
+        else
+            name = sect->name;
 		printf( "%-50s  %10.2f  %10.5f  %6d\n", name.c_str(),
-				  (*i).second->avg_time * (*i).second->call_count,
-				  (*i).second->avg_time, (*i).second->call_count );
-		(*i).second->Display( prefix + "| " );
+				  sect->avg_time * sect->call_count,
+				  sect->avg_time, sect->call_count );
+
+        // if this is the last child,
+        std::string next_prefix = prefix;
+        if ( prefix.size() > 1 && i==children_vect.size()-1 )
+        {
+            // erase the previous "| " and replace with "  "
+            next_prefix = next_prefix.substr(0, next_prefix.size()-2 ) + std::string("  ");
+        }
+        // next deeper level
+        sect->Display( next_prefix + "| ", sort_by );
+
 	}
 }

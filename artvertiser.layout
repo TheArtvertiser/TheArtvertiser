@@ -1,17 +1,20 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_layout_file>
 	<ActiveTarget name="all" />
-	<File name="artvertiser/FProfiler/FProfiler.cpp" open="0" top="0" tabpos="0">
-		<Cursor position="2887" topLine="106" />
+	<File name="artvertiser/FProfiler/FProfiler.cpp" open="1" top="0" tabpos="12">
+		<Cursor position="4075" topLine="158" />
 	</File>
-	<File name="artvertiser/FProfiler/FProfiler.h" open="0" top="0" tabpos="0">
-		<Cursor position="4182" topLine="135" />
+	<File name="artvertiser/FProfiler/FProfiler.h" open="1" top="0" tabpos="14">
+		<Cursor position="3876" topLine="144" />
 	</File>
 	<File name="artvertiser/FProfiler/FSemaphore.h" open="0" top="0" tabpos="0">
 		<Cursor position="239" topLine="0" />
 	</File>
-	<File name="artvertiser/FProfiler/FThread.h" open="0" top="0" tabpos="0">
-		<Cursor position="833" topLine="35" />
+	<File name="artvertiser/FProfiler/FThread.cpp" open="1" top="0" tabpos="6">
+		<Cursor position="541" topLine="15" />
+	</File>
+	<File name="artvertiser/FProfiler/FThread.h" open="1" top="0" tabpos="5">
+		<Cursor position="228" topLine="4" />
 	</File>
 	<File name="artvertiser/FProfiler/FTime.cpp" open="0" top="0" tabpos="0">
 		<Cursor position="187" topLine="0" />
@@ -19,11 +22,14 @@
 	<File name="artvertiser/FProfiler/FTime.h" open="0" top="0" tabpos="0">
 		<Cursor position="304" topLine="0" />
 	</File>
-	<File name="artvertiser/artvertiser.cpp" open="1" top="0" tabpos="1">
-		<Cursor position="2774" topLine="87" />
+	<File name="artvertiser/artvertiser.cpp" open="1" top="1" tabpos="1">
+		<Cursor position="16282" topLine="597" />
 	</File>
-	<File name="artvertiser/calibmodel.cpp" open="0" top="0" tabpos="0">
-		<Cursor position="1105" topLine="37" />
+	<File name="artvertiser/calibmodel.cpp" open="1" top="0" tabpos="10">
+		<Cursor position="6344" topLine="220" />
+	</File>
+	<File name="artvertiser/calibmodel.h" open="1" top="0" tabpos="11">
+		<Cursor position="59" topLine="0" />
 	</File>
 	<File name="artvertiser/framerate.h" open="0" top="0" tabpos="0">
 		<Cursor position="2306" topLine="66" />
@@ -31,11 +37,17 @@
 	<File name="artvertiser/glm.c" open="0" top="0" tabpos="0">
 		<Cursor position="12852" topLine="481" />
 	</File>
-	<File name="artvertiser/multigrab.cpp" open="1" top="1" tabpos="3">
-		<Cursor position="5584" topLine="154" />
+	<File name="artvertiser/multigrab.cpp" open="1" top="0" tabpos="3">
+		<Cursor position="271" topLine="0" />
 	</File>
 	<File name="artvertiser/multigrab.h" open="1" top="0" tabpos="4">
-		<Cursor position="811" topLine="13" />
+		<Cursor position="477" topLine="0" />
+	</File>
+	<File name="artvertiser/multithreadcapture.cpp" open="1" top="0" tabpos="9">
+		<Cursor position="6249" topLine="154" />
+	</File>
+	<File name="artvertiser/multithreadcapture.h" open="1" top="0" tabpos="8">
+		<Cursor position="2025" topLine="42" />
 	</File>
 	<File name="garfeild/calib/CamAugmentation.cpp" open="0" top="0" tabpos="0">
 		<Cursor position="16655" topLine="81" />
@@ -43,11 +55,11 @@
 	<File name="garfeild/calib/camera.cpp" open="0" top="0" tabpos="4">
 		<Cursor position="10578" topLine="430" />
 	</File>
-	<File name="garfeild/viewsets/planar_object_recognizer.cpp" open="0" top="0" tabpos="0">
-		<Cursor position="23075" topLine="709" />
+	<File name="garfeild/viewsets/planar_object_recognizer.cpp" open="1" top="0" tabpos="13">
+		<Cursor position="21116" topLine="678" />
 	</File>
 	<File name="garfeild/viewsets/planar_object_recognizer.h" open="1" top="0" tabpos="2">
-		<Cursor position="9791" topLine="247" />
+		<Cursor position="9474" topLine="244" />
 	</File>
 	<File name="starter/geometry/projection_matrix.cpp" open="0" top="0" tabpos="0">
 		<Cursor position="4597" topLine="161" />

@@ -54,7 +54,7 @@ RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	install-html-recursive install-info-recursive \
 	install-pdf-recursive install-ps-recursive install-recursive \
 	installcheck-recursive installdirs-recursive pdf-recursive \
-	ps-recursive uninstall-recursive
+	ps-recursive uninstall-recursive profile-recursive
 RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 ETAGS = etags
@@ -191,6 +191,8 @@ SUBDIRS = starter garfeild doc artvertiser/FProfiler artvertiser
 EXTRA_DIST = autogen.sh
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
+profile: config.h
+	$(MAKE) $(AM_MAKEFLAGS) profile-recursive
 
 .SUFFIXES:
 am--refresh:
@@ -525,6 +527,7 @@ distcleancheck: distclean
 check-am: all-am
 check: check-recursive
 all-am: Makefile config.h
+profile-am: Makefile config.h
 installdirs: installdirs-recursive
 installdirs-am:
 install: install-recursive

@@ -72,7 +72,6 @@
 #include "/usr/include/freetype2/freetype/config/ftconfig.h"
 #include <FTGL/ftgl.h>
 
-#define PROFILE
 #include "FProfiler/FProfiler.h"
 
 // framerate counter
@@ -337,6 +336,17 @@ static void usage(const char *s)
     exit(1);
 }
 
+
+
+void exit_handler()
+{
+    printf("in exit_handler\n");
+    // shutdown the capture
+    if ( multi )
+        delete multi;
+}
+
+
 /*!\brief Initialize everything
  *
  * - Parse the command line
@@ -347,6 +357,9 @@ static void usage(const char *s)
 
 static bool init( int argc, char** argv )
 {
+    // register exit function
+    atexit( &exit_handler );
+
     // more from before init should be moved here
     bool redo_geom=false;
     bool redo_training=false;
@@ -564,10 +577,10 @@ static void keyboard(unsigned char c, int x, int y)
         {
         // detector settings
         case '1':
-            detector.ransac_dist_threshold++;
+            detector.ransac_dist_threshold*=1.02f;
             break;
         case '!':
-            detector.ransac_dist_threshold--;
+            detector.ransac_dist_threshold/=1.02f;
             break;
         case '2':
             detector.ransac_stop_support++;
@@ -1201,11 +1214,12 @@ static void draw(void)
             // show detector settings
             planar_object_recognizer &detector(multi->cams[current_cam]->detector);
             char detector_settings_string[1024];
-            sprintf( detector_settings_string, "ransac dist %4.2f  stop %i  iter %i,\n"
-                    "others refine %4.2f  score %4.2f  viewrate %4.2f",
+            sprintf( detector_settings_string, "ransac dist %4.2f  stop %i  iter %i  real iter %i,\n"
+                    "others refine %6.4f  score %6.4f  viewrate %6.4f",
                     detector.ransac_dist_threshold,
                     detector.ransac_stop_support,
                     detector.max_ransac_iterations,
+                    detector.avg_ransac_iterations,
                     detector.non_linear_refine_threshold,
                     detector.match_score_threshold,
                     detector.min_view_rate );

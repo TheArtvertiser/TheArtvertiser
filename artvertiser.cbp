@@ -16,6 +16,15 @@
 					<Add option="-g" />
 				</Compiler>
 			</Target>
+			<Target title="profile">
+				<Option output="bin/Debug/artvertiser" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
@@ -23,6 +32,7 @@
 		<Unit filename="artvertiser/FProfiler/FProfiler.cpp" />
 		<Unit filename="artvertiser/FProfiler/FProfiler.h" />
 		<Unit filename="artvertiser/FProfiler/FSemaphore.h" />
+		<Unit filename="artvertiser/FProfiler/FThread.cpp" />
 		<Unit filename="artvertiser/FProfiler/FThread.h" />
 		<Unit filename="artvertiser/FProfiler/FTime.cpp" />
 		<Unit filename="artvertiser/FProfiler/FTime.h" />
@@ -36,6 +46,8 @@
 		<Unit filename="artvertiser/glm.h" />
 		<Unit filename="artvertiser/multigrab.cpp" />
 		<Unit filename="artvertiser/multigrab.h" />
+		<Unit filename="artvertiser/multithreadcapture.cpp" />
+		<Unit filename="artvertiser/multithreadcapture.h" />
 		<Unit filename="config.h" />
 		<Unit filename="garfeild/calib/CamAugmentation.cpp" />
 		<Unit filename="garfeild/calib/CamAugmentation.h" />

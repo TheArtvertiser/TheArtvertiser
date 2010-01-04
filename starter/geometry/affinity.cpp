@@ -1,6 +1,6 @@
 /*
-Copyright 2005, 2006 Computer Vision Lab, 
-Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland. 
+Copyright 2005, 2006 Computer Vision Lab,
+Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland.
 All rights reserved.
 
 This file is part of BazAR.
@@ -16,10 +16,11 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 BazAR; if not, write to the Free Software Foundation, Inc., 51 Franklin
-Street, Fifth Floor, Boston, MA 02110-1301, USA 
+Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 #include "affinity.h"
 
+#include "../../artvertiser/FProfiler/FProfiler.h"
 
 affinity::affinity(void)
 {
@@ -72,6 +73,36 @@ ostream& operator<< (ostream& o, const affinity& A)
   return o;
 }
 
+void affinity::estimate_pre()
+{
+
+}
+
+bool affinity::estimate(float* in)
+{
+    // seems like a waste. why not set all this up before hand?
+  ::cvmSet(AA, 0, 0, in[0]); ::cvmSet(AA, 0, 1, in[1]); ::cvmSet(AA, 0, 2, 1.); ::cvmSet(AA, 0, 3, 0.);    ::cvmSet(AA, 0, 4, 0.);    ::cvmSet(AA, 0, 5, 0.);
+  ::cvmSet(AA, 1, 0, 0.);    ::cvmSet(AA, 1, 1, 0.);    ::cvmSet(AA, 1, 2, 0.); ::cvmSet(AA, 1, 3, in[0]); ::cvmSet(AA, 1, 4, in[1]); ::cvmSet(AA, 1, 5, 1.);
+
+  ::cvmSet(AA, 2, 0, in[4]); ::cvmSet(AA, 2, 1, in[5]); ::cvmSet(AA, 2, 2, 1.); ::cvmSet(AA, 2, 3, 0.);    ::cvmSet(AA, 2, 4, 0.);    ::cvmSet(AA, 2, 5, 0.);
+  ::cvmSet(AA, 3, 0, 0.);    ::cvmSet(AA, 3, 1, 0.);    ::cvmSet(AA, 3, 2, 0.); ::cvmSet(AA, 3, 3, in[4]); ::cvmSet(AA, 3, 4, in[5]); ::cvmSet(AA, 3, 5, 1.);
+
+  ::cvmSet(AA, 4, 0, in[8]); ::cvmSet(AA, 4, 1, in[9]); ::cvmSet(AA, 4, 2, 1.); ::cvmSet(AA, 4, 3, 0.);    ::cvmSet(AA, 4, 4, 0.);    ::cvmSet(AA, 4, 5, 0.);
+  ::cvmSet(AA, 5, 0, 0.);    ::cvmSet(AA, 5, 1, 0.);    ::cvmSet(AA, 5, 2, 0.); ::cvmSet(AA, 5, 3, in[8]); ::cvmSet(AA, 5, 4, in[9]); ::cvmSet(AA, 5, 5, 1.);
+
+  ::cvmSet(B, 0, 0, in[2]);
+  ::cvmSet(B, 1, 0, in[3]);
+
+  ::cvmSet(B, 2, 0, in[6]);
+  ::cvmSet(B, 3, 0, in[7]);
+
+  ::cvmSet(B, 4, 0, in[10]);
+  ::cvmSet(B, 5, 0, in[11]);
+
+  return estimate_post();
+
+}
+
 bool affinity::estimate(float u1, float v1, float up1, float vp1,
                         float u2, float v2, float up2, float vp2,
                         float u3, float v3, float up3, float vp3)
@@ -93,6 +124,12 @@ bool affinity::estimate(float u1, float v1, float up1, float vp1,
 
   ::cvmSet(B, 4, 0, up3);
   ::cvmSet(B, 5, 0, vp3);
+
+  return estimate_post();
+}
+
+bool affinity::estimate_post()
+{
 
   int ok = cvSolve(AA, B, X, CV_SVD);
 
@@ -138,7 +175,7 @@ void affinity::compute_cvGetQuandrangleSubPix_transform(CvMat * A_q, int w, int 
   ::cvmSet(A_q, 1, 2, ::cvmGet(A_q, 1, 0) * (w / 2 - cvmGet(0, 2)) + ::cvmGet(A_q, 1, 1) * (h / 2 - cvmGet(1, 2)));
 }
 
-void mcvGetQuadrangleSubPix(IplImage * src, IplImage * dest, affinity * A, 
+void mcvGetQuadrangleSubPix(IplImage * src, IplImage * dest, affinity * A,
                             int /*fill_outliers*/, CvScalar /*fill_value*/)
 {
   A->rows = 2;

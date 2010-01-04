@@ -311,6 +311,8 @@ ps-am:
 
 uninstall-am:
 
+profile: all
+
 .MAKE: install-am install-strip
 
 .PHONY: all all-am check check-am clean clean-generic distclean \

@@ -1,6 +1,6 @@
 /*
-Copyright 2005, 2006 Computer Vision Lab, 
-Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland. 
+Copyright 2005, 2006 Computer Vision Lab,
+Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland.
 All rights reserved.
 
 This file is part of BazAR.
@@ -16,7 +16,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 BazAR; if not, write to the Free Software Foundation, Inc., 51 Franklin
-Street, Fifth Floor, Boston, MA 02110-1301, USA 
+Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 #ifndef AFFINITY_H
 #define AFFINITY_H
@@ -28,7 +28,7 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA
 using namespace std;
 
 /*! Affine transformation.
-  \ingroup starter 
+  \ingroup starter
 */
 class affinity : public CvMat
 {
@@ -40,6 +40,8 @@ public:
 
   ~affinity();
 
+  /// damian
+  bool estimate(float* input);
   bool estimate(float u1, float v1, float up1, float vp1,
                 float u2, float v2, float up2, float vp2,
                 float u3, float v3, float up3, float vp3);
@@ -58,11 +60,13 @@ public:
   friend float cvmGet(const affinity * A, const int i, const int j);
   friend void  cvmSet(const affinity * A, const int i, const int j, const float val);
   friend void  cvmSet(const affinity * A, const int i, const int j, const double val);
-  friend void mcvGetQuadrangleSubPix(IplImage * src, IplImage * dest, affinity * A, 
+  friend void mcvGetQuadrangleSubPix(IplImage * src, IplImage * dest, affinity * A,
                                      int fill_outliers = 0, CvScalar fill_value = cvScalarAll(0));
 
 private:
   void initialize(void);
+  void estimate_pre();
+  bool estimate_post();
   CvMat * AA, * B, * X;
 };
 
@@ -105,7 +109,7 @@ inline void cvmSet(const affinity * A, const int i, const int j, const double va
 }
 
 /*!\ingroup starter*/
-void mcvGetQuadrangleSubPix(IplImage * src, IplImage * dest, affinity * A, 
+void mcvGetQuadrangleSubPix(IplImage * src, IplImage * dest, affinity * A,
                             int fill_outliers, CvScalar fill_value);
 
 #endif // AFFINITY_H

@@ -81,11 +81,13 @@
 #define PROFILE_SECTION_POP() FProfiler::SectionPop();
 #define PROFILE_THIS_FUNCTION() volatile FFunctionProfiler __function_profiler_object__( __FUNCTION__ );
 #define PROFILE_THIS_BLOCK( label ) volatile FFunctionProfiler __section_profiler_object__##__LINE__( label );
+#warning Profiling with FProfiler enabled
 #else
 #define PROFILE_SECTION_PUSH( label ) ;
 #define PROFILE_SECTION_POP() ;
 #define PROFILE_THIS_FUNCTION() ;
 #define PROFILE_THIS_BLOCK( label );
+#warning Profiling with FProfiler disabled
 #endif
 
 
@@ -96,38 +98,8 @@
 #include <string>
 #include <vector>
 
-// one section
-class FProfileSection {
-public:
-	FProfileSection();
-	~FProfileSection();
 
-	void Display( const std::string& prefix );
-
-	int call_count;
-	double avg_time;
-
-	FTime start_time;
-//	LARGE_INTEGER start_time;
-
-	FProfileSection* parent;
-
-	// vector of sections
-	typedef std::map<const std::string, FProfileSection* > FProfileSections;
-
-	// don't try this at home
-	/*struct less_than_comparator : public std::binary_function<const ProfileSection*,const ProfileSection*,bool>
-	{
-		result_type operator() ( first_argument_type a, second_argument_type b )
-	{
-			return ( a->avg_time * a->call_count < b->avg_time*b->call_count );
-	}
-	};*/
-	FProfileSections children;
-
-
-};
-
+class FProfileSection;
 
 class FProfileContext
 {
@@ -137,7 +109,7 @@ public:
 	FProfileSection* current;
 
     FProfileContext() { toplevel = NULL; }
-    ~FProfileContext() { if ( toplevel ) delete toplevel; }
+    ~FProfileContext();
 };
 
 
@@ -155,9 +127,9 @@ public:
 	/// return a pointer to the context for the current thread
 	static FProfileContext* GetContext();
 
-	/// show profiles recorded. SORT_BY is not yet implemented
-	//typedef enum _SORT_BY { SORT_COUNT, SORT_TIME } SORT_BY;
-	static void Display( /*SORT_BY sort = SORT_TIME*/ );
+	/// show profiles recorded. SORT_BY defines sort order.
+	typedef enum _SORT_BY { SORT_EXECUTION, SORT_TIME } SORT_BY;
+	static void Display( SORT_BY sort = SORT_TIME );
 
 private:
 
@@ -166,6 +138,44 @@ private:
 
 	static FSemaphore lock;
 };
+
+// one section
+class FProfileSection {
+public:
+	FProfileSection();
+	~FProfileSection();
+
+	void Display( const std::string& prefix, FProfiler::SORT_BY sort_by );
+
+	int call_count;
+	double avg_time;
+	int exec_order_id;
+	static int EXEC_ORDER_ID;
+
+	FTime start_time;
+//	LARGE_INTEGER start_time;
+
+	FProfileSection* parent;
+	std::string name;
+
+	// map of sections
+	typedef std::map<const std::string, FProfileSection* > FProfileSections;
+
+	// don't try this at home
+	/*struct less_than_comparator : public std::binary_function<const ProfileSection*,const ProfileSection*,bool>
+	{
+		result_type operator() ( first_argument_type a, second_argument_type b )
+	{
+			return ( a->avg_time * a->call_count < b->avg_time*b->call_count );
+	}
+	};*/
+	FProfileSections children;
+
+
+};
+
+
+
 
 /** FFunctionProfiler
 

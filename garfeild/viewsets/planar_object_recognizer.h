@@ -1,6 +1,6 @@
 /*
-Copyright 2005, 2006 Computer Vision Lab, 
-Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland. 
+Copyright 2005, 2006 Computer Vision Lab,
+Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland.
 All rights reserved.
 
 This file is part of BazAR.
@@ -16,7 +16,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 BazAR; if not, write to the Free Software Foundation, Inc., 51 Franklin
-Street, Fifth Floor, Boston, MA 02110-1301, USA 
+Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 #ifndef PLANAR_OBJECT_RECOGNIZER_H
 #define PLANAR_OBJECT_RECOGNIZER_H
@@ -41,9 +41,9 @@ static const int hard_max_detected_pts = 5000;
 
 /*!
 \ingroup viewsets
-\brief Planar object detector 
+\brief Planar object detector
 
-This class can learn a planar surface and recognize its feature points on a 
+This class can learn a planar surface and recognize its feature points on a
 new image.
 */
 class planar_object_recognizer
@@ -60,24 +60,24 @@ public:
   //! Build the model and save it on disk.
   //! \return true on success, false on failure
   bool build_with_cache(string filename, int max_point_number_on_model,
-                        int patch_size, int yape_radius, 
+                        int patch_size, int yape_radius,
                         int tree_number, int nbLev,
                         LEARNPROGRESSION LearnProgress=0);
 
   bool build(IplImage *model_image,
 		  int max_point_number_on_model, int patch_size,
-		  int yape_radius, int tree_number, int nbLev, 
+		  int yape_radius, int tree_number, int nbLev,
 		  LEARNPROGRESSION LearnProgress=0, int *roi=0);
   //@{
   /** \name Functions for fine tuning:
   */
   //! Activate bins when detecting model points (Default)
-  void use_bins_when_creating_model_points(void) { use_bins_for_model_points = true; } 
+  void use_bins_when_creating_model_points(void) { use_bins_for_model_points = true; }
   //! Disactivate bins when detecting model points
   void dont_use_bins_when_creating_model_points(void) { use_bins_for_model_points = false; }
 
   //! Activate bins when detecting input image points (Default)
-  void use_bins_when_detecting_input_image_points(void) { use_bins_for_input_image = true; } 
+  void use_bins_when_detecting_input_image_points(void) { use_bins_for_input_image = true; }
   //! Disactivate bins when detecting model points
   void dont_use_bins_when_detecting_input_image_points(void) { use_bins_for_input_image = false; }
 
@@ -95,7 +95,7 @@ public:
   //! Default method. Between 0.5 : 1.5 for both
   void independent_scaling(float min_lambda1, float max_lambda1, float min_lambda2, float max_lambda2);
   //! Constrained scaling. Adds a constraint on the range of the product of l1 and l2.
-  void constrained_scaling(float min_lambda1, float max_lambda1, 
+  void constrained_scaling(float min_lambda1, float max_lambda1,
                            float min_lambda2, float max_lambda2,
                            float min_l1_l2, float max_l1_l2);
 
@@ -112,15 +112,15 @@ public:
   //@}
 
   //! Create the point recognizer (see \ref forest field)
-  void learn(int max_point_number_on_model, 
-             int patch_size, int yape_radius, 
-             int tree_number, int nbLev=5, 
+  void learn(int max_point_number_on_model,
+             int patch_size, int yape_radius,
+             int tree_number, int nbLev=5,
              LEARNPROGRESSION LearnProgress=0);
 
   //! Save data in the given directory. The directory must exist.
   void save(string directory_name);
 
-  //! load data from a given directory. 
+  //! load data from a given directory.
   //! \return true on success, false on failure.
   bool load(string directory_name);
 
@@ -131,7 +131,7 @@ public:
   If the object is detected, put the detected corners in the fieds \c detected_u_corner1, \c detected_v_corner1 ...
 
   Calls successively the functions:
-  - \c detect_points 
+  - \c detect_points
   - \c preprocess_points
   - \c match_points
   - \c estimate_affine_transformation
@@ -143,12 +143,19 @@ public:
   void set_max_detected_pts(int max);
 
   //@{
-  /** \name Functions called by the detect() function 
+  /** \name Functions called by the detect() function
   */
   void detect_points(IplImage * input_image);
   void preprocess_points(void);
   void match_points(bool fill_match_struct = true);
   bool estimate_affine_transformation(void);
+  /// damian: unroll into flat loops
+  bool estimate_affine_transformation_unrolled(void);
+  /// damian: multithreaded
+  bool estimate_affine_transformation_mt(void);
+  static void* estimate_affine_transformation_thread_func(void* data);
+
+
   bool estimate_homographic_transformation_linear_method(void);
   bool estimate_homographic_transformation_nonlinear_method(void);
   //@}
@@ -182,14 +189,14 @@ public:
   pyr_yape * point_detector;
 
   //! For visualization
-  IplImage * create_result_image(IplImage * input_image, 
-    bool p_draw_points, bool p_draw_matches, 
+  IplImage * create_result_image(IplImage * input_image,
+    bool p_draw_points, bool p_draw_matches,
     bool p_draw_object, bool p_draw_model_image,
     int line_width = 2);
 
   //! For debugging: save generated patches for a particular point in dir patches,
   //! before and after orientation correction.
-  void debug_model_point(int p_index_of_model_point_to_debug) 
+  void debug_model_point(int p_index_of_model_point_to_debug)
   { index_of_model_point_to_debug = p_index_of_model_point_to_debug; }
 
   //! For debugging: save one image per match in dir matches
@@ -208,9 +215,9 @@ public:
 
   pair<object_keypoint, int> * search_for_existing_model_point(vector< pair<object_keypoint, int> > * tmp_model_points,
     float cu, float cv, int scale);
-  void detect_most_stable_model_points(int max_point_number_on_model, 
-                                       int patch_size, int view_number, 
-                                       double min_view_rate, 
+  void detect_most_stable_model_points(int max_point_number_on_model,
+                                       int patch_size, int view_number,
+                                       double min_view_rate,
                                        LEARNPROGRESSION LearnProgress=0);
   void save_image_of_model_points(int patch_size, char * filename = 0);
 
@@ -219,6 +226,7 @@ public:
 
   // For position estimation:
   int compute_support_for_affine_transformation(affinity * A);
+  int compute_support_for_affine_transformation_readonly(affinity * A);
   bool three_random_correspondences(int * n1, int * n2, int * n3);
   bool valid(affinity * A);
 
@@ -233,7 +241,7 @@ public:
   int index_of_model_point_to_debug;
 
   //! number of generated views for finding stable points
-  int views_number; 
+  int views_number;
 
   //! minimum visible rate for determining stable keypoints
   double min_view_rate;
@@ -258,6 +266,9 @@ public:
   //! maximum iteration number for RANSAC
   int max_ransac_iterations;
 
+  //! average actual number of iterations preformed for RANSAC
+  int avg_ransac_iterations;
+
   /*! RANSAC will stop if it finds a transformation that satisfies at least
    *  ransac_stop_support matches.
    */
@@ -268,7 +279,7 @@ public:
   void save_patch_before_and_after_correction(IplImage * image,
                                               int u, int v, int patch_size,
                                               image_class_example * pv,
-                                              int point_index, 
+                                              int point_index,
                                               int call_number);
   void concat_model_and_input_images(IplImage * input_image, bool p_draw_model_image = true);
   void draw_points(int line_width = 1);

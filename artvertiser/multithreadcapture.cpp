@@ -2,7 +2,6 @@
 #include "multithreadcapture.h"
 #include <unistd.h>
 
-#define PROFILE
 #include "FProfiler/FProfiler.h"
 
 MultiThreadCaptureManager* MultiThreadCaptureManager::instance = NULL;
@@ -43,6 +42,7 @@ frame_processsize( 0 ), processed( 0 ), last_frame_ret(0), processed_ret(0), new
 
 MultiThreadCapture::~MultiThreadCapture()
 {
+    printf("in ~MultiThreadCapture\n");
     stopCapture();
 
     /*if ( last_frame )
@@ -173,6 +173,12 @@ void MultiThreadCapture::ThreadedFunction()
 
             }
         }
+        else
+        {
+            printf("cvGrabFrame failed: trying to rewind\n");
+            // try rewinding
+            cvSetCaptureProperty( capture, CV_CAP_PROP_POS_FRAMES, 0 );
+        }
 
         // wait a bit
         usleep( 1000 );
@@ -200,8 +206,19 @@ void MultiThreadCapture::getLastProcessedFrame( IplImage** processedFrame, IplIm
     {
         if ( block_until_available )
         {
-            while ( !new_frame_available )
+            int timeout_us = 500*1000; // 1 second
+            while ( !new_frame_available && timeout_us > 0 )
+            {
                 usleep( 100 );
+                timeout_us -= 100;
+            }
+            if ( !new_frame_available )
+            {
+                printf("capture timed out\n");
+                *processedFrame = NULL;
+                *rawFrame = NULL;
+                return;
+            }
         }
         else
         {

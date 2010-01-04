@@ -478,6 +478,9 @@ ps-am:
 
 uninstall-am:
 
+profile: CXXFLAGS+=-DPROFILE 
+profile: all
+
 .MAKE: install-am install-strip
 
 .PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
@@ -491,7 +494,7 @@ uninstall-am:
 	installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic pdf pdf-am ps ps-am tags uninstall \
-	uninstall-am
+	uninstall-am profile setprofileenv
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

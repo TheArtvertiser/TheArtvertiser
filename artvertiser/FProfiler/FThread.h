@@ -19,7 +19,7 @@
 class FThread
 {
 public:
-    FThread() { thread_running = false; }
+    FThread( ) { thread_running = false; }
     virtual ~FThread() { if ( thread_running ) StopThread(); }
 
     /// start running the ThreadedFunction
