@@ -181,7 +181,7 @@ void MultiThreadCapture::ThreadedFunction()
         }
 
         // wait a bit
-        usleep( 1000 );
+        usleep( 10000 );
     }
 }
 

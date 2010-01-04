@@ -320,6 +320,25 @@ void planar_object_recognizer::initialize(void)
 
 planar_object_recognizer::~planar_object_recognizer(void)
 {
+  // damian: clean up multithreaded tracker stuff
+  if ( affine_thread_data.size() > 0 )
+  {
+      // kill all the threads
+      for ( int i=0; i<affine_thread_data.size(); i++ )
+      {
+          // tell the thread to stop
+          affine_thread_data[i]->should_stop = true;
+          affine_thread_data[i]->start_signal.Signal();
+          // wait for completion
+          void* res;
+          pthread_join( affine_thread_data[i]->thread, &res );
+          // delete
+          delete( affine_thread_data[i] );
+      }
+      affine_thread_data.clear();
+      delete shared_barrier;
+  }
+
   if (object_input_view)   delete object_input_view;
   if (point_detector)      delete point_detector;
 
@@ -500,7 +519,7 @@ bool planar_object_recognizer::detect(IplImage * input_image)
     PROFILE_SECTION_PUSH("estimate affine");
 
     //object_is_detected = estimate_affine_transformation(); // Estimation of "affine_motion" using Ransac.
-    object_is_detected = estimate_affine_transformation_unrolled();
+    object_is_detected = estimate_affine_transformation_mt();
 
     affine_motion->transform_point(float(new_images_generator.u_corner1),
                                  float(new_images_generator.v_corner1), &detected_u_corner1, &detected_v_corner1);
@@ -664,14 +683,7 @@ bool planar_object_recognizer::valid(affinity * A)
 }
 
 
-class EstimateAffineThreadData
-{
-public:
-    planar_object_recognizer* detector;
-    affinity A;
-    int A_support;
-    int num_ransac_iterations;
-};
+
 
 
 void* planar_object_recognizer::estimate_affine_transformation_thread_func( void* _data )
@@ -682,95 +694,109 @@ void* planar_object_recognizer::estimate_affine_transformation_thread_func( void
 
     planar_object_recognizer* detector = data->detector;
 
-    // first, unroll everything
-
-    // construct random correspondencies
-    int randoms[3*data->num_ransac_iterations];
-    int actual_ransac_iterations = data->num_ransac_iterations;
+    while( true )
     {
-        //PROFILE_THIS_BLOCK("three random");
-        bool three_random = true;
-        int i;
-        for ( i=0; i < data->num_ransac_iterations && three_random; i++ )
+        // wait for signal to begin
+        data->start_signal.Wait();
+        if ( data->should_stop )
+            break;
+
+        //printf("thread %i running, %i iterations\n", data->thread_id, data->num_ransac_iterations );
+
+        // construct random correspondencies
+        int randoms[3*data->num_ransac_iterations];
+        int actual_ransac_iterations = data->num_ransac_iterations;
         {
-            // create 3 random correspondencies, bail if three_random_corr returns false
-            three_random &= detector->three_random_correspondences( &randoms[3*i], &randoms[3*i+1], &randoms[3*i+2] );
-        }
-        // in case three_random_correpsondencies fails early, we store how many we actually have
-        actual_ransac_iterations = i;
-    }
-
-
-    // transform points
-    float transformed_points[4*3*actual_ransac_iterations];
-    {
-        //PROFILE_THIS_BLOCK( "transform" );
-        for ( int i=0; i<actual_ransac_iterations; i++ )
-        {
-            image_object_point_match *m1 = detector->matches + randoms[3*i+0];
-            image_object_point_match *m2 = detector->matches + randoms[3*i+1];
-            image_object_point_match *m3 = detector->matches + randoms[3*i+2];
-
-            transformed_points[4*3*i+0 ] = PyrImage::convCoordf(float(m1->object_point->M[0]), int(m1->object_point->scale), 0);
-            transformed_points[4*3*i+1 ] = PyrImage::convCoordf(float(m1->object_point->M[1]), int(m1->object_point->scale), 0);
-            transformed_points[4*3*i+2 ] = PyrImage::convCoordf(float(m1->image_point->u), int(m1->image_point->scale), 0);
-            transformed_points[4*3*i+3 ] = PyrImage::convCoordf(float(m1->image_point->v), int(m1->image_point->scale), 0);
-
-            transformed_points[4*3*i+4 ] = PyrImage::convCoordf(float(m2->object_point->M[0]), int(m2->object_point->scale), 0);
-            transformed_points[4*3*i+5 ] = PyrImage::convCoordf(float(m2->object_point->M[1]), int(m2->object_point->scale), 0);
-            transformed_points[4*3*i+6 ] = PyrImage::convCoordf(float(m2->image_point->u), int(m2->image_point->scale), 0);
-            transformed_points[4*3*i+7 ] = PyrImage::convCoordf(float(m2->image_point->v), int(m2->image_point->scale), 0);
-
-            transformed_points[4*3*i+8 ] = PyrImage::convCoordf(float(m3->object_point->M[0]), int(m3->object_point->scale), 0);
-            transformed_points[4*3*i+9 ] = PyrImage::convCoordf(float(m3->object_point->M[1]), int(m3->object_point->scale), 0);
-            transformed_points[4*3*i+10] = PyrImage::convCoordf(float(m3->image_point->u), int(m3->image_point->scale), 0);
-            transformed_points[4*3*i+11] = PyrImage::convCoordf(float(m3->image_point->v), int(m3->image_point->scale), 0);
-        }
-    }
-
-    // so now go through and compute support for each point
-    int support[actual_ransac_iterations];
-    {
-        //PROFILE_THIS_BLOCK("estimate");
-        affinity A;// = new affinity();
-
-        for ( int i=0; i<actual_ransac_iterations; i++ )
-        {
-            /*float *nums = &(transformed_points[4*3*i]);
-            A.estimate( nums[0], nums[1], nums[2], nums[3],
-                       nums[4], nums[5], nums[6], nums[7],
-                       nums[8], nums[9], nums[10], nums[11] );*/
-
-            //A.estimate( &(transformed_points[4*3*i]) );
-            A.estimate( transformed_points + 4*3*i );
-
-            support[i] = detector->compute_support_for_affine_transformation_readonly(&A);
-        }
-    }
-
-    // find best support
-    int best_support = -1;
-    int best_index = 0;
-    {
-        //PROFILE_THIS_BLOCK("finalize");
-        for ( int i=0; i<actual_ransac_iterations; i++ )
-        {
-            if ( support[i] > best_support )
+            //PROFILE_THIS_BLOCK("three random");
+            bool three_random = true;
+            int i;
+            for ( i=0; i < data->num_ransac_iterations && three_random; i++ )
             {
-                best_support = support[i];
-                best_index = i;
+                // create 3 random correspondencies, bail if three_random_corr returns false
+                three_random &= detector->three_random_correspondences( &randoms[3*i], &randoms[3*i+1], &randoms[3*i+2] );
+            }
+            // in case three_random_correpsondencies fails early, we store how many we actually have
+            actual_ransac_iterations = i;
+        }
+
+
+        // transform points
+        float transformed_points[4*3*actual_ransac_iterations];
+        {
+            //PROFILE_THIS_BLOCK( "transform" );
+            for ( int i=0; i<actual_ransac_iterations; i++ )
+            {
+                image_object_point_match *m1 = detector->matches + randoms[3*i+0];
+                image_object_point_match *m2 = detector->matches + randoms[3*i+1];
+                image_object_point_match *m3 = detector->matches + randoms[3*i+2];
+
+                transformed_points[4*3*i+0 ] = PyrImage::convCoordf(float(m1->object_point->M[0]), int(m1->object_point->scale), 0);
+                transformed_points[4*3*i+1 ] = PyrImage::convCoordf(float(m1->object_point->M[1]), int(m1->object_point->scale), 0);
+                transformed_points[4*3*i+2 ] = PyrImage::convCoordf(float(m1->image_point->u), int(m1->image_point->scale), 0);
+                transformed_points[4*3*i+3 ] = PyrImage::convCoordf(float(m1->image_point->v), int(m1->image_point->scale), 0);
+
+                transformed_points[4*3*i+4 ] = PyrImage::convCoordf(float(m2->object_point->M[0]), int(m2->object_point->scale), 0);
+                transformed_points[4*3*i+5 ] = PyrImage::convCoordf(float(m2->object_point->M[1]), int(m2->object_point->scale), 0);
+                transformed_points[4*3*i+6 ] = PyrImage::convCoordf(float(m2->image_point->u), int(m2->image_point->scale), 0);
+                transformed_points[4*3*i+7 ] = PyrImage::convCoordf(float(m2->image_point->v), int(m2->image_point->scale), 0);
+
+                transformed_points[4*3*i+8 ] = PyrImage::convCoordf(float(m3->object_point->M[0]), int(m3->object_point->scale), 0);
+                transformed_points[4*3*i+9 ] = PyrImage::convCoordf(float(m3->object_point->M[1]), int(m3->object_point->scale), 0);
+                transformed_points[4*3*i+10] = PyrImage::convCoordf(float(m3->image_point->u), int(m3->image_point->scale), 0);
+                transformed_points[4*3*i+11] = PyrImage::convCoordf(float(m3->image_point->v), int(m3->image_point->scale), 0);
             }
         }
-    }
 
-    // re-estimate for the output
-    if ( best_support > 10 )
-    {
-        data->A.estimate( transformed_points + 4*3*best_index );
-        data->A_support = best_support;
+        // so now go through and compute support for each point
+        int support[actual_ransac_iterations];
+        {
+            //PROFILE_THIS_BLOCK("estimate");
+            affinity A;// = new affinity();
+
+            for ( int i=0; i<actual_ransac_iterations; i++ )
+            {
+                /*float *nums = &(transformed_points[4*3*i]);
+                A.estimate( nums[0], nums[1], nums[2], nums[3],
+                           nums[4], nums[5], nums[6], nums[7],
+                           nums[8], nums[9], nums[10], nums[11] );*/
+
+                //A.estimate( &(transformed_points[4*3*i]) );
+                A.estimate( transformed_points + 4*3*i );
+
+                support[i] = detector->compute_support_for_affine_transformation_readonly(&A);
+            }
+        }
+
+        // find best support
+        int best_support = -1;
+        int best_index = 0;
+        {
+            //PROFILE_THIS_BLOCK("finalize");
+            for ( int i=0; i<actual_ransac_iterations; i++ )
+            {
+                if ( support[i] > best_support )
+                {
+                    best_support = support[i];
+                    best_index = i;
+                }
+            }
+        }
+
+        // re-estimate for the output
+        if ( best_support > 10 )
+        {
+            data->A.estimate( transformed_points + 4*3*best_index );
+            data->A_support = best_support;
+        }
+        else
+            data->A_support = -1;
+
+        //printf("thread %i finished, best support %i\n", data->thread_id, best_support );
+
+        // tell the barrier
+        data->barrier->Wait();
+
     }
-    else
-        data->A_support = -1;
 
     pthread_exit(0);
 }
@@ -780,40 +806,67 @@ bool planar_object_recognizer::estimate_affine_transformation_mt(void)
 {
     PROFILE_THIS_FUNCTION();
 
-    // spawn worker threads
-    int num_threads = 1;
-    pthread_t threads[num_threads];
-    EstimateAffineThreadData thread_data[num_threads];
+    // make threads
+    int num_threads = 2;
+    if ( affine_thread_data.size() != num_threads )
+    {
+        assert(affine_thread_data.size() == 0);
 
-    // make threads joinable
-    pthread_attr_t thread_attr;
-    pthread_attr_init(&thread_attr);
-    pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
+        // construct barrier
+        shared_barrier = new FBarrier( num_threads+1 );
+
+        // make threads joinable
+        pthread_attr_t thread_attr;
+        pthread_attr_init(&thread_attr);
+        pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
+        printf("creating %i threads\n", num_threads);
+        for ( int i=0; i<num_threads; i++ )
+        {
+            // setup data
+            EstimateAffineThreadData* thread_data = new EstimateAffineThreadData();
+            thread_data->thread_id = i;
+            thread_data->detector = this;
+            thread_data->barrier = shared_barrier;
+            thread_data->should_stop = false;
+            // start the thread
+            pthread_create( &thread_data->thread, &thread_attr, estimate_affine_transformation_thread_func, (void*)thread_data );
+
+            // store
+            affine_thread_data.push_back( thread_data );
+        }
+        pthread_attr_destroy(&thread_attr);
+    }
+
+    // tell threads to run
     for ( int i=0; i<num_threads; i++ )
     {
-        // setup data
-        thread_data[i].detector = this;
-        thread_data[i].num_ransac_iterations = max_ransac_iterations/num_threads;
-        thread_data[i].A_support = -1;
-        // start the thread
-        pthread_create(&threads[i], &thread_attr, estimate_affine_transformation_thread_func, (void*)&thread_data[i] );
+        affine_thread_data[i]->A_support = -1;
+        affine_thread_data[i]->num_ransac_iterations = max_ransac_iterations/num_threads;
+        affine_thread_data[i]->start_signal.Signal();
     }
-    pthread_attr_destroy(&thread_attr);
 
-    // now wait for threads to finish, and get best support
+    // now wait for threads to finish
+    shared_barrier->Wait();
+
+    // and get best support
     affinity* best_A = NULL;
     int best_support = -1;
+    int best_thread = -1;
     for ( int i=0; i<num_threads; i++ )
     {
-        void* status;
-        pthread_join( threads[i], &status );
         // read data back from the thread
-        if ( thread_data[i].A_support > best_support)
+        if ( affine_thread_data[i]->A_support > best_support)
         {
-            best_A = &thread_data[i].A;
-            best_support = thread_data[i].A_support;
+            best_A = &affine_thread_data[i]->A;
+            best_support = affine_thread_data[i]->A_support;
+            best_thread = i;
         }
     }
+
+    /*if ( best_thread > 0 )
+        printf("best thread was %i with %i support\n", affine_thread_data[best_thread]->thread_id, affine_thread_data[best_thread]->A_support );
+    else
+        printf("no best thread\n");*/
 
     // found?
     if ( best_support > 10 )

@@ -12,6 +12,25 @@
 
 #include <stdio.h>
 #include <semaphore.h>
+#include <pthread.h>
+#include <sys/errno.h>
+
+class FBarrier
+{
+public:
+    /// count is the number of threads to wait for.
+    FBarrier( int count ) { int res = pthread_barrier_init( &barrier, 0, count ); assert(res==0 && "error creating barrier"); }
+    ~FBarrier() { int res = pthread_barrier_destroy( &barrier ); if ( res==EBUSY ) assert(false && "cannot destroy barrier when it is in use" ); }
+
+    /// wait for everyone to arrive at the barrier. return once they have. returns true if wait returns
+    /// the PTHREAD_BARRIER_SERIAL_THREAD return value.
+    bool Wait() { int ret = pthread_barrier_wait( &barrier ); return ret == PTHREAD_BARRIER_SERIAL_THREAD; }
+
+private:
+
+    pthread_barrier_t barrier;
+
+};
 
 class FSemaphore
 {

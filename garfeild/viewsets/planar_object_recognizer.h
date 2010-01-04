@@ -28,6 +28,8 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA
 #include "object_view.h"
 #include "image_classification_forest.h"
 #include "image_object_point_match.h"
+// damian
+#include "artvertiser/FProfiler/FSemaphore.h"
 
 /*!\defgroup viewsets Viewsets
  * \ingroup garfeild
@@ -153,9 +155,6 @@ public:
   bool estimate_affine_transformation_unrolled(void);
   /// damian: multithreaded
   bool estimate_affine_transformation_mt(void);
-  static void* estimate_affine_transformation_thread_func(void* data);
-
-
   bool estimate_homographic_transformation_linear_method(void);
   bool estimate_homographic_transformation_nonlinear_method(void);
   //@}
@@ -294,6 +293,32 @@ public:
   //@}
 
   void check_target_size(IplImage *image);
+
+private:
+
+  static void* estimate_affine_transformation_thread_func(void* data);
+
+  class EstimateAffineThreadData
+  {
+  public:
+    EstimateAffineThreadData() : start_signal( 0 ) {};
+    pthread_t thread;
+    int thread_id;
+
+    planar_object_recognizer* detector;
+    affinity A;
+    int A_support;
+    int num_ransac_iterations;
+
+    FSemaphore start_signal;
+    FBarrier* barrier;
+    bool should_stop;
+  };
+
+  FBarrier* shared_barrier;
+  vector<EstimateAffineThreadData*> affine_thread_data;
+
+
 };
 
 //@}
