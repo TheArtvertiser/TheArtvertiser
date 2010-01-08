@@ -44,6 +44,9 @@ planar_object_recognizer::planar_object_recognizer()
   point_detector = 0;
   homography_estimator=0;
 
+  for(int i = 0; i < hard_max_detected_pts; i++)
+    match_probabilities[i] =0;
+
   default_settings();
 
   affine_motion = 0;
@@ -53,8 +56,10 @@ planar_object_recognizer::planar_object_recognizer()
   match_score_threshold = .05f;
   ransac_dist_threshold = 10;
   ransac_stop_support = 50;
-  max_ransac_iterations = 500;
+  max_ransac_iterations = 800;
+  point_detector_tau = 25;
   non_linear_refine_threshold = 3;
+
 }
 
 void planar_object_recognizer::default_settings(void)
@@ -72,6 +77,7 @@ void planar_object_recognizer::default_settings(void)
   views_number = 1000;
   min_view_rate = .4;
   keypoint_distance_threshold = 1.5;
+  point_detector_tau = 10;
 }
 
 void planar_object_recognizer::set_max_detected_pts(int max)
@@ -214,6 +220,8 @@ planar_object_recognizer::planar_object_recognizer(string directory_name)
 {
   forest = 0;
   model_points = 0;
+  for(int i = 0; i < hard_max_detected_pts; i++)
+    match_probabilities[i] =0;
 
   load(directory_name);
 }
@@ -434,11 +442,12 @@ void planar_object_recognizer::detect_points(IplImage * input_image)
 {
   check_target_size(input_image);
   point_detector->set_use_bins(use_bins_for_input_image);
-  point_detector->set_tau(10);
+  point_detector->set_tau(point_detector_tau);
 
   detected_point_number = point_detector->pyramidBlurDetect(input_image,
                                                             detected_points, max_detected_pts,
                                                             &object_input_view->image);
+  //printf("found %i points\n", detected_point_number );
 }
 
 void planar_object_recognizer::preprocess_points(void)
@@ -479,7 +488,10 @@ void planar_object_recognizer::match_points(bool fill_match_struct)
     if (u > (patch_size/2) && u < object_input_view->image[s]->width - (patch_size/2) &&
         v > (patch_size/2) && v < object_input_view->image[s]->height - (patch_size/2))
     {
-      forest->posterior_probabilities(pv, match_probabilities[i]);
+        PROFILE_SECTION_PUSH("posterior_prob");
+        forest->posterior_probabilities(pv, match_probabilities[i]);
+        PROFILE_SECTION_POP();
+
 
       if (fill_match_struct) {
         int model_point_index = 0;
@@ -716,11 +728,12 @@ void* planar_object_recognizer::estimate_affine_transformation_thread_func( void
                 three_random &= detector->three_random_correspondences( &randoms[3*i], &randoms[3*i+1], &randoms[3*i+2] );
             }
             // in case three_random_correpsondencies fails early, we store how many we actually have
-            actual_ransac_iterations = i;
+            actual_ransac_iterations = i-1;
         }
 
 
         // transform points
+        //printf("actual_ransac_iterations %i\n", actual_ransac_iterations);
         float transformed_points[4*3*actual_ransac_iterations];
         {
             //PROFILE_THIS_BLOCK( "transform" );
@@ -807,7 +820,7 @@ bool planar_object_recognizer::estimate_affine_transformation_mt(void)
     PROFILE_THIS_FUNCTION();
 
     // make threads
-    int num_threads = 2;
+    int num_threads = 8;
     if ( affine_thread_data.size() != num_threads )
     {
         assert(affine_thread_data.size() == 0);

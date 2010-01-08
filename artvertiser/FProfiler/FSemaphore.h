@@ -14,6 +14,7 @@
 #include <semaphore.h>
 #include <pthread.h>
 #include <sys/errno.h>
+#include <assert.h>
 
 class FBarrier
 {

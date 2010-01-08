@@ -75,6 +75,8 @@
 		<Unit filename="garfeild/lightcalib/tri.cpp" />
 		<Unit filename="garfeild/viewsets/affine_image_generator.cpp" />
 		<Unit filename="garfeild/viewsets/affine_image_generator.h" />
+		<Unit filename="garfeild/viewsets/cvplanardetect.cpp" />
+		<Unit filename="garfeild/viewsets/cvplanardetect.h" />
 		<Unit filename="garfeild/viewsets/example_generator.h" />
 		<Unit filename="garfeild/viewsets/image_class_example.cpp" />
 		<Unit filename="garfeild/viewsets/image_class_example.h" />

@@ -93,7 +93,7 @@ void FProfiler::SectionPush(const std::string &name)
 	context->current = s;
 
 	// store start time
-	context->current->start_time.SetNow();
+	context->current->timer.SetNow();
 //	QueryPerformanceCounter(&s->start_time);
 
 }
@@ -101,9 +101,6 @@ void FProfiler::SectionPush(const std::string &name)
 
 void FProfiler::SectionPop()
 {
-	FTime stop_time;
-	stop_time.SetNow();
-
 	// grab the section
 	FProfileContext* context = GetContext();
 	FProfileSection* s = context->current;
@@ -118,12 +115,15 @@ void FProfiler::SectionPop()
 	double time = 1000*(double)(stop_time.QuadPart - s->start_time.QuadPart)/(double)freq.QuadPart;
 	*/
 
-	stop_time -= s->start_time;
-	double time = stop_time.ToMillis();
+
+	//stop_time -= s->start_time;
+	double time = 1000.0*s->timer.Update();
 
 	// work out the new avg time and increment the call count
 	double total_time = time + s->avg_time * s->call_count++;
 	s->avg_time = total_time/(double)s->call_count;
+	/*s->avg_time = (s->avg_time*7 + time)/8;
+	s->call_count = 8;*/
 
 	// shift current up
 	context->current = context->current->parent;
@@ -142,7 +142,7 @@ void FProfiler::Display( FProfiler::SORT_BY sort )
 		  ++i )
 	{
 		printf("Thread %x\n", (unsigned int)&((*i)->thread_context) );
-		(*i)->toplevel->Display("", sort );
+		(*i)->toplevel->Display("| ", sort );
 	}
 	lock.Signal();
 	printf("---------------------------------------------------------------------------------------\n" );

@@ -71,6 +71,16 @@ yape::~yape()
   if (Dirs_nb) delete[] Dirs_nb;
   if (scores) cvReleaseImage(&scores);
   if (filtered_image) cvReleaseImage(&filtered_image);
+  if (raw_detect_thread_data.size()>0)
+  {
+      // cleanup threads
+      for ( int i=0; i<raw_detect_thread_data.size(); i++ )
+      {
+          delete raw_detect_thread_data[i];
+      }
+      raw_detect_thread_data.clear();
+      delete shared_barrier;
+  }
 }
 
 int yape::static_detect(IplImage * image, keypoint * points, int max_point_number, int _radius, int _tau)
@@ -232,10 +242,23 @@ bool yape::double_check(IplImage * image, int x, int y, short * dirs, unsigned c
 #define B2_NOT_INF (B2 >= Im)
 #define B2_NOT_SUP (B2 <= Ip)
 
-#define GET_A()   A = I[x+dirs[a]]
-#define GET_B0()  B0 = I[x+dirs[b]]
-#define GET_B1()  b++; B1 = I[x+dirs[b]]
-#define GET_B2()  b++; B2 = I[x+dirs[b]]
+#define GET_A_old()   A = I[x+dirs[a]]
+#define GET_B0_old()  B0 = I[x+dirs[b]]
+#define GET_B1_old()  b++; B1 = I[x+dirs[b]]
+#define GET_B2_old()  b++; B2 = I[x+dirs[b]]
+#define GET_A_paranoid()   temp = cache[a]; GET_A_old(); printf("GET_A: %i %i %i\n", temp, a, A ); assert(temp==A)
+#define GET_B0_paranoid()  temp = cache[b]; GET_B0_old(); printf("GET_B0: %i %i %i\n", temp, b, B0 ); assert(temp==B0)
+#define GET_B1_paranoid()  temp = cache[++b]; --b; GET_B1_old(); printf("GET_B1: %i %i %i\n", temp, b, B1 ); assert(temp==B1)
+#define GET_B2_paranoid()  temp = cache[++b]; --b; GET_B2_old(); printf("GET_B2: %i %i %i\n", temp, b, B2 ); assert(temp==B2)
+#define GET_A_new()  A = cache[a];
+#define GET_B0_new() B0 = cache[b];
+#define GET_B1_new() B1 = cache[++b];
+#define GET_B2_new() B2 = cache[++b];
+
+#define GET_A()  GET_A_new()
+#define GET_B0() GET_B0_new()
+#define GET_B1() GET_B1_new()
+#define GET_B2() GET_B2_new()
 
 #define GOTO_STATE(s)    { score -= A + B1; state = (s); break; }
 #define GOTO_END_NOT_AN_INTEREST_POINT { /*stats_iter[a]++;*/ Scores[x] = 0; return; }
@@ -256,10 +279,33 @@ void yape::perform_one_point(const unsigned char * I, const int x, short * Score
                              const int Im, const int Ip,
                              const short * dirs, const unsigned char opposite, const unsigned char dirs_nb)
 {
+
   int score = 0;
   unsigned char a = 0, b = opposite - 1;
-  int A, B0, B1, B2;
+  unsigned char A, B0, B1, B2;
   unsigned char state;
+  unsigned char temp;
+
+  unsigned char cache[dirs_nb];
+  for ( int i=0; i<dirs_nb; i++ )
+  {
+      cache[i] = I[x+dirs[i]];
+  }
+
+  /*printf("dirs: opp %hi, ", (short)opposite );
+  for ( int i=0; i<dirs_nb; i++ )
+  {
+      printf("%hi ", dirs[i] );
+  }
+  printf("\n");*/
+
+  /*GET_A();
+  GET_B0();
+  GET_B1();
+  GET_B2();
+
+  if ( A_NOT_SUP )*/
+
 
   // WE KNOW THAT NOT(A ~ I0 & B1 ~ I0):
   GET_A();
@@ -496,7 +542,7 @@ int yape::detect(IplImage * image, keypoint * points, int max_point_number, IplI
 
   reserve_tmp_arrays();
 
-  raw_detect(used_filtered_image);
+  raw_detect_mt(used_filtered_image);
 
   get_local_maxima(image, radius, 0);
 
@@ -568,6 +614,205 @@ int yape::pick_best_points(keypoint * points, unsigned int max_point_number)
     return 0;
 }
 
+
+static inline int computeLResponse(const uchar* ptr, const short* cdata, int csize)
+{
+    int i, csize2 = csize/2, sum = -ptr[0]*csize;
+    for( i = 0; i < csize2; i++ )
+    {
+        int ofs = cdata[i];
+        sum += ptr[ofs] + ptr[-ofs];
+    }
+    return abs(sum);
+}
+
+static inline void perform_one_point_2( const unsigned char* img, int x, short* scores, const int tau,
+                         const short* dirs, const unsigned char opposite, const unsigned char dirs_nb)
+{
+
+/*
+void yape::perform_one_point(const unsigned char * I, const int x, short * Scores,
+                             const int Im, const int Ip,
+                             const short * dirs, const unsigned char opposite, const unsigned char dirs_nb)
+{
+
+  int score = 0;
+  unsigned char a = 0, b = opposite - 1;
+  unsigned char A, B0, B1, B2;
+  unsigned char state;
+  unsigned char temp;
+
+  unsigned char cache[dirs_nb];
+  for ( int i=0; i<dirs_nb; i++ )
+  {
+      cache[i] = I[x+dirs[i]];
+  }
+*/
+    short val0 = *img;
+    unsigned char k;
+    for( k = 0; k < dirs_nb; k++ )
+    {
+        if( abs(val0 - img[dirs[k]]) < tau &&
+           (abs(val0 - img[dirs[k + opposite]]) < tau ||
+            abs(val0 - img[dirs[k + opposite - 1]]) < tau ||
+            abs(val0 - img[dirs[k + opposite + 1]]) < tau ||
+            abs(val0 - img[dirs[k + opposite - 2]]) < tau ||
+            abs(val0 - img[dirs[k + opposite + 2]]) < tau ) )
+            break;
+    }
+
+    if( k < dirs_nb )
+    {
+        scores[x] = 0;
+    }
+    else
+    {
+        scores[x] = (short)computeLResponse(img, dirs, dirs_nb);
+    }
+}
+
+yape::RawDetectThreadData::RawDetectThreadData()
+{
+    run_semaphore = new FSemaphore( 0 );
+}
+
+yape::RawDetectThreadData::~RawDetectThreadData()
+{
+    // kill the thread
+    should_stop=true;
+    run_semaphore->Signal();
+    void* ret;
+    pthread_join( thread, &ret );
+    delete run_semaphore;
+}
+
+void* yape::raw_detect_thread_func( void* _data )
+{
+    RawDetectThreadData* data = (RawDetectThreadData*)_data;
+
+    while ( true )
+    {
+        // continue/stop mechanism
+        data->run_semaphore->Wait();
+        if ( data->should_stop )
+            break;
+
+        unsigned int R = data->y->radius;
+        short * dirs = data->y->Dirs->t[R];
+        unsigned char dirs_nb = (unsigned char)(data->y->Dirs_nb[R]);
+        unsigned char opposite = dirs_nb / 2;
+
+        CvRect roi = cvGetImageROI(data->im);
+
+        if (roi.x < int(R+1)) roi.x = R+1;
+        if (roi.y < int(R+1)) roi.y = R+1;
+        if ((roi.x + roi.width)  > int(data->im->width-R-2))  roi.width  = data->im->width  - R - roi.x - 2;
+        if ((roi.y + roi.height) > int(data->im->height-R-2)) roi.height = data->im->height - R - roi.y - 2;
+
+        unsigned int xend = roi.x + roi.width;
+        unsigned int yend = data->y_start + data->y_count;
+        int tau = data->y->tau;
+
+        for(unsigned int y = data->y_start; y < yend; y++)
+        {
+            unsigned char* I = (unsigned char*)(data->im->imageData + y*data->im->widthStep);
+            short * Scores = (short*)(data->y->scores->imageData + y*data->y->scores->widthStep);
+            for(unsigned int x = roi.x; x < xend; x++)
+            {
+                unsigned char* img = I+x;
+                int Ip = I[x] + tau;
+                int Im = I[x] - tau;
+
+                if (Im<img[R] && img[R]<Ip && Im<img[-R] && img[-R]<Ip)
+                    Scores[x] = 0;
+                else
+                {
+                    //perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb);
+                    //int old_score = Scores[x];
+                    perform_one_point_2( img, x, Scores, tau, dirs, opposite, dirs_nb );
+                    //int new_score = Scores[x];
+                    //printf("%3i %3i: %i %i\n", x, y, old_score, new_score );
+                }
+            }
+        }
+
+        // finished
+        data->barrier->Wait();
+
+    }
+
+    pthread_exit(0);
+}
+
+void yape::raw_detect_mt(IplImage* im)
+{
+    PROFILE_THIS_FUNCTION();
+    int thread_count = 8;
+    if ( raw_detect_thread_data.size() != thread_count )
+    {
+        assert( raw_detect_thread_data.size() == 0 );
+
+        // make shared barrier
+        shared_barrier = new FBarrier( thread_count+1 );
+
+        // make threads joinable
+        pthread_attr_t thread_attr;
+        pthread_attr_init(&thread_attr);
+        pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
+        printf("creating %i raw_detect threads\n", thread_count);
+        for ( int i=0; i<thread_count; i++ )
+        {
+            // setup data
+            RawDetectThreadData* thread_data = new RawDetectThreadData;
+            thread_data->run_semaphore = new FSemaphore(0);
+            thread_data->y = this;
+            thread_data->barrier = shared_barrier;
+            thread_data->should_stop = false;
+            // start the thread
+            pthread_create( &thread_data->thread, &thread_attr, raw_detect_thread_func, (void*)thread_data );
+            // store
+            raw_detect_thread_data.push_back( thread_data );
+        }
+        pthread_attr_destroy(&thread_attr);
+
+    }
+
+    // go
+    unsigned int R = radius;
+    CvRect roi = cvGetImageROI(im);
+    // get y for divisions
+    if (roi.y < int(R+1)) roi.y = R+1;
+    if ((roi.y + roi.height) > int(im->height-R-2)) roi.height = im->height - R - roi.y - 2;
+
+    // distribute y over threads
+    int curr_y = roi.y;
+    int y_remaining_count = roi.height;
+    int y_count = y_remaining_count / raw_detect_thread_data.size();
+    assert( y_remaining_count >= raw_detect_thread_data.size() && "too many threads / not enough roi.y height" );
+    // start each thread
+    for ( int i=0; i<raw_detect_thread_data.size(); i++ )
+    {
+        // get thread data
+        RawDetectThreadData* thread_data = raw_detect_thread_data[i];
+        thread_data->im = im;
+        thread_data->y_start = curr_y;
+        // distribute y ranges to trheads, ensuring last thread gets remainder
+        if ( i== raw_detect_thread_data.size()-1 )
+            thread_data->y_count = y_remaining_count;
+        else
+            thread_data->y_count = y_count;
+        curr_y += y_count;
+        y_remaining_count -= y_count;
+
+        // go!
+        thread_data->run_semaphore->Signal();
+
+    }
+    // wait for all threads to complete
+    shared_barrier->Wait();
+
+}
+
 /*! Detect interest points, without filtering and without selecting best ones.
 * Just find them and add them to tmp_points. tmp_points is not cleared in this
 * method.
@@ -588,23 +833,81 @@ void yape::raw_detect(IplImage *im) {
   unsigned int xend = roi.x + roi.width;
   unsigned int yend = roi.y + roi.height;
 
-  for(unsigned int y = roi.y; y < yend; y++)
-  {
-    unsigned char * I = (unsigned char *)(im->imageData + y*im->widthStep);
-    short * Scores = (short *)(scores->imageData + y*scores->widthStep);
+    PROFILE_SECTION_PUSH("performing points");
 
-    for(unsigned int x = roi.x; x < xend; x++)
+    for(unsigned int y = roi.y; y < yend; y++)
     {
-      int Ip = I[x] + tau;
-      int Im = I[x] - tau;
+        unsigned char* I = (unsigned char*)(im->imageData + y*im->widthStep);
+        short * Scores = (short*)(scores->imageData + y*scores->widthStep);
+        for(unsigned int x = roi.x; x < xend; x++)
+        {
+            unsigned char* img = I+x;
+            int Ip = I[x] + tau;
+            int Im = I[x] - tau;
 
-      if (Im<I[x+R] && I[x+R]<Ip && Im<I[x-R] && I[x-R]<Ip)
-        Scores[x] = 0;
-      else
-        perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb);
+            if (Im<img[R] && img[R]<Ip && Im<img[-R] && img[-R]<Ip)
+                Scores[x] = 0;
+            else
+            {
+                perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb);
+                //int old_score = Scores[x];
+                //perform_one_point_2( img, x, Scores, tau, dirs, opposite, dirs_nb );
+                //int new_score = Scores[x];
+                //printf("%3i %3i: %i %i\n", x, y, old_score, new_score );
+            }
+        }
     }
-  }
+    PROFILE_SECTION_POP();
 }
+
+/*
+        for( y = radius; y < layerSize.height - radius; y++ )
+        {
+            const uchar* img = pyrLayer.ptr<uchar>(y) + radius;
+            short* scores = scoreLayer.ptr<short>(y);
+            uchar* mask = maskLayer.ptr<uchar>(y);
+
+            for( x = 0; x < radius; x++ )
+            {
+                scores[x] = scores[layerSize.width - 1 - x] = 0;
+                mask[x] = mask[layerSize.width - 1 - x] = 0;
+            }
+
+            for( x = radius; x < layerSize.width - radius; x++, img++ )
+            {
+                int val0 = *img;
+                if( (std::abs(val0 - img[radius]) < tau && std::abs(val0 - img[-radius]) < tau) ||
+                   (std::abs(val0 - img[vradius]) < tau && std::abs(val0 - img[-vradius]) < tau))
+                {
+                    scores[x] = 0;
+                    mask[x] = 0;
+                    continue;
+                }
+
+                for( k = 0; k < csize; k++ )
+                {
+                    if( std::abs(val0 - img[cdata[k]]) < tau &&
+                       (std::abs(val0 - img[cdata[k + csize2]]) < tau ||
+                        std::abs(val0 - img[cdata[k + csize2 - 1]]) < tau ||
+                        std::abs(val0 - img[cdata[k + csize2 + 1]]) < tau ||
+                        std::abs(val0 - img[cdata[k + csize2 - 2]]) < tau ||
+                        std::abs(val0 - img[cdata[k + csize2 + 2]]) < tau ) )
+                        break;
+                }
+
+                if( k < csize )
+                {
+                    scores[x] = 0;
+                    mask[x] = 0;
+                }
+                else
+                {
+                    scores[x] = (short)computeLResponse(img, cdata, csize);
+                    mask[x] = 1;
+                }
+            }
+        }
+*/
 
 #define Dx 1
 #define Dy next_line
@@ -870,19 +1173,23 @@ int pyr_yape::detect(PyrImage *image, keypoint *points, int max_point_number)
 {
   reserve_tmp_arrays();
 
+    PROFILE_SECTION_PUSH("detect + maxima" );
   for (int i=image->nbLev-1; i>=0; --i)
   {
     select_level(i);
-    raw_detect(image->images[i]);
+    raw_detect_mt(image->images[i]);
     get_local_maxima(image->images[i], radius, float(i));
   }
+  PROFILE_SECTION_POP();
 
+  PROFILE_SECTION_PUSH("pick best, refine");
   int n = pick_best_points(points, max_point_number);
   for (int i = 0; i < n; i++) {
     int l =(int)points[i].scale;
     select_level(l);
     subpix_refine(image->images[l], points + i);
   }
+  PROFILE_SECTION_POP();
 
   return n;
 }
@@ -933,6 +1240,7 @@ int pyr_yape::pyramidBlurDetect(IplImage *im, keypoint *points, int max_point_nu
   int gaussian_filter_size = 3;
   if (radius >= 5) gaussian_filter_size = 5;
   if (radius >= 7) gaussian_filter_size = 7;
+
   PROFILE_SECTION_PUSH("gaussian");
   cvSmooth(im, pim->images[0], CV_GAUSSIAN, gaussian_filter_size, gaussian_filter_size);
   PROFILE_SECTION_POP();

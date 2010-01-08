@@ -273,6 +273,9 @@ public:
    */
   int ransac_stop_support;
 
+  //! tau for point detector //
+  int point_detector_tau;
+
   //@{
   //! The following functions are useful for visualization only:
   void save_patch_before_and_after_correction(IplImage * image,

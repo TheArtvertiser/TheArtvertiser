@@ -1,6 +1,6 @@
 /*
-Copyright 2005, 2006 Computer Vision Lab, 
-Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland. 
+Copyright 2005, 2006 Computer Vision Lab,
+Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland.
 All rights reserved.
 
 This file is part of BazAR.
@@ -16,7 +16,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 BazAR; if not, write to the Free Software Foundation, Inc., 51 Franklin
-Street, Fifth Floor, Boston, MA 02110-1301, USA 
+Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 #ifndef YAPE_H
 #define YAPE_H
@@ -24,13 +24,13 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA
 #include <vector>
 #include <cv.h>
 
-#include <starter.h> 
+#include <starter.h>
 #include "keypoint.h"
 
 const int yape_max_radius = 20;
 
 /*!
-\ingroup keypoints 
+\ingroup keypoints
 \brief \em YAPE feature point detector.
 
 Stands for Yet Another Point Extractor.
@@ -85,6 +85,9 @@ static void saveImageOfDetectedPoints(char * name, IplImage * image, CvPoint * p
 \endcode
 */
 
+class FBarrier;
+class FSemaphore;
+
 class yape
 {
 public:
@@ -105,17 +108,19 @@ public:
   void set_bins_number(int nb_u, int nb_v) { bin_nb_u = nb_u; bin_nb_v = nb_v;}
 
   //! Subpixel. Can be activated or disactived (default) for monoscale detection. Always activated for multi-scale detection.
-  void activate_subpixel(void) { set_use_subpixel(true); } 
+  void activate_subpixel(void) { set_use_subpixel(true); }
   void disactivate_subpixel(void) { set_use_subpixel(false); } // Default
   void set_use_subpixel(bool p_use_subpixel) { use_subpixel = p_use_subpixel; }
 
-  void set_minimal_neighbor_number(int p_minimal_neighbor_number) { minimal_neighbor_number = p_minimal_neighbor_number;} 
-  int get_minimal_neighbor_number(void) { return minimal_neighbor_number; } 
+  void set_minimal_neighbor_number(int p_minimal_neighbor_number) { minimal_neighbor_number = p_minimal_neighbor_number;}
+  int get_minimal_neighbor_number(void) { return minimal_neighbor_number; }
 
   int detect(IplImage * image, keypoint * points, int max_point_number, IplImage * smoothed_image = 0);
 
   //! detect interest points and add them to tmp_points.
   void raw_detect(IplImage *im);
+  void raw_detect_mt(IplImage* im);
+  static void* raw_detect_thread_func( void* data );
 
   //! sort and select the max_point_number best features.
   int pick_best_points(keypoint * points, unsigned int max_point_number);
@@ -137,8 +142,8 @@ protected:
 
   int get_local_maxima(IplImage * image, int R, float scale /*, keypoint * points, int max_point_number */);
 
-  void perform_one_point(const unsigned char * I, const int x, short * Scores,
-    const int Im, const int Ip, 
+  static void perform_one_point(const unsigned char * I, const int x, short * Scores,
+    const int Im, const int Ip,
     const short * dirs, const unsigned char opposite, const unsigned char dirs_nb);
 
   bool double_check(IplImage * image, int x, int y, short * dirs, unsigned char dirs_nb);
@@ -191,6 +196,30 @@ protected:
   CvMat * H;
   CvMat * mg;
   CvMat * shift;
+
+
+  // for detect threads
+  class RawDetectThreadData
+    {
+    public:
+        RawDetectThreadData();
+        ~RawDetectThreadData();
+
+        pthread_t thread;
+
+        yape* y;
+        IplImage* im;
+        int y_start;
+        int y_count;
+
+        bool should_stop;
+
+        FSemaphore* run_semaphore;
+        FBarrier* barrier;
+    };
+  vector<RawDetectThreadData*> raw_detect_thread_data;
+  FBarrier* shared_barrier;
+
 };
 
 //! Pyramidal YAPE (Feature point extractor)
@@ -219,7 +248,7 @@ public:
 
   //! compute and print on stdout a keypoint scale histogram.
   void stat_points(keypoint *points, int nb_pts);
-  
+
 //protected:
   PyrImage *internal_pim; //< pyramid image, recylcled for each frame
   PyrImage *pscores;

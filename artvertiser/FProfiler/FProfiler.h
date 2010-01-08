@@ -152,7 +152,7 @@ public:
 	int exec_order_id;
 	static int EXEC_ORDER_ID;
 
-	FTime start_time;
+	FTime timer;
 //	LARGE_INTEGER start_time;
 
 	FProfileSection* parent;

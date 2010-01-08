@@ -612,6 +612,12 @@ static void keyboard(unsigned char c, int x, int y)
         case '^':
             detector.min_view_rate*=1.02f;
             break;
+        case '7':
+            detector.point_detector_tau++;
+            break;
+        case '&':
+            detector.point_detector_tau--;
+            break;
         default:
             break;
         }
@@ -1214,15 +1220,17 @@ static void draw(void)
             // show detector settings
             planar_object_recognizer &detector(multi->cams[current_cam]->detector);
             char detector_settings_string[1024];
-            sprintf( detector_settings_string, "ransac dist %4.2f  stop %i  iter %i  real iter %i,\n"
-                    "others refine %6.4f  score %6.4f  viewrate %6.4f",
+            sprintf( detector_settings_string, "ransac dist %4.2f  stop %i  iter %i   detected points %i match count %i,\n"
+                    "refine %6.4f  score %6.4f  viewrate %6.4f  tau %2i",
                     detector.ransac_dist_threshold,
                     detector.ransac_stop_support,
                     detector.max_ransac_iterations,
-                    detector.avg_ransac_iterations,
+                    detector.detected_point_number,
+                    detector.match_number,
                     detector.non_linear_refine_threshold,
                     detector.match_score_threshold,
-                    detector.min_view_rate );
+                    detector.min_view_rate,
+                    detector.point_detector_tau );
 
             draw_string += "\n" + string(detector_settings_string);
         }

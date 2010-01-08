@@ -27,7 +27,7 @@
 class FTime
 {
 public:
-	FTime() { 
+	FTime() {
 		#ifdef OSX
 		time = 0;
 		#else
@@ -41,10 +41,10 @@ public:
 
 	// update our time to the current time, returning
 	// delta time in seconds as a float
-	float Update();
+	double Update();
 
 	// get the last delta time returned by Update()
-	float GetLastUpdateTime() { return last_update_time; }
+	double GetLastUpdateTime() { return last_update_time; }
 
 	// return seconds
 	double ToMillis();
@@ -59,7 +59,7 @@ private:
 	#else
 	timespec time;
 	#endif
-	float last_update_time;
+	double last_update_time;
 
 };
 
