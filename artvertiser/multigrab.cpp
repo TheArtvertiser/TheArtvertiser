@@ -47,7 +47,7 @@ int MultiGrab::init(bool cacheTraining, char *modelfile, char *avi_bg_path, int 
 		}
 		*/
 		cout << "MultiGrab::init creating camera capture at " << width << "x" << height << " detect at " << detect_width << "x" << detect_height << endl;
-		CvCapture *c = cvCaptureFromCAM(v4l_device);
+		CvCapture *c = cvCaptureFromCAM(v4l_device/*, width, height*/ );
 		cams.push_back(new Cam(c, width, height, detect_width, detect_height ));
 	}
 	if (cams.size()==0) {

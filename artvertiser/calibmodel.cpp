@@ -48,9 +48,10 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 {
 
 	detector.ransac_dist_threshold = 5;
-	detector.max_ransac_iterations = 500;
+	detector.max_ransac_iterations = 800;
 	detector.ransac_stop_support = 50;
 	detector.non_linear_refine_threshold = 1.5;
+	detector.point_detector_tau = 25;
 
 	// A lower threshold will allow detection in harder conditions, but
 	// might lead to false positives.

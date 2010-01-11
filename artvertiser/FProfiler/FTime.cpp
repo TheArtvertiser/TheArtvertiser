@@ -26,18 +26,18 @@ void FTime::SetNow()
 	#endif
 }
 
-float FTime::Update()
+double FTime::Update()
 {
 	#ifdef OSX
 	uint64_t now = mach_absolute_time();
 	uint64_t diff = now - time;
-	
+
 	static double conversion = 0.0;
 	if ( conversion == 0.0 )
 	{
 		mach_timebase_info_data_t info;
 		kern_return_t err = mach_timebase_info( &info );
-		
+
 		if( err == 0 )
 			conversion = 1e-9*(double)info.numer / (double) info.denom;
 	}
@@ -69,10 +69,10 @@ FTime FTime::operator- (const FTime& other) const
 	return t;
 }
 
-FTime& FTime::operator-= (const FTime& other ) 
-{ 
+FTime& FTime::operator-= (const FTime& other )
+{
 	#ifdef OSX
-	time -= other.time; 
+	time -= other.time;
 	#else
 	time.tv_sec -= other.time.tv_sec;
 	if ( time.tv_nsec < other.time.tv_nsec )
@@ -84,7 +84,7 @@ FTime& FTime::operator-= (const FTime& other )
 	else
 		time.tv_nsec -= other.time.tv_nsec;
 	#endif
-	return *this; 
+	return *this;
 }
 
 
@@ -96,11 +96,11 @@ double FTime::ToMillis()
 	{
 		mach_timebase_info_data_t info;
 		kern_return_t err = mach_timebase_info( &info );
-		
+
 		if( err == 0 )
 			conversion = 1e-6*(double)info.numer / (double) info.denom;
 	}
-	
+
 	return (conversion * (double) time);
 
 	#else

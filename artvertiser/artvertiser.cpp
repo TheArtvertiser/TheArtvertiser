@@ -1284,6 +1284,7 @@ static void idle()
         float normal[3];
         for (int j=0; j<3; j++) normal[j] = cvGet2D(mat, j, 2).val[0];
         cvReleaseMat(&mat);
+
     }
 
 

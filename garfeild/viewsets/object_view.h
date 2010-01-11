@@ -1,6 +1,6 @@
 /*
-Copyright 2005, 2006 Computer Vision Lab, 
-Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland. 
+Copyright 2005, 2006 Computer Vision Lab,
+Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland.
 All rights reserved.
 
 This file is part of BazAR.
@@ -16,7 +16,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 BazAR; if not, write to the Free Software Foundation, Inc., 51 Franklin
-Street, Fifth Floor, Boston, MA 02110-1301, USA 
+Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 #ifndef OBJECT_VIEW_H
 #define OBJECT_VIEW_H
@@ -28,9 +28,12 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA
 #include <viewsets/image_object_point_match.h>
 #include <keypoints/keypoint.h>
 
-/*! an object view contains 3 pyramids for image and gradient 
+/*! an object view contains 3 pyramids for image and gradient
   \ingroup viewsets
 */
+
+class FBarrier;
+
 class object_view
 {
 public:
@@ -46,6 +49,8 @@ public:
   void build_from_image_0(int kernelSize = 3);
   void build(IplImage *im, int kernelSize = -1);
   void comp_gradient();
+  void comp_gradient_mt();
+  static void* comp_gradient_thread_func(void* _data);
 
   PyrImage image;
   PyrImage gradX;
@@ -54,6 +59,11 @@ public:
   float affine_projection[6];
   int u0, v0;
   float alpha, scale;
+
+  class CompGradientThreadData;
+  vector<CompGradientThreadData*> comp_gradient_thread_data;
+  FBarrier* shared_barrier;
+
 };
 
 #endif // OBJECT_VIEW_H

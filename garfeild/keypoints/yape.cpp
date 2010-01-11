@@ -727,9 +727,9 @@ void* yape::raw_detect_thread_func( void* _data )
                     Scores[x] = 0;
                 else
                 {
-                    //perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb);
+                    perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb);
                     //int old_score = Scores[x];
-                    perform_one_point_2( img, x, Scores, tau, dirs, opposite, dirs_nb );
+                    //perform_one_point_2( img, x, Scores, tau, dirs, opposite, dirs_nb );
                     //int new_score = Scores[x];
                     //printf("%3i %3i: %i %i\n", x, y, old_score, new_score );
                 }

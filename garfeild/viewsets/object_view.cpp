@@ -1,6 +1,6 @@
 /*
-Copyright 2005, 2006 Computer Vision Lab, 
-Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland. 
+Copyright 2005, 2006 Computer Vision Lab,
+Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland.
 All rights reserved.
 
 This file is part of BazAR.
@@ -16,16 +16,18 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 BazAR; if not, write to the Free Software Foundation, Inc., 51 Franklin
-Street, Fifth Floor, Boston, MA 02110-1301, USA 
+Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 #include <iostream>
 using namespace std;
 
 #include <starter.h>
 #include "object_view.h"
+#include "../../artvertiser/FProfiler/FSemaphore.h"
+#include "../../artvertiser/FProfiler/FProfiler.h"
 
 // Constructor for training stage:
-object_view::object_view(PyrImage * _image) : 
+object_view::object_view(PyrImage * _image) :
                 image(cvCreateImage(cvGetSize(_image->images[0]), IPL_DEPTH_8U, 1), _image->nbLev),
                 gradX(cvCreateImage(cvGetSize(_image->images[0]), IPL_DEPTH_16S, 1), _image->nbLev),
                 gradY(cvCreateImage(cvGetSize(_image->images[0]), IPL_DEPTH_16S, 1), _image->nbLev)
@@ -33,7 +35,7 @@ object_view::object_view(PyrImage * _image) :
 }
 
 // Constructor for recognition stage (alloc memory once):
-object_view::object_view(int width, int height, int nbLev) : 
+object_view::object_view(int width, int height, int nbLev) :
                 image(cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1), nbLev),
                 gradX(cvCreateImage(cvSize(width, height), IPL_DEPTH_16S, 1), nbLev),
                 gradY(cvCreateImage(cvSize(width, height), IPL_DEPTH_16S, 1), nbLev)
@@ -52,7 +54,7 @@ void object_view::build_from_image_0(int kernelSize)
   comp_gradient();
 }
 
-void object_view::build(IplImage *im, int kernelSize) 
+void object_view::build(IplImage *im, int kernelSize)
 {
   if (kernelSize == 0)
     cvCopy(im, image[0]);
@@ -64,9 +66,110 @@ void object_view::build(IplImage *im, int kernelSize)
   comp_gradient();
 }
 
+
+#include <pthread.h>
+
+class object_view::CompGradientThreadData
+{
+public:
+    CompGradientThreadData() : semaphore(0), should_stop(false) {};
+    ~CompGradientThreadData() { should_stop = true; semaphore.Signal(); void* ret; pthread_join( thread, &ret ); }
+
+    pthread_t thread;
+    FBarrier* shared_barrier;
+    FSemaphore semaphore;
+    bool should_stop;
+
+    PyrImage* image;
+    PyrImage* gradX;
+    PyrImage* gradY;
+    bool doX;
+
+};
+
+
+
+
+void* object_view::comp_gradient_thread_func( void* _data )
+{
+    CompGradientThreadData* data = (CompGradientThreadData*)_data;
+
+    while ( true )
+    {
+        data->semaphore.Wait();
+        if ( data->should_stop )
+            break;
+
+        for ( int l=0; l<data->image->nbLev; ++l )
+        {
+            if ( data->doX )
+                cvSobel( data->image->operator[](l), data->gradX->operator[](l), 1, 0, 1 );
+            else
+                cvSobel( data->image->operator[](l), data->gradY->operator[](l), 0, 1, 1 );
+        }
+
+        data->shared_barrier->Wait();
+    }
+
+    pthread_exit(0);
+
+    return NULL;
+
+}
+
+
+void object_view::comp_gradient_mt()
+{
+    PROFILE_THIS_FUNCTION();
+    int num_threads = 2;
+    if ( comp_gradient_thread_data.size() != num_threads )
+    {
+        assert( comp_gradient_thread_data.size()==0 );
+
+        // construct shared barrier
+        shared_barrier = new FBarrier( num_threads+1 );
+
+        // construct threads
+        printf("creating %i threads for object_view::comp_gradient\n", num_threads );
+        pthread_attr_t thread_attr;
+        pthread_attr_init(&thread_attr);
+        pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
+        for ( int i=0; i<num_threads; i++ )
+        {
+            CompGradientThreadData* thread_data = new CompGradientThreadData();
+            thread_data->shared_barrier = shared_barrier;
+            thread_data->image = &image;
+            thread_data->gradX = &gradX;
+            thread_data->gradY = &gradY;
+            thread_data->doX = (i%2==0);
+            // store
+            comp_gradient_thread_data.push_back( thread_data );
+            // launch thread
+            pthread_create( &thread_data->thread, &thread_attr, &comp_gradient_thread_func, (void*)thread_data );
+        }
+    }
+
+
+    // go
+    for ( int i=0; i<comp_gradient_thread_data.size(); i++ )
+    {
+        CompGradientThreadData* thread_data = comp_gradient_thread_data[i];
+        assert( thread_data->image == &image );
+        assert( thread_data->gradX == &gradX );
+        assert( thread_data->gradY == &gradY );
+        thread_data->semaphore.Signal();
+    }
+
+    // wait for all to complete
+    shared_barrier->Wait();
+
+}
+
 void object_view::comp_gradient()
 {
+    PROFILE_THIS_FUNCTION();
   for (int l = 0; l < image.nbLev; ++l) {
+
     cvSobel(image[l], gradX[l], 1, 0, 1);
     cvSobel(image[l], gradY[l], 0, 1, 1);
   }
@@ -74,5 +177,13 @@ void object_view::comp_gradient()
 
 object_view::~object_view()
 {
+    if ( comp_gradient_thread_data.size() > 0 )
+    {
+        for ( int i=0; i<comp_gradient_thread_data.size(); i++ )
+            delete comp_gradient_thread_data[i];
+        comp_gradient_thread_data.clear();
+
+        delete shared_barrier;
+    }
 }
 

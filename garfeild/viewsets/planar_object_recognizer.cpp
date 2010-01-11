@@ -454,7 +454,8 @@ void planar_object_recognizer::preprocess_points(void)
 {
   int patch_size = forest->image_width;
 
-  object_input_view->comp_gradient();
+  //object_input_view->comp_gradient();
+  object_input_view->comp_gradient_mt();
 
   for(int i = 0; i < detected_point_number; i++)
   {
@@ -488,9 +489,8 @@ void planar_object_recognizer::match_points(bool fill_match_struct)
     if (u > (patch_size/2) && u < object_input_view->image[s]->width - (patch_size/2) &&
         v > (patch_size/2) && v < object_input_view->image[s]->height - (patch_size/2))
     {
-        PROFILE_SECTION_PUSH("posterior_prob");
+        // calculate probabilities + put into match_probabilities[i]
         forest->posterior_probabilities(pv, match_probabilities[i]);
-        PROFILE_SECTION_POP();
 
 
       if (fill_match_struct) {
@@ -519,6 +519,8 @@ bool planar_object_recognizer::detect(IplImage * input_image)
 {
     PROFILE_SECTION_PUSH("detect points");
     detect_points(input_image);
+    PROFILE_SECTION_POP();
+    PROFILE_SECTION_PUSH("preprocess points");
     preprocess_points();
     PROFILE_SECTION_POP();
 
@@ -762,7 +764,12 @@ void* planar_object_recognizer::estimate_affine_transformation_thread_func( void
 
         // so now go through and compute support for each point
         int support[actual_ransac_iterations];
+        memset( &support, 0, sizeof(int)*actual_ransac_iterations );
         {
+            // PROFILE PROFILE PROFILE PROFILE
+            // profile results say that 99% of time is spent in this block
+            // PROFILE PROFILE PROFILE PROFILE
+
             //PROFILE_THIS_BLOCK("estimate");
             affinity A;// = new affinity();
 
@@ -777,6 +784,8 @@ void* planar_object_recognizer::estimate_affine_transformation_thread_func( void
                 A.estimate( transformed_points + 4*3*i );
 
                 support[i] = detector->compute_support_for_affine_transformation_readonly(&A);
+                /*if ( support[i] > detector->ransac_stop_support )
+                    break;*/
             }
         }
 

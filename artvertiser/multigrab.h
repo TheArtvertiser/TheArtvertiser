@@ -24,6 +24,7 @@ public:
 		IplImage *frame, *frame_detectsize, *gray;
 		int width,height;
 		int detect_width, detect_height;
+		//PlanarObjectDetector detector;
 		planar_object_recognizer detector;
 		LightCollector *lc;
 		MultiThreadCapture *mtc;
