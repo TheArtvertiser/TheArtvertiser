@@ -1,12 +1,12 @@
 
 /*
  *  ofxMatrix4x4.h
- *  
+ *
  *  Created by Aaron Meyers on 6/22/09 -- modified by Arturo Castro and Zach Lieberman
- *  based on code from OSG - 
- *  see OSG license for more details: 
+ *  based on code from OSG -
+ *  see OSG license for more details:
  *  http://www.openscenegraph.org/projects/osg/wiki/Legal
- * 
+ *
  */
 
 
@@ -18,7 +18,7 @@
 #include "ofxQuaternion.h"
 #include <cmath>
 
-#if (_MSC_VER)       
+#if (_MSC_VER)
 		// make microsoft visual studio complain less about double / float conversion and
 		// truncation
 		#pragma warning(disable : 4244)
@@ -371,7 +371,7 @@ public:
 // implementation of inline methods
 
 inline bool ofxMatrix4x4::isNaN() const {
-	
+
 #if (_MSC_VER)
 #ifndef isnan
 #define isnan(a) ((a) != (a))
@@ -389,7 +389,7 @@ return std::isnan(_mat[0][0]) || std::isnan(_mat[0][1]) || std::isnan(_mat[0][2]
 	       std::isnan(_mat[3][0]) || std::isnan(_mat[3][1]) || std::isnan(_mat[3][2]) || std::isnan(_mat[3][3]);
 
 #endif
-	
+
 }
 
 inline ofxMatrix4x4& ofxMatrix4x4::operator = (const ofxMatrix4x4& rhs) {

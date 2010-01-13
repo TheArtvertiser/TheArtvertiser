@@ -53,7 +53,7 @@ public:
   always remain the same. Therefore, if you don't have data for a specific
   camera, use AddHomography() to add an empty homography. If you want to
   estimate another view and therefore reset the structures, use Clear().
-  For this function (AddHomography) you have to specify a vector of 
+  For this function (AddHomography) you have to specify a vector of
   point correspondances and a matrix \b ready, specifying the homography.
   */
   void AddHomography( std::vector<CamCalibration::s_struct_points> p, CvMat* ready );
@@ -64,7 +64,7 @@ public:
   This function starts the non-linear Levenberg-Marquardt estimation
   progress with the given maximal number of iterations \b iter and the
   maximal accuracy \b eps. There are 6 parameters to determine: The rotation
-  and translation parameters which transform a point from the given view 
+  and translation parameters which transform a point from the given view
   coordinate system to the reference coordinate system which was
   determined by CamCalibration. Therefore this function is pretty fast.
   The output may be grabbed with GetProjectionMatrix().
@@ -79,13 +79,26 @@ public:
   */
   void Clear();
 
+
+  /**
+  \brief Get the estimated pre-projection matrix.
+
+  Returns the pre-projection matrix estimate which results from Accomodate().
+  This can be multiplied with a 4x3 homography matrix to obtain a projection
+  matrix (see GetProjectionMatrix()). Useful if the augmentation object-to-world
+  matrix is being externally manipulated (smoothed, for example).
+  \return null on error. Otherwise, the CvMat is a 3x4 matrix.
+  The caller has to call cvReleaseMat() to free memory.
+  */
+  CvMat* GetPreProjectionMatrix( int c );
+
   /**
   \brief Get the estimated projection matrix.
 
   Returns the projection matrix estimate which results from Accomodate().
   This projection matrix can be used to do any kind of augmentation, using
   OpenGL or DirectX, for example.
-  \return null on error. Otherwise, the CvMat is a 3x4 matrix. 
+  \return null on error. Otherwise, the CvMat is a 3x4 matrix.
   The caller has to call cvReleaseMat() to free memory.
   */
   CvMat* GetProjectionMatrix( int c );
@@ -147,7 +160,7 @@ private:
   /**
   \brief Homography structure.
 
-  This structure contains the homography (\b m_homography) as well as the correspondance 
+  This structure contains the homography (\b m_homography) as well as the correspondance
   points of a view (\b v_point). There has to exist one structure for each of the
   cameras' views. This is done by pushing them back to the vector
   \b v_homography. The deconstructor automatically frees used memory.
@@ -169,7 +182,7 @@ private:
   \brief Vector of homographies.
 
   This vector contains a homography structure for each camera. It has to
-  be filled with the results of object detection before calling 
+  be filled with the results of object detection before calling
   Accomodate().
   */
   std::vector<s_struct_homography*> v_homography;

@@ -189,7 +189,7 @@ top_srcdir = ..
 #openglprogs = 
 openglprogs = artvertiser
 artvertiser_CXXFLAGS = -I/usr/local/include/opencv   -I../garfeild -I../starter
-artvertiser_LDADD = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml FProfiler/libfprofiler.a  ../garfeild/libgarfeild.a ../starter/libstarter.a \
+artvertiser_LDADD = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml FProfiler/libfprofiler.a  MatrixTracker/libMatrixTracker.a ../garfeild/libgarfeild.a ../starter/libstarter.a \
 		 -lGLEW -lGL  -lm
 
 artvertiser_SOURCES = artvertiser.cpp calibmodel.cpp calibmodel.h \

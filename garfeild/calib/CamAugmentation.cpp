@@ -507,8 +507,8 @@ void CamAugmentation::Clear(){
   v_homography.clear();
 }
 
-CvMat* CamAugmentation::GetProjectionMatrix( int c ){
-
+CvMat* CamAugmentation::GetPreProjectionMatrix( int c )
+{
   // If enough cameras mounted (calibrated):
   if( s_optimal.v_camera_c.size() > (unsigned)c ){
 
@@ -516,27 +516,27 @@ CvMat* CamAugmentation::GetProjectionMatrix( int c ){
     if( s_optimal.v_camera_c[c] && s_optimal.v_camera_r_t[c] && v_homography_r_t ){
       CvMat* m_proj  = cvCreateMat( 3, 4, CV_64FC1 );
       cvMatMul( s_optimal.v_camera_c[c], s_optimal.v_camera_r_t[c], m_proj );
-      CamCalibration::Mat3x4Mul( m_proj, v_homography_r_t, m_proj );
       return m_proj;
     } else
       return NULL;
   } else
     return NULL;
+
 }
 
-CvMat* CamAugmentation::GetRefProjectionMatrix( int c ){
+CvMat* CamAugmentation::GetProjectionMatrix( int c ){
 
-  // If enough cameras mounted (calibrated):
-  if( s_optimal.v_camera_c.size() > (unsigned)c ){
-
-    // If all necessary matrices exist:
-    if( s_optimal.v_camera_c[c] && s_optimal.v_camera_r_t[c] ){
-      CvMat* m_proj  = cvCreateMat( 3, 4, CV_64FC1 );
-      cvMatMul( s_optimal.v_camera_c[c], s_optimal.v_camera_r_t[c], m_proj );
+  // fetch pre-projection matrix
+  CvMat* m_proj = GetPreProjectionMatrix( c );
+  // got?
+  if ( m_proj )
+  {
+      // multiply by homogrophy & return
+      CamCalibration::Mat3x4Mul( m_proj, v_homography_r_t, m_proj );
       return m_proj;
-    } else
-      return NULL;
-  } else
+  }
+  else
+    // fail
     return NULL;
 }
 

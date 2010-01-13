@@ -1,8 +1,11 @@
 CC=gcc 
-CPPFLAGS=-g -o2
+CPPFLAGS=-g -o2 -I/usr/local/include/opencv
 
 OUT=libMatrixTracker.a
-OBJ=MatrixTracker.cpp ofxMatrix3x3.o ofxMatrix4x4.o ofxQuaternion.o
+OBJ=MatrixTracker.o ofxMatrix3x3.o ofxMatrix4x4.o ofxQuaternion.o 
+
+%.o: %.cpp $(wildcard *.h)
+	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
 
 $(OUT): $(OBJ)
 	ar rcs $(OUT) $(OBJ)

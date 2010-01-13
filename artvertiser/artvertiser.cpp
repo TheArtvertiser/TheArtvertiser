@@ -77,6 +77,8 @@
 // framerate counter
 #include "framerate.h"
 
+// matrix tracker
+#include "MatrixTracker/MatrixTracker.h"
 
 #define IsRGB(s) ((s[0] == 'R') && (s[1] == 'G') && (s[2] == 'B'))
 #define IsBGR(s) ((s[0] == 'B') && (s[1] == 'G') && (s[2] == 'R'))
@@ -123,6 +125,9 @@ IplImage *image2 = cvLoadImage("artvert2.png");
 IplImage *image3 = cvLoadImage("artvert3.png");
 IplImage *image4 = cvLoadImage("artvert4.png");
 IplImage *image5 = cvLoadImage("artvert5.png");
+
+// matrix tracker
+MatrixTracker matrix_tracker;
 
 // define a container struct for each artvert
 struct artvert_struct
@@ -973,9 +978,28 @@ static void draw(void)
         //cout << pixel_shift << endl;
 
         // Fetch object -> image, world->image and world -> object matrices
-        CvMat *proj = multi->model.augm.GetProjectionMatrix(current_cam);
-        CvMat *old_proj = multi->model.augm.GetProjectionMatrix(current_cam);
-        CvMat *world = multi->model.augm.GetObjectToWorld();
+
+        // don't fetch from model:
+        //   CvMat *world = multi->model.augm.GetObjectToWorld();
+        // instead, fetch interpolated position
+        ofxMatrix4x4 interpolated_pos;
+        CvMat* world = cvCreateMat( 3, 4, CV_64FC1 );
+        matrix_tracker.getInterpolatedPose( interpolated_pos );
+        for ( int i=0; i<3; i++ )
+            for ( int j=0; j<4; j++ )
+                cvmSet( world, i, j, interpolated_pos( i, j ) );
+
+        // instead of this:
+           /*CvMat *proj = multi->model.augm.GetProjectionMatrix(current_cam);
+           CvMat *old_proj = multi->model.augm.GetProjectionMatrix(current_cam);*/
+        // we make our own project matrix:
+        // fetch the pre-projection matrix from model.augm
+        CvMat* proj = multi->model.augm.GetPreProjectionMatrix(current_cam);
+        // multiply by the object-to-world matrix
+        CamCalibration::Mat3x4Mul( proj, world, proj );
+
+
+
         Mat3x4 moveObject, rot, obj2World, movedRT_;
         moveObject.setTranslate(im->width/2,im->height/2,-120*3/4);
         rot.setRotate(Vec3(1,0,0),2*M_PI*180.0/360.0);
@@ -983,8 +1007,10 @@ static void draw(void)
         CvMat cvMoveObject = cvMat(3,4,CV_64FC1, moveObject.m);
         CvMat movedRT=cvMat(3,4,CV_64FC1,movedRT_.m);
 
+
         // pose only during movement
-        if (pixel_shift >= 200 || !have_proj)
+        //if (pixel_shift >= 200 || !have_proj)
+        if ( true )
         {
             // memcpy or vectorisation speedup?
             for( int i = 0; i < 3; i++ )
@@ -1357,6 +1383,10 @@ static void idle()
         CvMat *mat = multi->model.augm.GetObjectToWorld();
         float normal[3];
         for (int j=0; j<3; j++) normal[j] = cvGet2D(mat, j, 2).val[0];
+
+        // continue to track
+        matrix_tracker.track( mat );
+
         cvReleaseMat(&mat);
 
     }

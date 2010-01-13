@@ -1531,7 +1531,7 @@ void planar_object_recognizer::save_image_of_model_points(int patch_size, char *
     cvCircle(model_image,
              cvPoint((int)PyrImage::convCoordf(float(model_points[i].M[0]), int(model_points[i].scale), 0), // x
                      (int)PyrImage::convCoordf(float(model_points[i].M[1]), int(model_points[i].scale), 0)), // y
-                     (int)PyrImage::convCoordf(patch_size/2.f, int(model_points[i].scale), 0), // radius
+                     (int)PyrImage::convCoordf(patch_size/8.f, int(model_points[i].scale), 0), // radius
              mcvRainbowColor(int(model_points[i].scale)), // color
              1);
 
