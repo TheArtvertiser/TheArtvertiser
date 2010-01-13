@@ -50,7 +50,7 @@ am_artvertiser_OBJECTS = artvertiser-artvertiser.$(OBJEXT) \
 	artvertiser-multithreadcapture.$(OBJEXT)
 artvertiser_OBJECTS = $(am_artvertiser_OBJECTS) 
 artvertiser_DEPENDENCIES = ../garfeild/libgarfeild.a \
-	../starter/libstarter.a FProfiler/libfprofiler.a
+	../starter/libstarter.a FProfiler/libfprofiler.a MatrixTracker/libMatrixTracker.a
 artvertiser_LINK = $(CXXLD) $(artvertiser_CXXFLAGS) $(CXXFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I. -I$(top_builddir)

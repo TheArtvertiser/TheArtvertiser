@@ -162,6 +162,9 @@ void MultiThreadCapture::ThreadedFunction()
                         int convert = (nChannels == 1?CV_RGBA2GRAY:CV_GRAY2RGBA);
                         cvCvtColor( frame_processsize, processed, convert );
                         PROFILE_SECTION_POP();
+                        /*PROFILE_SECTION_PUSH( "equalize hist" );
+                        cvEqualizeHist( processed, processed );
+                        PROFILE_SECTION_POP();*/
                     }
                     PROFILE_SECTION_POP();
                 }

@@ -48,7 +48,7 @@
 #include <iostream>
 #include <sstream> // for conv int->str
 #include <vector>
-#include <cv.h>
+#include <opencv/cv.h>
 #include <highgui.h>
 #include <map>
 
@@ -360,6 +360,9 @@ static bool init( int argc, char** argv )
     // register exit function
     atexit( &exit_handler );
 
+    // dump opencv version
+    printf("build with opencv version %s\n", CV_VERSION );
+
     // more from before init should be moved here
     bool redo_geom=false;
     bool redo_training=false;
@@ -607,10 +610,10 @@ static void keyboard(unsigned char c, int x, int y)
             detector.match_score_threshold/=1.02f;
             break;
         case '6':
-            detector.min_view_rate*=1.02f;
+            detector.best_support_thresh++;
             break;
         case '^':
-            detector.min_view_rate*=1.02f;
+            detector.best_support_thresh--;
             break;
         case '7':
             detector.point_detector_tau++;
@@ -695,6 +698,63 @@ static bool drawBackground(IplTexture *tex)
 
     return true;
 }
+
+/*! \brief Draw all the points
+ *
+ */
+static void drawDetectedPoints(void)
+{
+    if (!multi) return;
+
+    IplImage *im = multi->cams[current_cam]->frame;
+    planar_object_recognizer &detector(multi->cams[current_cam]->detector);
+    if (!im) return;
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, im->width-1, im->height-1, 0, -1, 1);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    glDisable(GL_BLEND);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_DEPTH_TEST);
+
+
+    glPointSize(2);
+    glBegin(GL_POINTS);
+    // draw all detected points
+    glColor4f(0,1,0,1);
+    for ( int i=0; i<detector.detected_point_number; ++i)
+    {
+        keypoint& kp = detector.detected_points[i];
+        int s = kp.scale;
+        float x =PyrImage::convCoordf(kp.u, s, 0);
+        float y =PyrImage::convCoordf(kp.v, s, 0);
+        glVertex2f(x,y);
+    }
+    // draw matching points red
+    if ( detector.object_is_detected )
+    {
+        glColor4f( 1, 0, 0, 1 );
+        for (int i=0; i<detector.match_number; ++i)
+        {
+            image_object_point_match * match = detector.matches+i;
+            if (match->inlier)
+            {
+                int s = (int)(match->image_point->scale);
+                float x=PyrImage::convCoordf(match->image_point->u, s, 0);
+                float y=PyrImage::convCoordf(match->image_point->v, s, 0);
+                glVertex2f(x,y);
+            }
+        }
+    }
+    glEnd();
+
+    glutSwapBuffers();
+}
+
 
 /*! \brief A draw callback during camera calibration
  *
@@ -933,6 +993,7 @@ static void draw(void)
                 {
                     a_proj[i][j] = cvmGet( proj, i, j );
                     obj2World.m[i][j] = cvmGet(world, i, j);
+
                 }
             }
             have_proj = 1;
@@ -942,6 +1003,16 @@ static void draw(void)
         {
             memcpy(a_proj, old_a_proj, sizeof(old_a_proj));
         }
+        // dump the matrix
+        /*
+        printf("found matrix: %8.4f %8.4f %8.4f %8.4f\n"
+               "              %8.4f %8.4f %8.4f %8.4f\n"
+               "              %8.4f %8.4f %8.4f %8.4f\n",
+               a_proj[0][0], a_proj[0][1], a_proj[0][2], a_proj[0][3],
+               a_proj[1][0], a_proj[1][1], a_proj[1][2], a_proj[1][3],
+               a_proj[2][0], a_proj[2][1], a_proj[2][2], a_proj[2][3]
+                );*/
+
 
         CamCalibration::Mat3x4Mul( world, &cvMoveObject, &movedRT);
         // translate into OpenGL PROJECTION and MODELVIEW matrices
@@ -1057,14 +1128,15 @@ static void draw(void)
         glEnable(GL_POLYGON_SMOOTH);
 
         // create a simple fade-in when we have a track
-        if (fade < 1.0)
+        /*if (fade < 1.0)
         {
             fade += 0.1 * fade_speed;
         }
         else
         {
             fade = 1;
-        }
+        }*/
+        fade = 0.8;
 
         glColor4f(1.0, 1.0, 1.0, fade);
 
@@ -1209,8 +1281,10 @@ static void draw(void)
 
     if ( show_status )
     {
+        drawDetectedPoints();
+
         // not using exactly as defined in framerate.h because it's stupid
-        frameEnd(0.8f, 0.8f, 0.8f, 0.9, 0.95 );
+        frameEnd(1.0f, 0.2f, 0.2f, 0.8, 0.95 );
         frameStart();
 
         // now status string
@@ -1221,7 +1295,7 @@ static void draw(void)
             planar_object_recognizer &detector(multi->cams[current_cam]->detector);
             char detector_settings_string[1024];
             sprintf( detector_settings_string, "ransac dist %4.2f  stop %i  iter %i   detected points %i match count %i,\n"
-                    "refine %6.4f  score %6.4f  viewrate %6.4f  tau %2i",
+                    "refine %6.4f  score %6.4f  best_support thresh %2i  tau %2i",
                     detector.ransac_dist_threshold,
                     detector.ransac_stop_support,
                     detector.max_ransac_iterations,
@@ -1229,12 +1303,12 @@ static void draw(void)
                     detector.match_number,
                     detector.non_linear_refine_threshold,
                     detector.match_score_threshold,
-                    detector.min_view_rate,
+                    detector.best_support_thresh,
                     detector.point_detector_tau );
 
             draw_string += "\n" + string(detector_settings_string);
         }
-        drawGlutString( draw_string.c_str(), 0.8f, 0.8f, 0.8f, 0.01f, 0.1f );
+        drawGlutString( draw_string.c_str(), 1.0f, 0.2f, 0.2f, 0.01f, 0.1f );
     }
 
 
@@ -1296,7 +1370,7 @@ static void idle()
     {
         // show profiler output
         printf("showing results\n");
-        FProfiler::Display();
+        FProfiler::Display( FProfiler::SORT_TIME/*SORT_EXECUTION*/ );
         show_profile_results = false;
     }
 }

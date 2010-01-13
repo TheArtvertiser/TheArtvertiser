@@ -1,6 +1,6 @@
 /*
-Copyright 2005, 2006 Computer Vision Lab, 
-Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland. 
+Copyright 2005, 2006 Computer Vision Lab,
+Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland.
 All rights reserved.
 
 This file is part of BazAR.
@@ -16,12 +16,12 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 BazAR; if not, write to the Free Software Foundation, Inc., 51 Franklin
-Street, Fifth Floor, Boston, MA 02110-1301, USA 
+Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 #ifndef AFFINE_IMAGE_GENERATOR_H
 #define AFFINE_IMAGE_GENERATOR_H
 
-#include <starter.h> 
+#include <starter.h>
 #include <viewsets/object_view.h>
 #include <keypoints/keypoint_orientation_corrector.h>
 #include "example_generator.h"
@@ -37,7 +37,7 @@ class affine_image_generator : public example_generator
   virtual ~affine_image_generator(void);
 
   void set_original_image(IplImage * original_image,
-                          int _u_corner1 = -1, int _v_corner1 = -1, int _u_corner2 = -1, int _v_corner2 = -1, 
+                          int _u_corner1 = -1, int _v_corner1 = -1, int _u_corner2 = -1, int _v_corner2 = -1,
                           int _u_corner3 = -1, int _v_corner3 = -1, int _u_corner4 = -1, int _v_corner4 = -1,
                           int affine_image_width = -1, int affine_image_height = -1);
 
@@ -47,7 +47,7 @@ class affine_image_generator : public example_generator
 
   void reset_keypoints(void);
   void add_keypoint(float u, float v, int scale, int class_index);
-  
+
   void generate_affine_image(void);
   void generate_object_view(void);
 
@@ -66,11 +66,11 @@ class affine_image_generator : public example_generator
   //! Default method. Between 0.5 : 1.5 for both
   void independent_scaling(float min_lambda1, float max_lambda1, float min_lambda2, float max_lambda2);
   //! Constrained scaling. Adds a constraint on the range of the product of l1 and l2.
-  void constrained_scaling(float min_lambda1, float max_lambda1, 
+  void constrained_scaling(float min_lambda1, float max_lambda1,
                            float min_lambda2, float max_lambda2,
                            float min_l1_l2, float max_l1_l2);
   //! Default true.
-  void set_use_orientation_correction(bool p_use_orientation_correction) 
+  void set_use_orientation_correction(bool p_use_orientation_correction)
   { use_orientation_correction = p_use_orientation_correction; }
   //! Default false.
   void set_add_gaussian_smoothing(bool p_add_gaussian_smoothing)
@@ -79,15 +79,15 @@ class affine_image_generator : public example_generator
   void set_change_intensities(bool p_change_intensities)
   { change_intensities = p_change_intensities; }
 
-  void set_gaussian_smoothing_kernel_size(int p_gaussian_smoothing_kernel_size) 
+  void set_gaussian_smoothing_kernel_size(int p_gaussian_smoothing_kernel_size)
   { gaussian_smoothing_kernel_size = p_gaussian_smoothing_kernel_size; }
 
   void generate_random_affine_transformation(void);
   void generate_Id_affine_transformation(void);
 
-  void set_roi(int _u_corner1, int _v_corner1, 
-               int _u_corner2, int _v_corner2, 
-               int _u_corner3, int _v_corner3, 
+  void set_roi(int _u_corner1, int _v_corner1,
+               int _u_corner2, int _v_corner2,
+               int _u_corner3, int _v_corner3,
                int _u_corner4, int _v_corner4);
   bool inside_roi(int u, int v);
   void set_default_values(void);

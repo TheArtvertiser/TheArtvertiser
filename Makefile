@@ -187,7 +187,7 @@ sysconfdir = ${prefix}/etc
 target_alias = 
 top_builddir = .
 top_srcdir = .
-SUBDIRS = starter garfeild doc artvertiser/FProfiler artvertiser
+SUBDIRS = starter garfeild doc artvertiser/FProfiler artvertiser/MatrixTracker artvertiser
 EXTRA_DIST = autogen.sh
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive

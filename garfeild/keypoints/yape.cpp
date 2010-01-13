@@ -1089,6 +1089,7 @@ void yape::subpix_refine(IplImage *im, keypoint *p)
   short * s = (short *) (scores->imageData + py*scores->widthStep) +  px;
   int line = scores->widthStep/sizeof(short);
 
+//PROFILE_SECTION_PUSH("refine");
   for (int y=0; y<3; ++y) {
     int offset = (y-1)*line - 1;
     for (int x=0; x<3; ++x) {
@@ -1115,6 +1116,7 @@ void yape::subpix_refine(IplImage *im, keypoint *p)
     p->v += delta[1];
   else
     p->v+=0.5f;
+//PROFILE_SECTION_POP();
 }
 
 //////////////////////////////////////////////////////////////////////

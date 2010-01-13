@@ -98,9 +98,10 @@ void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_w
 
 	// avoid saturating the firewire bus
 	cvSetCaptureProperty(cam, CV_CAP_PROP_FPS, 30);
-	//cout << "setting cv capture property for size to " << _width << "x" << _height << endl;
-	cvSetCaptureProperty(cam, CV_CAP_PROP_FRAME_WIDTH, _width);
-	cvSetCaptureProperty(cam, CV_CAP_PROP_FRAME_HEIGHT, _height);
+	cout << "setting cv capture property for size to " << _width << "x" << _height << endl;
+	int res1 = cvSetCaptureProperty(cam, CV_CAP_PROP_FRAME_WIDTH, _width);
+	int res2 = cvSetCaptureProperty(cam, CV_CAP_PROP_FRAME_HEIGHT, _height);
+	printf("cvSetCaptureProperty: results %i %i\n", res1, res2 );
 
 	// optionally downsample the video to accelerate computation
     detect_width = _detect_width;

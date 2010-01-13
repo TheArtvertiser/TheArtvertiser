@@ -40,6 +40,7 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 //! Hard coded maximum number of keypoints that planar_object_recognizer can handle
 static const int hard_max_detected_pts = 5000;
+static const int MATCH_LOOKUP_TABLE_SIZE = hard_max_detected_pts;
 
 /*!
 \ingroup viewsets
@@ -174,6 +175,11 @@ public:
   float * match_probabilities[hard_max_detected_pts];
   //! Matches between the detected keypoints, and the model keypoints
   image_object_point_match matches[hard_max_detected_pts];
+  //! Matches lookup table
+  short match_index_lookup[MATCH_LOOKUP_TABLE_SIZE];
+  void construct_match_lut();
+
+
   int match_number;
 
   bool object_is_detected;
@@ -272,6 +278,9 @@ public:
    *  ransac_stop_support matches.
    */
   int ransac_stop_support;
+
+  //! threshold for support for successful detection. originally 10
+  int best_support_thresh;
 
   //! tau for point detector //
   int point_detector_tau;

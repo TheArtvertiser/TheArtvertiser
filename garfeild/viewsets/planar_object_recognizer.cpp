@@ -57,7 +57,6 @@ planar_object_recognizer::planar_object_recognizer()
   ransac_dist_threshold = 10;
   ransac_stop_support = 50;
   max_ransac_iterations = 800;
-  point_detector_tau = 25;
   non_linear_refine_threshold = 3;
 
 }
@@ -65,6 +64,8 @@ planar_object_recognizer::planar_object_recognizer()
 void planar_object_recognizer::default_settings(void)
 {
   set_max_depth(10);
+
+  best_support_thresh = 10;
 
   dont_use_bins_when_creating_model_points();
   dont_use_bins_when_detecting_input_image_points();
@@ -388,13 +389,14 @@ void planar_object_recognizer::learn(int max_point_number_on_model, int patch_si
 
   // Refine posterior probabilities for each leaf of each tree
   forest->refine(/* example_generator */ &new_images_generator, /* call number to generate_random_examples */ sample_number_for_refining);
-  forest->test(/* example_generator */ &new_images_generator, /* call number to generate_random_examples */ 50);
+  forest->test(/* example_generator */ &new_images_generator, /* call number to generate_random_examples */ 300);
 
   for(int i = 0; i < hard_max_detected_pts; i++)
   {
     detected_point_views[i].alloc(patch_size);
     match_probabilities[i] = new float[model_point_number];
   }
+
 }
 
 void planar_object_recognizer::save(string directory_name)
@@ -457,6 +459,7 @@ void planar_object_recognizer::preprocess_points(void)
   //object_input_view->comp_gradient();
   object_input_view->comp_gradient_mt();
 
+  PROFILE_SECTION_PUSH("point stuff loop");
   for(int i = 0; i < detected_point_number; i++)
   {
     image_class_example * pv = &(detected_point_views[i]);
@@ -469,9 +472,10 @@ void planar_object_recognizer::preprocess_points(void)
     {
       new_images_generator.preprocess_point_view(pv, object_input_view);
 
-      if (0) mcvSaveImage("patches/detected_%03d_corrected.bmp", i, pv->preprocessed);
+      //if (0) mcvSaveImage("patches/detected_%03d_corrected.bmp", i, pv->preprocessed);
     }
   }
+  PROFILE_SECTION_POP();
 }
 
 void planar_object_recognizer::match_points(bool fill_match_struct)
@@ -591,7 +595,8 @@ bool planar_object_recognizer::three_random_correspondences(int * n1, int * n2, 
   int shot = 0;
   do
   {
-    *n1 = rand() % match_number;
+    //*n1 = rand() % match_number;
+    *n1 = match_index_lookup[rand()%MATCH_LOOKUP_TABLE_SIZE];
     shot++; if (shot > 100) return false;
   }
   while(matches[*n1].score < match_score_threshold);
@@ -599,7 +604,7 @@ bool planar_object_recognizer::three_random_correspondences(int * n1, int * n2, 
   shot = 0;
   do
   {
-    *n2 = rand() % match_number;
+    *n2 = match_index_lookup[rand()%MATCH_LOOKUP_TABLE_SIZE];//rand() % match_number;
     shot++; if (shot > 100) return false;
   }
   while(matches[*n2].score < match_score_threshold || *n2 == *n1);
@@ -607,7 +612,7 @@ bool planar_object_recognizer::three_random_correspondences(int * n1, int * n2, 
   shot = 0;
   do
   {
-    *n3 = rand() % match_number;
+    *n3 = match_index_lookup[rand()%MATCH_LOOKUP_TABLE_SIZE];//rand() % match_number;
     shot++; if (shot > 100) return false;
   }
   while(matches[*n3].score < match_score_threshold || *n3 == *n1 || *n3 == *n2);
@@ -695,6 +700,7 @@ bool planar_object_recognizer::valid(affinity * A)
 
   return true;
 }
+
 
 
 
@@ -805,7 +811,7 @@ void* planar_object_recognizer::estimate_affine_transformation_thread_func( void
         }
 
         // re-estimate for the output
-        if ( best_support > 10 )
+        if ( best_support > detector->best_support_thresh )
         {
             data->A.estimate( transformed_points + 4*3*best_index );
             data->A_support = best_support;
@@ -823,6 +829,32 @@ void* planar_object_recognizer::estimate_affine_transformation_thread_func( void
     pthread_exit(0);
 }
 
+void planar_object_recognizer::construct_match_lut()
+{
+    // total scores
+    float total_score = 0;
+    for ( int i=0; i<match_number; i++ )
+    {
+        total_score += matches[i].score*matches[i].score;
+    }
+    int table_pos = 0;
+    float score_remaining = total_score;
+    float score_per_step = total_score/MATCH_LOOKUP_TABLE_SIZE;
+    float steps_per_score = 1.0f/score_per_step;
+    // normalise
+    for ( int i=0; i<match_number; i++ )
+    {
+        float this_score = matches[i].score*matches[i].score;
+        int end = table_pos+this_score*steps_per_score;
+        //printf("%i: %f -> %i entries\n", i, this_score, end-table_pos );
+        for ( ; table_pos<end && table_pos < MATCH_LOOKUP_TABLE_SIZE; table_pos++ )
+        {
+            match_index_lookup[table_pos] = i;
+        }
+        if ( table_pos >= MATCH_LOOKUP_TABLE_SIZE )
+            break;
+    }
+}
 
 bool planar_object_recognizer::estimate_affine_transformation_mt(void)
 {
@@ -841,7 +873,7 @@ bool planar_object_recognizer::estimate_affine_transformation_mt(void)
         pthread_attr_t thread_attr;
         pthread_attr_init(&thread_attr);
         pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
-        printf("creating %i threads\n", num_threads);
+        printf("creating %i estimate affine transformation threads\n", num_threads);
         for ( int i=0; i<num_threads; i++ )
         {
             // setup data
@@ -858,6 +890,20 @@ bool planar_object_recognizer::estimate_affine_transformation_mt(void)
         }
         pthread_attr_destroy(&thread_attr);
     }
+
+    // dump out three_random_corr input data
+    /*printf("dumping keypoint matches:");
+    for ( int i=0; i<match_number; i++ )
+    {
+        if ( i%10 == 0 )
+            printf("\n%i: ", i);
+        printf("%f ", matches[i].score);
+    }
+    printf("\n");*/
+    PROFILE_SECTION_PUSH("match lut");
+    // construct match lookup table
+    construct_match_lut();
+    PROFILE_SECTION_POP();
 
     // tell threads to run
     for ( int i=0; i<num_threads; i++ )
@@ -891,7 +937,7 @@ bool planar_object_recognizer::estimate_affine_transformation_mt(void)
         printf("no best thread\n");*/
 
     // found?
-    if ( best_support > 10 )
+    if ( best_support > best_support_thresh )
     {
         cvmCopy( best_A, affine_motion );
         int support = compute_support_for_affine_transformation(affine_motion);
@@ -909,13 +955,16 @@ bool planar_object_recognizer::estimate_affine_transformation_unrolled(void)
 {
     PROFILE_THIS_FUNCTION();
 
+    // construct match lookup table
+    construct_match_lut();
+
     // first, unroll everything
 
     // construct random correspondencies
     int randoms[3*max_ransac_iterations];
     int actual_ransac_iterations = max_ransac_iterations;
     {
-        PROFILE_THIS_BLOCK("three random");
+        //PROFILE_THIS_BLOCK("three random");
         bool three_random = true;
         int i;
         for ( i=0; i < max_ransac_iterations && three_random; i++ )
@@ -931,7 +980,7 @@ bool planar_object_recognizer::estimate_affine_transformation_unrolled(void)
     // transform points
     float transformed_points[4*3*actual_ransac_iterations];
     {
-        PROFILE_THIS_BLOCK( "transform" );
+        //PROFILE_THIS_BLOCK( "transform" );
         for ( int i=0; i<actual_ransac_iterations; i++ )
         {
             image_object_point_match *m1 = matches + randoms[3*i+0];
@@ -958,7 +1007,7 @@ bool planar_object_recognizer::estimate_affine_transformation_unrolled(void)
     // so now go through and compute support for each point
     int support[actual_ransac_iterations];
     {
-        PROFILE_THIS_BLOCK("estimate");
+        //PROFILE_THIS_BLOCK("estimate");
         affinity A;// = new affinity();
 
         for ( int i=0; i<actual_ransac_iterations; i++ )
@@ -979,7 +1028,7 @@ bool planar_object_recognizer::estimate_affine_transformation_unrolled(void)
     int best_support = -1;
     int best_index = 0;
     {
-        PROFILE_THIS_BLOCK("finalize");
+        //PROFILE_THIS_BLOCK("finalize");
         for ( int i=0; i<actual_ransac_iterations; i++ )
         {
             if ( support[i] > best_support )
@@ -995,9 +1044,9 @@ bool planar_object_recognizer::estimate_affine_transformation_unrolled(void)
 
 
     // finally
-    if ( best_support > 10 )
+    if ( best_support > best_support_thresh )
     {
-        PROFILE_THIS_BLOCK( "return result " );
+        //PROFILE_THIS_BLOCK( "return result " );
         affine_motion->estimate( transformed_points + 4*3*best_index );
         //affine_motion->estimate( &(transformed_points[4*3*best_index]) );
         /*float *nums = &(transformed_points[4*3*best_index]);
@@ -1026,7 +1075,8 @@ bool planar_object_recognizer::estimate_affine_transformation(void)
   int best_support = -1;
   //printf("match number %i\n", match_number);
 
-  // we can thread this.
+    // construct match lookup table
+    construct_match_lut();
 
   do
   {
@@ -1098,7 +1148,7 @@ bool planar_object_recognizer::estimate_affine_transformation(void)
   int support = compute_support_for_affine_transformation(affine_motion);
   PROFILE_SECTION_POP();
 
-  return support > 10;
+  return support > best_support_thresh;
 }
 
 bool planar_object_recognizer::estimate_homographic_transformation_linear_method(void)
@@ -1203,6 +1253,7 @@ bool planar_object_recognizer::estimate_homographic_transformation_nonlinear_met
 	H->cvmSet(1, 0, state[3]); H->cvmSet(1, 1, state[4]); H->cvmSet(1, 2, state[5]);
 	H->cvmSet(2, 0, state[6]); H->cvmSet(2, 1, state[7]); H->cvmSet(2, 2, 1.);
 
+    //printf("estimate_homographic nonlinear: ");
 	homography_estimator->reset_observations();
 	for (int iter=0; iter<2; iter++) {
 		inlier_number=0;
@@ -1217,6 +1268,7 @@ bool planar_object_recognizer::estimate_homographic_transformation_nonlinear_met
 			double dv = hmv-tv;
 
 			if (sqrt(du*du+dv*dv)< non_linear_refine_threshold) {
+			    //printf("y");
 				matches[i].inlier=true;
 				inlier_number++;
 				if (iter==0) {
@@ -1226,9 +1278,10 @@ bool planar_object_recognizer::estimate_homographic_transformation_nonlinear_met
 				}
 			} else {
 				matches[i].inlier=false;
+				//printf("n");
 			}
 		}
-		if (iter==0 && inlier_number>10){
+		if (iter==0 && inlier_number>=10){
 			homography_estimator->minimize_using_levenberg_marquardt_from(state);
 			state = homography_estimator->state;
 
@@ -1237,7 +1290,8 @@ bool planar_object_recognizer::estimate_homographic_transformation_nonlinear_met
 			H->cvmSet(2, 0, state[6]); H->cvmSet(2, 1, state[7]); H->cvmSet(2, 2, 1.);
 		}
 	}
-	if (inlier_number	< 10){
+	//printf("\n");
+	if (inlier_number < 10){
 		object_is_detected = false;
 		return false;
 	}
@@ -1300,17 +1354,24 @@ void planar_object_recognizer::detect_most_stable_model_points(int max_point_num
   cout << "Determining most stable points:" << endl;
 
   vector< pair<object_keypoint, int> > tmp_model_points;
-  int K = 1;
+  int K = 8;
 
   keypoint * model_points_2d = new keypoint[K * max_point_number_on_model];
 
   // First detection of interest points in the image model (frontal view):
+  int old_tau = point_detector->get_tau();
+  static const int NEW_TAU = 10;
+  printf("setting temporary point detector tau (old %i) -> %i\n", old_tau, NEW_TAU );
+  point_detector->set_tau(NEW_TAU);
   int model_point2d_number = point_detector->pyramidBlurDetect(new_images_generator.original_image, model_points_2d,
                                                                K * max_point_number_on_model);
+  printf("found %i points in image\n", model_point2d_number);
+  printf("restoring point detector tau -> %i\n", old_tau );
+  point_detector->set_tau(old_tau);
 
   // Save an image of the interest points detected in the frontal view
   model_point_number = 0;
-  model_points = new object_keypoint[max_point_number_on_model];
+  model_points = new object_keypoint[K*max_point_number_on_model];
   for(int i = 0; i < model_point2d_number; i++)
   {
     keypoint * k = model_points_2d + i;
@@ -1325,13 +1386,15 @@ void planar_object_recognizer::detect_most_stable_model_points(int max_point_num
 
       model_point_number++;
 
-      if (model_point_number >= max_point_number_on_model)
+      if (model_point_number >= K*max_point_number_on_model)
         break;
     }
   }
+  printf("found %i points in target ROI\n", model_point_number);
 
   save_image_of_model_points(patch_size, "initial_model_points.bmp");
   delete [] model_points;
+  model_point_number = 0;
 
   // Create tmp_model_points (vector) from model_points_2d (array of keypoints)
   // tmp_model_points will be used afterward
@@ -1466,10 +1529,11 @@ void planar_object_recognizer::save_image_of_model_points(int patch_size, char *
 
   for(int i = 0; i < model_point_number; i++)
     cvCircle(model_image,
-             cvPoint((int)PyrImage::convCoordf(float(model_points[i].M[0]), int(model_points[i].scale), 0),
-                                               (int)PyrImage::convCoordf(float(model_points[i].M[1]), int(model_points[i].scale), 0)),
-                                               (int)PyrImage::convCoordf(patch_size/2.f, int(model_points[i].scale), 0),
-             mcvRainbowColor(int(model_points[i].scale)), 1);
+             cvPoint((int)PyrImage::convCoordf(float(model_points[i].M[0]), int(model_points[i].scale), 0), // x
+                     (int)PyrImage::convCoordf(float(model_points[i].M[1]), int(model_points[i].scale), 0)), // y
+                     (int)PyrImage::convCoordf(patch_size/2.f, int(model_points[i].scale), 0), // radius
+             mcvRainbowColor(int(model_points[i].scale)), // color
+             1);
 
   if (filename == 0)
     mcvSaveImage("model_points.bmp", model_image);

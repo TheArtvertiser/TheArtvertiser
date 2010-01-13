@@ -47,30 +47,45 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
 bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_object_recognizer &detector)
 {
 
-	detector.ransac_dist_threshold = 5;
+	detector.ransac_dist_threshold = 6;
 	detector.max_ransac_iterations = 800;
 	detector.ransac_stop_support = 50;
-	detector.non_linear_refine_threshold = 1.5;
-	detector.point_detector_tau = 25;
+	detector.non_linear_refine_threshold = 15.0f;
+	//detector.point_detector_tau = 10;
 
 	// A lower threshold will allow detection in harder conditions, but
 	// might lead to false positives.
-	detector.match_score_threshold=.0135f;
+	detector.match_score_threshold=.013f;
 
-	detector.min_view_rate=.1;
-	detector.views_number = 100;
+	//detector.min_view_rate=.1;
+	//detector.views_number = 100;
+	// damian below
+    detector.min_view_rate = .2;
+
+    static const int MAX_MODEL_KEYPOINTS = 100;     // maximum number of keypoints on the model
+    static const int PATCH_SIZE = 16;               // patch size in pixels
+    static const int YAPE_RADIUS = 3;               // yape radius
+    static const int NUM_TREES = 25;                // num classifier trees
+    static const int NUM_GAUSSIAN_LEVELS = 5;       // num gaussian levels
 
 	// Should we train or load the classifier ?
 	if(cache && detector.build_with_cache(
 				string(modelfile), // mode image file name
-				500,               // maximum number of keypoints on the model
+				/*500,               // maximum number of keypoints on the model
 				//200,               // maximum number of keypoints on the model
 				32,                // patch size in pixels
 				5,                 // yape radius. Use 3,5 or 7.
 				//3,                 // yape radius. Use 3,5 or 7.
 				12,                // number of trees for the classifier. Somewhere between 12-50
 				//20,                // number of trees for the classifier. Somewhere between 12-50
-				3                  // number of levels in the gaussian pyramid
+				3*/                  // number of levels in the gaussian pyramid
+				// damian below
+				MAX_MODEL_KEYPOINTS, // max keypoints
+				PATCH_SIZE, // patch size
+				YAPE_RADIUS,                 // yape radius. Use 3,5 or 7.
+				NUM_TREES,                // number of trees for the classifier. Somewhere between 12-50
+				NUM_GAUSSIAN_LEVELS                  // number of levels in the gaussian pyramid
+
 				))
 	{
 		// loading worked. Remember the region of interest.
@@ -110,8 +125,23 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 		if (!interactiveSetup(capture)) return false;
 
 		// train the classifier to detect this model
-		if (!detector.build(image, 500, 32, 3, 12, 3,0, 0))
+		//if (!detector.build(image, 500, 32, 3, 12, 3,0, 0))
 		//if (!detector.build(image, 200, 32, 5, 20, 3,0, 0))
+		int working_roi[8] = { corners[0].x, corners[0].y,
+            corners[1].x, corners[1].y,
+            corners[2].x, corners[2].y,
+            corners[3].x, corners[3].y
+            };
+        LEARNPROGRESSION progress;
+		if (!detector.build(image,
+                MAX_MODEL_KEYPOINTS, // max keypoints
+				PATCH_SIZE, // patch size
+				YAPE_RADIUS,                 // yape radius. Use 3,5 or 7.
+				NUM_TREES,                // number of trees for the classifier. Somewhere between 12-50
+				NUM_GAUSSIAN_LEVELS,      // number of levels in the gaussian pyramid
+				progress,
+				working_roi
+				))
 			return false;
 
 		// save the image
@@ -200,11 +230,11 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 
 	bool pause=false;
 	#ifdef USE_MULTITHREADCAPTURE
-    IplImage* frame = NULL;
+    IplImage *frame_gray, *frame = NULL;
     MultiThreadCapture* mtc = MultiThreadCaptureManager::getInstance()->getCaptureForCam(capture);
     int timeout = 10000;
     do {
-        mtc->getLastProcessedFrame( NULL, &frame );
+        mtc->getLastProcessedFrame( &frame_gray, &frame );
     }
     while ( frame == NULL &&
            !usleep( 100000 ) &&
@@ -236,7 +266,7 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 		// clear text or grab the image to display
 		if (!pause || shot==0) {
             #ifdef USE_MULTITHREADCAPTURE
-            mtc->getLastProcessedFrame( NULL, &frame, /*block until available*/true );
+            mtc->getLastProcessedFrame( &frame_gray, &frame, /*block until available*/true );
             #else
 			frame = myQueryFrame(capture);
 			#endif
