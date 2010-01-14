@@ -88,9 +88,9 @@
 #endif
 #define GL_MIRROR_CLAMP_EXT 0x8742
 
-#define WIDTH 640
-#define HEIGHT 480
-#define V4LDEVICE 1
+#define DEFAULT_WIDTH 800
+#define DEFAULT_HEIGHT 600
+#define DEFAULT_V4LDEVICE 1
 
 #define NUMARTVERTS 5
 
@@ -113,11 +113,11 @@ IplImage *last_frame  = 0;
 IplImage *diff= 0;
 IplImage *bit_frame= 0;
 
-int v4l_device = V4LDEVICE;
-int video_width = WIDTH;
-int video_height = HEIGHT;
-int detect_width = WIDTH;
-int detect_height = HEIGHT;
+int v4l_device = DEFAULT_V4LDEVICE;
+int video_width = DEFAULT_WIDTH;
+int video_height = DEFAULT_HEIGHT;
+int detect_width = DEFAULT_WIDTH;
+int detect_height = DEFAULT_HEIGHT;
 
 // load some images. hard-coded for know until i get the path parsing together.
 IplImage *image1 = cvLoadImage("artvert1.png");
@@ -478,6 +478,8 @@ static bool init( int argc, char** argv )
 
     //cout << avi_bg_path << endl;
     cache_light = !redo_lighting;
+
+    glutReshapeWindow( video_width, video_height );
 
     multi = new MultiGrab(model_file);
 

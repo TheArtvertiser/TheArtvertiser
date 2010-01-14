@@ -58,8 +58,8 @@ public:
     /// until a new frame is available.
     void getLastProcessedFrame( IplImage** processedFrame, IplImage** rawFrame, bool block_until_available = false );
 
-    /// return a COPY of the last frame captured
-    /// caller must take ownership of the copy
+    /// return a COPY of the last frame returned by cvQueryFrame.
+    /// caller must take ownership of the copy.
     /// returns NULL if no frame available.
     IplImage* getCopyOfLastFrame();
 
