@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include "FProfiler/FThread.h"
 #include "FProfiler/FSemaphore.h"
+#include "FProfiler/FTime.h"
 #include <cv.h>
 #include <highgui.h>
 #include <map>
@@ -48,21 +49,33 @@ public:
     void setupResolution( int _width, int _height, int _nChannels )
         { width = _width, height = _height; nChannels = _nChannels; }
 
-    /// put a pointer to the last processed frame in processedFrame,
-    /// and its last raw version in rawFrame. the MultiThreadCapture instance
-    /// keeps ownership of the returned pointers - they are valid until the
-    /// next call to getLastProcessedFrame. You may pass NULL for either
-    /// argument.
-    /// if a new frame is not available, put NULL into *processedFrame and
-    /// *rawFrame, unless block_until_available is true, in which case block
-    /// until a new frame is available.
-    void getLastProcessedFrame( IplImage** processedFrame, IplImage** rawFrame, bool block_until_available = false );
+    /// Put a pointer to the last processed frame in processedFrame, and its
+    /// last raw version in rawFrame; also put a timestamp for when the
+    /// frame was grabbed into timestamp. The MultiThreadCapture instance
+    /// keeps ownership of the returned pointers - they remain valid until the
+    /// next call to getLastProcessedFrame. Return true on success.
+    /// If a new frame is not available, return false, unless
+    /// block_until_available is true, in which case block until a new frame is
+    /// available (or timeout and return false after 10s).
+    ///
+    /// You may pass NULL for processedFrame, rawFrame, or timestamp, and they
+    /// will be ignored.
+    bool getLastProcessedFrame( IplImage** processedFrame, IplImage** rawFrame, FTime** timestamp, bool block_until_available = false );
 
-    /// return a COPY of the last frame returned by cvQueryFrame.
-    /// caller must take ownership of the copy.
-    /// returns NULL if no frame available.
-    IplImage* getCopyOfLastFrame();
-
+    /// Put a copy of the last frame returned by cvQueryFrame into *last_frame_copy,
+    /// and its timestamp into timestamp_copy (if non-NULL).
+    ///
+    /// If *last_frame_copy is NULL, a new IplImage will be constructed for you.
+    /// If *last_frame_copy is not NULL, we check that the size, depth and chennels
+    /// match. If they do, we copy frame data in and return true. If they don't, we
+    /// return false.
+    ///
+    /// In any case, caller takes or retains ownership of *last_frame_copy.
+    ///
+    /// If a new frame is not available, return false, unless block_until_available
+    /// is true, in which case block until a new frame is available (or timeout and
+    /// return false after 10s).
+    bool getCopyOfLastFrame( IplImage** last_frame_copy, FTime* timestamp_copy=NULL, bool block_until_available = false );
 
     /// start capture
     void startCapture();
@@ -85,8 +98,9 @@ private:
     IplImage *last_frame, *last_frame_ret;
     IplImage *processed, *processed_ret;
     IplImage *frame_processsize;
+    FTime* timestamp, *timestamp_ret;
 
-    bool new_frame_available;
+    bool new_raw_frame_available, new_processed_frame_available;
     bool should_stop_capture;
 
     int width, height, nChannels;

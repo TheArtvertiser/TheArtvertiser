@@ -4,7 +4,7 @@ CPPFLAGS=-g -o2 -I/usr/local/include/opencv
 OUT=libMatrixTracker.a
 OBJ=MatrixTracker.o ofxMatrix3x3.o ofxMatrix4x4.o ofxQuaternion.o 
 
-%.o: %.cpp $(wildcard *.h)
+%.o: %.cpp $(wildcard *.h) $(wildcard ../FProfiler/*.h) 
 	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
 
 $(OUT): $(OBJ)

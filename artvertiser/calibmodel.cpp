@@ -102,10 +102,11 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
         IplImage* init_image = NULL;
         MultiThreadCapture* mtc = MultiThreadCaptureManager::getInstance()->getCaptureForCam(capture);
         int timeout = 10000;
+        bool got = false;
         do {
-            init_image = mtc->getCopyOfLastFrame();
+            got = mtc->getCopyOfLastFrame( &init_image );
         }
-        while ( init_image == NULL &&
+        while ( !got &&
                !usleep( 100000 ) &&
                (timeout-=100) > 0 );
         if ( init_image == NULL )
@@ -231,12 +232,14 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 	bool pause=false;
 	#ifdef USE_MULTITHREADCAPTURE
     IplImage *frame_gray, *frame = NULL;
+    FTime* timestamp = NULL;
     MultiThreadCapture* mtc = MultiThreadCaptureManager::getInstance()->getCaptureForCam(capture);
     int timeout = 10000;
+    bool got = false;
     do {
-        mtc->getLastProcessedFrame( &frame_gray, &frame );
+        got = mtc->getLastProcessedFrame( &frame_gray, &frame, &timestamp );
     }
-    while ( frame == NULL &&
+    while ( !got &&
            !usleep( 100000 ) &&
            (timeout-=100) > 0 );
     if ( frame == NULL )
@@ -266,7 +269,9 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 		// clear text or grab the image to display
 		if (!pause || shot==0) {
             #ifdef USE_MULTITHREADCAPTURE
-            mtc->getLastProcessedFrame( &frame_gray, &frame, /*block until available*/true );
+            bool got = mtc->getLastProcessedFrame( &frame_gray, &frame, NULL,/*block until available*/true );
+            if ( !got )
+                continue;
             #else
 			frame = myQueryFrame(capture);
 			#endif

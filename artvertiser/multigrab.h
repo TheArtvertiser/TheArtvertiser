@@ -19,15 +19,21 @@ public:
 	void grabFrames();
 	void allocLightCollector();
 
-	struct Cam {
+	class Cam {
+    public:
 		CvCapture *cam;
-		IplImage *frame, *frame_detectsize, *gray;
 		int width,height;
 		int detect_width, detect_height;
 		//PlanarObjectDetector detector;
 		planar_object_recognizer detector;
 		LightCollector *lc;
 		MultiThreadCapture *mtc;
+
+        const FTime& getLastProcessedFrameTimestamp() { return detected_frame_timestamp; }
+		IplImage* getLastProcessedFrame() { return frame; }
+		/// fetch the last raw frame + timestamp and put into *frame + timestamp. if *frame is NULL, create.
+		bool getLastRawFrame( IplImage** raw_frame, FTime* timestamp=NULL )
+            { return mtc->getCopyOfLastFrame( raw_frame, timestamp, true /*block*/ ); }
 
 		void setCam(CvCapture *c, int capture_width, int capture_height, int detect_width, int detect_height );
 		bool detect();
@@ -48,6 +54,11 @@ public:
 		}
 		Cam( const Cam& other ) { assert( false && "copy constructor called, arrgh" ); }
 		~Cam();
+
+		private:
+            IplImage *frame, *frame_detectsize, *gray;
+            FTime detected_frame_timestamp;
+
 	};
 
 	std::vector<Cam *> cams;

@@ -9,12 +9,15 @@
 
 #include "FTime.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #ifdef OSX
 #else
 #include <time.h>
 #endif
+
+#include <assert.h>
 
 void FTime::SetNow()
 {
@@ -24,6 +27,18 @@ void FTime::SetNow()
 	// clock_gettime(CLOCK_MONOTONIC, &ts); // Works on FreeBSD
 	clock_gettime(CLOCK_REALTIME, &time); // Works on Linux
 	#endif
+}
+
+void FTime::Copy( const FTime& other )
+{
+    if ( this != &other )
+    {
+        #ifdef OSX
+        time = other.time;
+        #else
+        time = other.time;
+        #endif
+    }
 }
 
 double FTime::Update()
@@ -74,6 +89,7 @@ FTime& FTime::operator-= (const FTime& other )
 	#ifdef OSX
 	time -= other.time;
 	#else
+	assert( false && "broken code, please fix" );
 	time.tv_sec -= other.time.tv_sec;
 	if ( time.tv_nsec < other.time.tv_nsec )
 	{
@@ -87,8 +103,21 @@ FTime& FTime::operator-= (const FTime& other )
 	return *this;
 }
 
+void FTime::SetSeconds( double seconds )
+{
+    #ifdef OSX
+    assert( false && "implement me" );
+    #else
+    // truncate
+    time.tv_sec = (long long)seconds;
+    // microseconds
+    time.tv_nsec = (seconds - (long long)seconds)*1e9;
+    #endif
 
-double FTime::ToMillis()
+}
+
+
+double FTime::ToMillis() const
 {
 	#ifdef OSX
 	static double conversion = 0.0;

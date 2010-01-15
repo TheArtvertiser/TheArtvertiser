@@ -115,12 +115,13 @@ void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_w
     IplImage* f = NULL;
     int timeout = 5000;
     printf("MultiGrab::Cam::setCam waiting for camera to become ready... (5s timeout)\n");
-    while ( timeout >= 0 && f == NULL )
+    bool got = false;
+    while ( timeout >= 0 && !got )
     {
         // 50ms jumps
         usleep( 50*1000 );
         timeout -= 50;
-        f = mtc->getCopyOfLastFrame();
+        got = mtc->getCopyOfLastFrame( &f );
     }
 	assert(f != 0 && "camera did not become ready");
 	#else
@@ -159,24 +160,18 @@ bool MultiGrab::Cam::detect()
 
     #ifdef USE_MULTITHREADCAPTURE
     PROFILE_SECTION_PUSH("retrieve");
-    //IplImage* f = mtc->getCopyOfLastFrame();
     IplImage *gray_temp, *frame_temp;
-    mtc->getLastProcessedFrame( &gray_temp, &frame_temp, /*block until available*/ true );
+    FTime *timestamp;
+    bool got = mtc->getLastProcessedFrame( &gray_temp, &frame_temp, &timestamp,/*block until available*/ true );
     PROFILE_SECTION_POP();
-    if ( frame_temp == 0 || gray_temp == 0 )
+    if ( !got || frame_temp == 0 || gray_temp == 0 )
     {
         PROFILE_SECTION_POP();
         return false;
     }
     gray = gray_temp;
     frame = frame_temp;
-    /*if ( f == 0 ) return false;
-   	CvSize frame_size = cvGetSize( f );
-	if ( frame_size.width != width || frame_size.height != height )
-	{
-        assert( false && "frame size input didn't match camera setup size" );
-	}
-    frame = f;*/
+    detected_frame_timestamp = *timestamp;
     #else
 	PROFILE_SECTION_PUSH("retrieve");
 	IplImage *f = myRetrieveFrame(cam);
@@ -258,8 +253,11 @@ bool MultiGrab::Cam::detect()
 	// run the detector
 	bool res = false;
 	if (detector.detect(gray)) {
-		if (lc) lc->averageImage(frame, detector.H);
-			res = true;
+	    PROFILE_SECTION_PUSH("light accumulator")
+		if (lc)
+            lc->averageImage(frame, detector.H);
+                res = true;
+        PROFILE_SECTION_POP();
 	}
 
 	PROFILE_SECTION_POP();

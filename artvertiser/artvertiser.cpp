@@ -88,8 +88,8 @@
 #endif
 #define GL_MIRROR_CLAMP_EXT 0x8742
 
-#define DEFAULT_WIDTH 800
-#define DEFAULT_HEIGHT 600
+#define DEFAULT_WIDTH 640
+#define DEFAULT_HEIGHT 480
 #define DEFAULT_V4LDEVICE 1
 
 #define NUMARTVERTS 5
@@ -100,7 +100,8 @@
 MultiGrab *multi=0;
 CamCalibration *calib=0;
 CvPoint projPts[4];
-IplTexture *frameTexture=0;
+IplTexture *raw_frame_texture=0;
+FTime raw_frame_timestamp;
 IplTexture *tex=0;
 IplImage *image = 0;
 CvCapture *capture = 0;
@@ -165,7 +166,6 @@ int nb_light_measures=0;
 int geom_calib_nb_homography;
 int current_cam = 0;
 int avi_init = 0;
-int found_match = 0;
 int augment = 0;
 int cnt=0;
 
@@ -174,6 +174,14 @@ CvPoint2D32f *c1 = new CvPoint2D32f[4];
 
 char *image_path;
 char *model_file = "model.bmp";
+
+pthread_t detection_thread;
+static void shutdownDetectionThread();
+static void startDetectionThread();
+static void* detectionThreadFunc( void* _data );
+bool detection_thread_should_exit = false;
+bool detection_thread_running = false;
+
 
 static void start();
 static void geomCalibStart(bool cache);
@@ -346,6 +354,9 @@ static void usage(const char *s)
 void exit_handler()
 {
     printf("in exit_handler\n");
+    // shutdown detection thread
+    if ( detection_thread_running )
+        shutdownDetectionThread();
     // shutdown the capture
     if ( multi )
         delete multi;
@@ -366,7 +377,7 @@ static bool init( int argc, char** argv )
     atexit( &exit_handler );
 
     // dump opencv version
-    printf("build with opencv version %s\n", CV_VERSION );
+    printf("built with opencv version %s\n", CV_VERSION );
 
     // more from before init should be moved here
     bool redo_geom=false;
@@ -521,6 +532,10 @@ static bool init( int argc, char** argv )
     c1[3].x = roi_vec[6];
     c1[3].y = roi_vec[7];
 
+
+    // start detection
+    startDetectionThread();
+
     return true;
 }
 
@@ -673,6 +688,7 @@ int main(int argc, char *argv[])
 static bool drawBackground(IplTexture *tex)
 {
     if (!tex || !tex->getIm()) return false;
+    //printf("drawBackground: drawing frame with timestamp %f\n", raw_frame_timestamp.ToSeconds() );
 
     IplImage *im = tex->getIm();
     int w = im->width-1;
@@ -713,7 +729,7 @@ static void drawDetectedPoints(void)
 {
     if (!multi) return;
 
-    IplImage *im = multi->cams[current_cam]->frame;
+    IplImage *im = multi->cams[current_cam]->getLastProcessedFrame();
     planar_object_recognizer &detector(multi->cams[current_cam]->detector);
     if (!im) return;
 
@@ -775,11 +791,11 @@ static void geomCalibDraw(void)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glDisable(GL_LIGHTING);
-    drawBackground(frameTexture);
+    drawBackground(raw_frame_texture);
 
     if (!multi) return;
 
-    IplImage *im = multi->cams[current_cam]->frame;
+    IplImage *im = multi->cams[current_cam]->getLastProcessedFrame();
     planar_object_recognizer &detector(multi->cams[current_cam]->detector);
     if (!im) return;
 
@@ -851,8 +867,12 @@ static void geomCalibIdle(void)
         if (multi->cams[i]->detect()) nbdet++;
     }
 
-    if(!frameTexture) frameTexture = new IplTexture;
-    frameTexture->setImage(multi->cams[current_cam]->frame);
+
+    if(!raw_frame_texture) raw_frame_texture = new IplTexture;
+    IplImage* raw_frame = raw_frame_texture->getImage();
+    multi->cams[current_cam]->getLastRawFrame( &raw_frame );
+    raw_frame_texture->setImage(raw_frame);
+    //raw_frame_texture->setImage(multi->cams[current_cam]->frame);
 
     if (nbdet>0)
     {
@@ -920,76 +940,33 @@ static void geomCalibStart(bool cache)
     glutIdleFunc(geomCalibIdle);
 }
 
-//#define DEBUG_SHADER
-/*! The paint callback during photometric calibration and augmentation. In this
- * case, we have access to 3D data. Thus, we can augment the calibration target
- * with cool stuff.
- */
-static void draw(void)
+
+
+static void drawAugmentation()
 {
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glDisable(GL_LIGHTING);
-
-    drawBackground(frameTexture);
-
-    string cnt_str;
-    stringstream cnt_out;
-    cnt_out << cnt;
-    cnt_str = cnt_out.str();
-
-    //IplImage *pre_mask = cvCreateImage(cvSize(WIDTH, HEIGHT), 8, 3);
-
-    if (!multi) return;
-
+    // we know that im is not NULL already
     IplImage *im = multi->model.image;
 
-    if (!im) return;
-
-    int now = glutGet(GLUT_ELAPSED_TIME);
-    /* elapsed time
-    cout << now/1000.0 << endl;
-    */
-    // pixel shift
-
-    if (frame_ok and augment == 1)
+    //for ( int tracked_or_raw=0; tracked_or_raw<2; tracked_or_raw++ )
     {
-
-        found_match = 1;
-
-        // here i calculate pixel shift to help us remove pose estimation jitter
-        IplImage *_frame = frameTexture->getIm();
-
-        if (!difference)
-        {
-            this_frame=cvCreateImage( cvSize(video_width, video_height),8,1);
-            bit_frame=cvCreateImage(cvSize(video_width, video_height),8,1);
-            last_frame=cvCloneImage(this_frame);
-            diff=cvCreateImage(cvSize(video_width, video_height), 8 ,1);
-            difference=1;
-        }
-
-        cvCvtColor(_frame, this_frame,CV_BGR2GRAY);
-        cvAbsDiff(this_frame,last_frame,diff);
-        //threshold image
-        cvThreshold(diff,bit_frame,30,255,CV_THRESH_BINARY);
-        last_frame=cvCloneImage(this_frame);
-        // calculate white pixels (pixel shift)
-        int pixel_shift = cvCountNonZero(bit_frame);
-        //cvSaveImage("diff.png", bit_frame);
-        //cout << pixel_shift << endl;
 
         // Fetch object -> image, world->image and world -> object matrices
 
-        // don't fetch from model:
-        //   CvMat *world = multi->model.augm.GetObjectToWorld();
-        // instead, fetch interpolated position
-        ofxMatrix4x4 interpolated_pos;
-        CvMat* world = cvCreateMat( 3, 4, CV_64FC1 );
-        matrix_tracker.getInterpolatedPose( interpolated_pos );
-        for ( int i=0; i<3; i++ )
-            for ( int j=0; j<4; j++ )
-                cvmSet( world, i, j, interpolated_pos( i, j ) );
+        CvMat *world;
+        /*if ( tracked_or_raw == 1 )
+        {
+            // fetch from model:
+            world = multi->model.augm.GetObjectToWorld();
+        }
+        else*/
+        {
+
+            // or fetch interpolated position
+            world = cvCreateMat( 3, 4, CV_64FC1 );
+
+            //printf(". now we want interpolated pose for %f\n", raw_frame_timestamp.ToSeconds() );
+            matrix_tracker.getInterpolatedPose( world, raw_frame_timestamp );
+        }
 
         // instead of this:
            /*CvMat *proj = multi->model.augm.GetProjectionMatrix(current_cam);
@@ -999,8 +976,6 @@ static void draw(void)
         CvMat* proj = multi->model.augm.GetPreProjectionMatrix(current_cam);
         // multiply by the object-to-world matrix
         CamCalibration::Mat3x4Mul( proj, world, proj );
-
-
 
         Mat3x4 moveObject, rot, obj2World, movedRT_;
         moveObject.setTranslate(im->width/2,im->height/2,-120*3/4);
@@ -1073,7 +1048,7 @@ static void draw(void)
         CvMat* mmat = cvCreateMat(3,3, CV_32FC1);
         IplImage *warped = cvCreateImage(cvSize(model_image->width, model_image->height), 8, 3);
         mmat = cvGetPerspectiveTransform(c2, c1, mmat);
-        cvWarpPerspective(frameTexture->getIm(), warped, mmat);
+        cvWarpPerspective(raw_frame_texture->getIm(), warped, mmat);
         cvReleaseMat(&mmat);
 
         // find difference between model image and frame
@@ -1092,13 +1067,13 @@ static void draw(void)
         */
 
         /* circles at corners of ROI. useful for debugging.
-        cvCircle(frameTexture->getIm(), c1, 10, CV_RGB(255, 0, 0), 2);
-        cvCircle(frameTexture->getIm(), c2, 10, CV_RGB(255, 0, 0), 2);
-        cvCircle(frameTexture->getIm(), c3, 10, CV_RGB(255, 0, 0), 2);
-        cvCircle(frameTexture->getIm(), c4, 10, CV_RGB(255, 0, 0), 2);
+        cvCircle(raw_frame_texture->getIm(), c1, 10, CV_RGB(255, 0, 0), 2);
+        cvCircle(raw_frame_texture->getIm(), c2, 10, CV_RGB(255, 0, 0), 2);
+        cvCircle(raw_frame_texture->getIm(), c3, 10, CV_RGB(255, 0, 0), 2);
+        cvCircle(raw_frame_texture->getIm(), c4, 10, CV_RGB(255, 0, 0), 2);
 
         tex = new IplTexture;
-        tex->setImage(frameTexture->getIm());
+        tex->setImage(raw_frame_texture->getIm());
         drawBackground(tex);
         */
 
@@ -1164,7 +1139,7 @@ static void draw(void)
         {
             fade = 1;
         }*/
-        fade = 0.8;
+        fade = 0.6;
 
         glColor4f(1.0, 1.0, 1.0, fade);
 
@@ -1268,10 +1243,48 @@ static void draw(void)
         }
     }
 
+}
+
+//#define DEBUG_SHADER
+/*! The paint callback during photometric calibration and augmentation. In this
+ * case, we have access to 3D data. Thus, we can augment the calibration target
+ * with cool stuff.
+ */
+static void draw(void)
+{
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glDisable(GL_LIGHTING);
+
+    drawBackground(raw_frame_texture);
+
+    string cnt_str;
+    stringstream cnt_out;
+    cnt_out << cnt;
+    cnt_str = cnt_out.str();
+
+    //IplImage *pre_mask = cvCreateImage(cvSize(WIDTH, HEIGHT), 8, 3);
+
+    if (!multi) return;
+
+    IplImage *im = multi->model.image;
+    if (!im)
+        return;
+
+    int now = glutGet(GLUT_ELAPSED_TIME);
+    /* elapsed time
+    cout << now/1000.0 << endl;
+    */
+    // pixel shift
+
+
+    if (frame_ok and augment == 1)
+    {
+        drawAugmentation();
+    }
     else if (!frame_ok)
     {
         fade = 0.0;
-        found_match=0;
     }
 
     glLoadIdentity();
@@ -1289,7 +1302,7 @@ static void draw(void)
     glColor4f(1.0, 1.0, 1.0, .6);
     //ftglFont->FaceSize(16);
     //ftglFont->Render(date(now).c_str());
-    if (found_match == 1 and (now/1000)%2== 0)
+    if (frame_ok == 1 and (now/1000)%2== 0)
     {
         glTranslatef(video_width-295, video_height+35, 0);
         glColor4f(0.0, 1.0, 0.0, .8);
@@ -1345,6 +1358,76 @@ static void draw(void)
     glFlush();
 }
 
+
+
+static void startDetectionThread()
+{
+    pthread_attr_t thread_attr;
+    pthread_attr_init(&thread_attr);
+    pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
+    // launch the thread
+    pthread_create( &detection_thread, &thread_attr, detectionThreadFunc, NULL );
+    detection_thread_running = true;
+    pthread_attr_destroy( &thread_attr );
+}
+
+static void shutdownDetectionThread()
+{
+    // kill the thread
+    detection_thread_should_exit = true;
+    void* ret;
+    pthread_join( detection_thread, &ret );
+    detection_thread_running = false;
+}
+
+static void* detectionThreadFunc( void* _data )
+{
+
+    while ( !detection_thread_should_exit )
+    {
+        PROFILE_THIS_BLOCK("detection_thread");
+
+        // do this in a thread
+        if ( !multi->cams[0]->detect() )
+        {
+            usleep( 10000 );
+            continue;
+        }
+
+        frame_ok=false;
+
+        multi->model.augm.Clear();
+        if (multi->cams[0]->detector.object_is_detected)
+        {
+            add_detected_homography(0, multi->cams[0]->detector, multi->model.augm);
+        }
+        else
+        {
+            multi->model.augm.AddHomography();
+        }
+
+        frame_ok = multi->model.augm.Accomodate(4, 1e-4);
+
+        if (frame_ok)
+        {
+            // fetch surface normal in world coordinates
+            CvMat *mat = multi->model.augm.GetObjectToWorld();
+            float normal[3];
+            for (int j=0; j<3; j++)
+                normal[j] = cvGet2D(mat, j, 2).val[0];
+
+            // continue to track
+            matrix_tracker.addPose( mat, multi->cams[0]->getLastProcessedFrameTimestamp() );
+
+            cvReleaseMat(&mat);
+
+        }
+    }
+
+    pthread_exit(0);
+}
+
+
 /*! GLUT calls this during photometric calibration or augmentation phase when
  * there's nothing else to do. This function does the 2D detection and bundle
  * adjusts the 3D pose of the calibration pattern.
@@ -1360,39 +1443,17 @@ static void idle()
     // (this loop could be paralelized)
     int nbdet=1;
 
-    multi->cams[0]->detect();
 
-    if(!frameTexture) frameTexture = new IplTexture;
-    frameTexture->setImage(multi->cams[current_cam]->frame);
+    if(!raw_frame_texture) raw_frame_texture = new IplTexture;
+    IplImage* raw_frame = raw_frame_texture->getImage();
+    multi->cams[current_cam]->getLastRawFrame( &raw_frame, &raw_frame_timestamp );
+    //printf(". getLastRawFrame gave us %f\n", raw_frame_timestamp.ToSeconds() );
+    raw_frame_texture->setImage(raw_frame);
+    /*raw_frame_texture->setImage(multi->cams[current_cam]->frame);
+    frameTimestamp = multi->cams[current_cam]->frame_timestamp;*/
 
-    frame_ok=false;
 
-    multi->model.augm.Clear();
-    if (multi->cams[0]->detector.object_is_detected)
-    {
-        add_detected_homography(0, multi->cams[0]->detector, multi->model.augm);
-    }
-    else
-    {
-        multi->model.augm.AddHomography();
-    }
-
-    frame_ok = multi->model.augm.Accomodate(4, 1e-4);
-
-    if (frame_ok)
-    {
-        // fetch surface normal in world coordinates
-        CvMat *mat = multi->model.augm.GetObjectToWorld();
-        float normal[3];
-        for (int j=0; j<3; j++) normal[j] = cvGet2D(mat, j, 2).val[0];
-
-        // continue to track
-        matrix_tracker.track( mat );
-
-        cvReleaseMat(&mat);
-
-    }
-
+    //doDetection();
 
     glutPostRedisplay();
 
