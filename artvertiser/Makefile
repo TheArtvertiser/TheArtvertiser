@@ -78,12 +78,12 @@ AUTOMAKE = ${SHELL} /home/julian/devel/The-Artvertiser/missing --run automake-1.
 AWK = gawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O2 -mtune=native -msse3
+CFLAGS =  -g -O3 -mtune=native -msse3
 CPP = gcc -E
 CPPFLAGS = -I/usr/include/freetype2
 CXX = g++
 CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -g -O2 -mtune=native -msse3
+CXXFLAGS = -g -O3 -mtune=native -msse3
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
 DEPDIR = .deps
