@@ -18,6 +18,7 @@ FSemaphore FProfiler::lock;
 
 int FProfileSection::EXEC_ORDER_ID = 0;
 
+FTime FProfiler::end_time;
 
 FProfileContext::~FProfileContext()
 {
@@ -101,6 +102,8 @@ void FProfiler::SectionPush(const std::string &name)
 
 void FProfiler::SectionPop()
 {
+    end_time.SetNow();
+
 	// grab the section
 	FProfileContext* context = GetContext();
 	FProfileSection* s = context->current;
@@ -109,15 +112,14 @@ void FProfiler::SectionPop()
 	if ( context->current->parent == NULL )
         return;
 
-	// get time for this run
+	// get time for this run in ms
 /*	LARGE_INTEGER freq;
 	QueryPerformanceFrequency(&freq);
 	double time = 1000*(double)(stop_time.QuadPart - s->start_time.QuadPart)/(double)freq.QuadPart;
 	*/
+    double time = (end_time-s->timer).ToMillis();
+    //double time = end_time.ToMillis()-s->timer.ToMillis();
 
-
-	//stop_time -= s->start_time;
-	double time = 1000.0*s->timer.Update();
 
 	// work out the new avg time and increment the call count
 	double total_time = time + s->avg_time * s->call_count++;

@@ -39,7 +39,16 @@ public:
 	FTime( const FTime& other ) { Copy(other); }
 
 	// set us to the current time
-	void SetNow();
+	void SetNow()
+	{
+        #ifdef OSX
+        time = mach_absolute_time();
+        #else
+        // clock_gettime(CLOCK_MONOTONIC, &ts); // Works on FreeBSD
+        clock_gettime(CLOCK_REALTIME, &time); // Works on Linux
+        #endif
+    }
+
 	// set us to the given time in seconds
 	void SetSeconds( double seconds );
 
@@ -57,8 +66,37 @@ public:
 
 
 	// calculate difference
-	FTime operator-( const FTime& other ) const;
-	FTime& operator -= (const FTime& other );
+	FTime operator-( const FTime& other ) const
+	{
+        // copy self
+        FTime t = *this;
+        // invoke operator -=
+        t -= other;
+        return t;
+	}
+	FTime& operator -= (const FTime& other )
+	{
+    	#ifdef OSX
+        time -= other.time;
+        #else
+        //assert( false && "broken code, please fix ");
+        if ( time.tv_nsec < other.time.tv_nsec )
+        {
+            // will underflow
+
+            //printf("underflow: %10li:%10li - %10li:%10li = ", time.tv_sec, time.tv_nsec, other.time.tv_sec, other.time.tv_nsec );
+            time.tv_sec -= other.time.tv_sec + 1;
+            time.tv_nsec = 1e9 - (other.time.tv_nsec-time.tv_nsec);
+            //printf(" %10li:%10li\n", time.tv_sec, time.tv_nsec );
+        }
+        else
+        {
+            time.tv_sec -= other.time.tv_sec;
+            time.tv_nsec -= other.time.tv_nsec;
+        }
+        #endif
+        return *this;
+	}
 
 	// assignment
 	FTime& operator= (const FTime& other ) { Copy(other); return *this; }
@@ -88,7 +126,14 @@ public:
 
 private:
 
-    void Copy( const FTime& other );
+    void Copy( const FTime& other )
+    {
+        if ( this != &other )
+        {
+            time = other.time;
+        }
+    }
+
 
 	#ifdef OSX
 	uint64_t time;

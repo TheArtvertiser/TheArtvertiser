@@ -164,7 +164,7 @@ bool MatrixTracker::getInterpolatedPose( ofxMatrix4x4& interpolated_pose, const 
             for ( int i=0; i<LAST_FRAME_BACK - 1; i++ )
             {
                 // square falloff : fresher = more important <-- todo: link to this_time_delta somehow?
-                double abs_delta_time = times[i+1]->ToSeconds() - for_time.ToSeconds();
+                double abs_delta_time = for_time.ToSeconds() - times[i+1]->ToSeconds();
                 //float pos_mul = (i+1)/**(i+1)*/;
                 //float rot_mul = sqrtf(i+1);
                 float pos_mul = 1.0f/(1.0f+abs_delta_time*abs_delta_time);

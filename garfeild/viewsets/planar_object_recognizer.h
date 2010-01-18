@@ -317,10 +317,10 @@ private:
 
   static void* estimate_affine_transformation_thread_func(void* data);
 
-  // thread-safe transfer of settings from ui to detection thread
+  // thread-safe fetch of external UI settings to detection thread
   void get_ui_settings();
 
-  // initialise ui settings
+  // set external UI settings to the values of our internal settings
   void put_ui_settings();
 
   class EstimateAffineThreadData

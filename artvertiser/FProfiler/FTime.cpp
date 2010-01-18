@@ -19,28 +19,6 @@
 
 #include <assert.h>
 
-void FTime::SetNow()
-{
-	#ifdef OSX
-	time = mach_absolute_time();
-	#else
-	// clock_gettime(CLOCK_MONOTONIC, &ts); // Works on FreeBSD
-	clock_gettime(CLOCK_REALTIME, &time); // Works on Linux
-	#endif
-}
-
-void FTime::Copy( const FTime& other )
-{
-    if ( this != &other )
-    {
-        #ifdef OSX
-        time = other.time;
-        #else
-        time = other.time;
-        #endif
-    }
-}
-
 double FTime::Update()
 {
 	#ifdef OSX
@@ -75,34 +53,6 @@ double FTime::Update()
 	return last_update_time;
 }
 
-FTime FTime::operator- (const FTime& other) const
-{
-	// copy self
-	FTime t = *this;
-	// invoke operator -=
-	t -= other;
-	return t;
-}
-
-FTime& FTime::operator-= (const FTime& other )
-{
-	#ifdef OSX
-	time -= other.time;
-	#else
-	assert( false && "broken code, please fix" );
-	time.tv_sec -= other.time.tv_sec;
-	if ( time.tv_nsec < other.time.tv_nsec )
-	{
-		// will underflow
-		time.tv_nsec = abs( time.tv_nsec - other.time.tv_nsec );
-		time.tv_sec--;
-	}
-	else
-		time.tv_nsec -= other.time.tv_nsec;
-	#endif
-	return *this;
-}
-
 void FTime::SetSeconds( double seconds )
 {
     #ifdef OSX
@@ -110,7 +60,7 @@ void FTime::SetSeconds( double seconds )
     #else
     // truncate
     time.tv_sec = (long long)seconds;
-    // microseconds
+    // nanoseconds
     time.tv_nsec = (seconds - (long long)seconds)*1e9;
     #endif
 

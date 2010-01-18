@@ -142,6 +142,9 @@ bool planar_object_recognizer::build(IplImage *model_image,
                                                 int yape_radius, int tree_number, int nbLev,
                                                 LEARNPROGRESSION LearnProgress, int *roi)
 {
+    put_ui_settings();
+
+
   new_images_generator.set_patch_size(patch_size);
 
   IplImage *model;
@@ -179,6 +182,8 @@ bool planar_object_recognizer::build_with_cache(string filename,
                                                 int yape_radius, int tree_number, int nbLev,
                                                 LEARNPROGRESSION LearnProgress)
 {
+    put_ui_settings();
+
   new_images_generator.set_patch_size(patch_size);
 
   string dirname(filename + ".classifier");

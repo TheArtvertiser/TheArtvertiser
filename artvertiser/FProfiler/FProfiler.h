@@ -133,6 +133,10 @@ public:
 
 private:
 
+    // for efficiency: avoid re-allocating
+    static FTime end_time;
+
+
 	typedef std::vector<FProfileContext*> FProfileContexts;
 	static FProfileContexts contexts;
 
