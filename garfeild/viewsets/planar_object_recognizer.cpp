@@ -59,6 +59,8 @@ planar_object_recognizer::planar_object_recognizer()
   max_ransac_iterations = 800;
   non_linear_refine_threshold = 3;
 
+  put_ui_settings();
+
 }
 
 void planar_object_recognizer::default_settings(void)
@@ -521,6 +523,8 @@ void planar_object_recognizer::match_points(bool fill_match_struct)
 
 bool planar_object_recognizer::detect(IplImage * input_image)
 {
+    get_ui_settings();
+
     PROFILE_SECTION_PUSH("detect points");
     detect_points(input_image);
     PROFILE_SECTION_POP();
@@ -1351,6 +1355,7 @@ void planar_object_recognizer::detect_most_stable_model_points(int max_point_num
                                                                int view_nb, double min_view_rate,
                                                                LEARNPROGRESSION LearnProgress)
 {
+    put_ui_settings();
   cout << "Determining most stable points:" << endl;
 
   vector< pair<object_keypoint, int> > tmp_model_points;
@@ -1879,3 +1884,24 @@ void planar_object_recognizer::check_target_size(IplImage *image)
 	point_detector->set_radius(yape_radius);
 }
 
+void planar_object_recognizer::get_ui_settings()
+{
+    ransac_dist_threshold       = ransac_dist_threshold_ui;
+    ransac_stop_support         = ransac_stop_support_ui;
+    max_ransac_iterations       = max_ransac_iterations_ui;
+    non_linear_refine_threshold = non_linear_refine_threshold_ui;
+    match_score_threshold       = match_score_threshold_ui;
+    best_support_thresh         = best_support_thresh_ui;
+    point_detector_tau          = point_detector_tau_ui;
+
+}
+void planar_object_recognizer::put_ui_settings()
+{
+    ransac_dist_threshold_ui    = ransac_dist_threshold;
+    ransac_stop_support_ui      = ransac_stop_support;
+    max_ransac_iterations_ui    = max_ransac_iterations;
+    non_linear_refine_threshold_ui = non_linear_refine_threshold;
+    match_score_threshold_ui    = match_score_threshold;
+    best_support_thresh_ui      = best_support_thresh;
+    point_detector_tau_ui       = point_detector_tau;
+}

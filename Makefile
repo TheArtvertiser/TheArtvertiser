@@ -54,7 +54,7 @@ RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	install-html-recursive install-info-recursive \
 	install-pdf-recursive install-ps-recursive install-recursive \
 	installcheck-recursive installdirs-recursive pdf-recursive \
-	ps-recursive uninstall-recursive
+	ps-recursive uninstall-recursive profile-recursive
 RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 ETAGS = etags
@@ -71,20 +71,20 @@ DIST_ARCHIVES = $(distdir).tar.gz
 GZIP_ENV = --best
 distuninstallcheck_listfiles = find . -type f -print
 distcleancheck_listfiles = find . -type f -print
-ACLOCAL = ${SHELL} /home/julian/devel/The-Artvertiser/missing --run aclocal-1.10
-AMTAR = ${SHELL} /home/julian/devel/The-Artvertiser/missing --run tar
-AUTOCONF = ${SHELL} /home/julian/devel/The-Artvertiser/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/julian/devel/The-Artvertiser/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/julian/devel/The-Artvertiser/missing --run automake-1.10
-AWK = gawk
+ACLOCAL = ${SHELL} /home/artvertiser/Desktop/working/The-Artvertiser/missing --run aclocal-1.10
+AMTAR = ${SHELL} /home/artvertiser/Desktop/working/The-Artvertiser/missing --run tar
+AUTOCONF = ${SHELL} /home/artvertiser/Desktop/working/The-Artvertiser/missing --run autoconf
+AUTOHEADER = ${SHELL} /home/artvertiser/Desktop/working/The-Artvertiser/missing --run autoheader
+AUTOMAKE = ${SHELL} /home/artvertiser/Desktop/working/The-Artvertiser/missing --run automake-1.10
+AWK = mawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O3 -mtune=native -msse3
+CFLAGS = -g -O2
 CPP = gcc -E
-CPPFLAGS = -IFTGL -IGL -Iglut -I/usr/include/freetype2
+CPPFLAGS = -IFTGL -IGL -Iglut -I/usr/include/freetype2 
 CXX = g++
 CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -g -O3 -mtune=native -msse3
+CXXFLAGS = -g -O2
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
 DEPDIR = .deps
@@ -108,12 +108,12 @@ INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LDFLAGS = 
 LIBOBJS = 
-LIBS = -lGL -lglut -lftgl
+LIBS = -lGL -lglut -lftgl 
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/julian/devel/The-Artvertiser/missing --run makeinfo
+MAKEINFO = ${SHELL} /home/artvertiser/Desktop/working/The-Artvertiser/missing --run makeinfo
 MKDIR_P = /bin/mkdir -p
 OBJEXT = o
-OPENCV_CFLAGS = -I/usr/local/include/opencv 
+OPENCV_CFLAGS = -I/usr/local/include/opencv  
 OPENCV_LIBS = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml  
 PACKAGE = bazar
 PACKAGE_BUGREPORT = julien.pilet@epfl.ch
@@ -136,10 +136,10 @@ X_CFLAGS =
 X_EXTRA_LIBS = 
 X_LIBS = 
 X_PRE_LIBS =  -lSM -lICE
-abs_builddir = /home/julian/devel/The-Artvertiser
-abs_srcdir = /home/julian/devel/The-Artvertiser
-abs_top_builddir = /home/julian/devel/The-Artvertiser
-abs_top_srcdir = /home/julian/devel/The-Artvertiser
+abs_builddir = /home/artvertiser/Desktop/working/The-Artvertiser
+abs_srcdir = /home/artvertiser/Desktop/working/The-Artvertiser
+abs_top_builddir = /home/artvertiser/Desktop/working/The-Artvertiser
+abs_top_srcdir = /home/artvertiser/Desktop/working/The-Artvertiser
 ac_ct_CC = gcc
 ac_ct_CXX = g++
 acx_pthread_config = 
@@ -168,7 +168,7 @@ host_vendor = pc
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = $(SHELL) /home/julian/devel/The-Artvertiser/install-sh
+install_sh = $(SHELL) /home/artvertiser/Desktop/working/The-Artvertiser/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -187,10 +187,12 @@ sysconfdir = ${prefix}/etc
 target_alias = 
 top_builddir = .
 top_srcdir = .
-SUBDIRS = starter garfeild doc artvertiser 
+SUBDIRS = starter garfeild doc artvertiser/FProfiler artvertiser/MatrixTracker artvertiser
 EXTRA_DIST = autogen.sh
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
+profile: config.h
+	$(MAKE) $(AM_MAKEFLAGS) profile-recursive
 
 .SUFFIXES:
 am--refresh:
@@ -525,6 +527,7 @@ distcleancheck: distclean
 check-am: all-am
 check: check-recursive
 all-am: Makefile config.h
+profile-am: Makefile config.h
 installdirs: installdirs-recursive
 installdirs-am:
 install: install-recursive

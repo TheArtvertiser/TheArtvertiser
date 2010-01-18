@@ -101,7 +101,6 @@ private:
     FTime* timestamp, *timestamp_ret;
 
     bool new_raw_frame_available, new_processed_frame_available;
-    bool should_stop_capture;
 
     int width, height, nChannels;
 

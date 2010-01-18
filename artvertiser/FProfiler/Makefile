@@ -2,12 +2,9 @@ CC=gcc
 CPPFLAGS=-g -o2
 
 OUT=libfprofiler.a
-OBJ=FProfiler.o FTime.o FThread.o
+OBJ=FProfiler.o FTime.o FThread.o 
 
-%.o: %.cpp $(wildcard *.h)
-	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
-
-$(OUT): $(OBJ)
+$(OUT): $(OBJ) $(wildcard *.h)
 	ar rcs $(OUT) $(OBJ)
 
 profile: CPPFLAGS+=-DPROFILE

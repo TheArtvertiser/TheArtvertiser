@@ -29,6 +29,9 @@ public:
 		LightCollector *lc;
 		MultiThreadCapture *mtc;
 
+		/// stop capturing but leave frame buffers in place
+		void shutdownMultiThreadCapture();
+
         const FTime& getLastProcessedFrameTimestamp() { return detected_frame_timestamp; }
 		IplImage* getLastProcessedFrame() { return frame; }
 		/// fetch the last raw frame + timestamp and put into *frame + timestamp. if *frame is NULL, create.

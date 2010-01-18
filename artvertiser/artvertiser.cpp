@@ -354,12 +354,24 @@ static void usage(const char *s)
 void exit_handler()
 {
     printf("in exit_handler\n");
+    // shutdown capture
+    if ( multi )
+    {
+        printf("stopping multithread capture\n");
+        multi->cams[0]->shutdownMultiThreadCapture();
+    }
     // shutdown detection thread
     if ( detection_thread_running )
+    {
+        printf("stopping detection\n");
         shutdownDetectionThread();
+    }
     // shutdown the capture
     if ( multi )
+    {
+        printf("deleteing multi\n");
         delete multi;
+    }
 }
 
 
@@ -598,54 +610,72 @@ static void keyboard(unsigned char c, int x, int y)
     if ( multi && show_status )
     {
         planar_object_recognizer &detector(multi->cams[current_cam]->detector);
+        bool something = true;
         switch (c)
         {
         // detector settings
         case '1':
-            detector.ransac_dist_threshold*=1.02f;
+            detector.ransac_dist_threshold_ui*=1.02f;
             break;
         case '!':
-            detector.ransac_dist_threshold/=1.02f;
+            detector.ransac_dist_threshold_ui/=1.02f;
             break;
         case '2':
-            detector.ransac_stop_support++;
+            detector.ransac_stop_support_ui++;
             break;
         case '@':
-            detector.ransac_stop_support--;
+            detector.ransac_stop_support_ui--;
             break;
         case '3':
-            detector.max_ransac_iterations+=10;
+            detector.max_ransac_iterations_ui+=10;
             break;
         case '#':
-            detector.max_ransac_iterations-=10;
+            detector.max_ransac_iterations_ui-=10;
             break;
         case '4':
-            detector.non_linear_refine_threshold*=1.02f;
+            detector.non_linear_refine_threshold_ui*=1.02f;
             break;
         case '$':
-            detector.non_linear_refine_threshold/=1.02f;
+            detector.non_linear_refine_threshold_ui/=1.02f;
             break;
         case '5':
-            detector.match_score_threshold*=1.02f;
+            detector.match_score_threshold_ui*=1.02f;
             break;
         case '%':
-            detector.match_score_threshold/=1.02f;
+            detector.match_score_threshold_ui/=1.02f;
             break;
         case '6':
-            detector.best_support_thresh++;
+            detector.best_support_thresh_ui++;
             break;
         case '^':
-            detector.best_support_thresh--;
+            detector.best_support_thresh_ui--;
             break;
         case '7':
-            detector.point_detector_tau++;
+            detector.point_detector_tau_ui++;
             break;
         case '&':
-            detector.point_detector_tau--;
+            detector.point_detector_tau_ui--;
             break;
         default:
+            something = false;
             break;
         }
+        if ( something )
+        {
+            char detector_settings_string[1024];
+            sprintf( detector_settings_string, "ransac dist %4.2f  stop %i iter %i\n"
+                "refine %6.4f  score %6.4f  best_support thresh %2i  tau %2i",
+                detector.ransac_dist_threshold_ui,
+                detector.ransac_stop_support_ui,
+                detector.max_ransac_iterations_ui,
+                detector.non_linear_refine_threshold_ui,
+                detector.match_score_threshold_ui,
+                detector.best_support_thresh_ui,
+                detector.point_detector_tau_ui );
+
+            printf("%s\n", detector_settings_string);
+        }
+
     }
     glutPostRedisplay();
 }
@@ -687,6 +717,7 @@ int main(int argc, char *argv[])
 //!\brief  Draw a frame contained in an IplTexture object on an OpenGL viewport.
 static bool drawBackground(IplTexture *tex)
 {
+    //printf("draw background\n");
     if (!tex || !tex->getIm()) return false;
     //printf("drawBackground: drawing frame with timestamp %f\n", raw_frame_timestamp.ToSeconds() );
 
@@ -1265,10 +1296,7 @@ static void draw(void)
 
     //IplImage *pre_mask = cvCreateImage(cvSize(WIDTH, HEIGHT), 8, 3);
 
-    if (!multi) return;
-
-    IplImage *im = multi->model.image;
-    if (!im)
+    if (!multi)
         return;
 
     int now = glutGet(GLUT_ELAPSED_TIME);
@@ -1322,6 +1350,8 @@ static void draw(void)
 
     if ( show_status )
     {
+        //printf("draw status\n");
+
         drawDetectedPoints();
 
         // not using exactly as defined in framerate.h because it's stupid
@@ -1337,15 +1367,15 @@ static void draw(void)
             char detector_settings_string[1024];
             sprintf( detector_settings_string, "ransac dist %4.2f  stop %i  iter %i   detected points %i match count %i,\n"
                     "refine %6.4f  score %6.4f  best_support thresh %2i  tau %2i",
-                    detector.ransac_dist_threshold,
-                    detector.ransac_stop_support,
-                    detector.max_ransac_iterations,
+                    detector.ransac_dist_threshold_ui,
+                    detector.ransac_stop_support_ui,
+                    detector.max_ransac_iterations_ui,
                     detector.detected_point_number,
                     detector.match_number,
-                    detector.non_linear_refine_threshold,
-                    detector.match_score_threshold,
-                    detector.best_support_thresh,
-                    detector.point_detector_tau );
+                    detector.non_linear_refine_threshold_ui,
+                    detector.match_score_threshold_ui,
+                    detector.best_support_thresh_ui,
+                    detector.point_detector_tau_ui );
 
             draw_string += "\n" + string(detector_settings_string);
         }
@@ -1387,12 +1417,14 @@ static void* detectionThreadFunc( void* _data )
     {
         PROFILE_THIS_BLOCK("detection_thread");
 
-        // do this in a thread
         if ( !multi->cams[0]->detect() )
         {
             usleep( 10000 );
             continue;
         }
+
+        if ( detection_thread_should_exit )
+            break;
 
         frame_ok=false;
 
@@ -1423,6 +1455,8 @@ static void* detectionThreadFunc( void* _data )
 
         }
     }
+
+    printf("detection thread exiting\n");
 
     pthread_exit(0);
 }

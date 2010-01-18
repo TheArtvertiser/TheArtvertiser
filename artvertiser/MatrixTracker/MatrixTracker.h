@@ -3,6 +3,7 @@
 #include "ofxMatrix4x4.h"
 #include <cv.h>
 #include "../FProfiler/FTime.h"
+#include "../FProfiler/FSemaphore.h"
 #include <map>
 
 using namespace std;
@@ -25,8 +26,8 @@ public:
 
 private:
 
-    ofxVec3f translation;
-    ofxQuaternion rotation;
+    void lock() { poses_lock.Wait(); };
+    void unlock() { poses_lock.Signal(); };
 
     class Pose {
     public:
@@ -41,7 +42,13 @@ private:
     PoseMap found_poses;
 
 
-    void make4x4MatrixFromQuatTrans( const ofxQuaternion& rot, const ofxVec3f trans, ofxMatrix4x4& output );
+    ofxVec3f prev_returned_translation;
+    ofxQuaternion prev_returned_rotation;
+
+    void make4x4MatrixFromQuatTrans( const ofxQuaternion& rot, const ofxVec3f& trans, ofxMatrix4x4& output );
+    void smoothAndMakeMatrix( const ofxQuaternion& rot, const ofxVec3f& trans, ofxMatrix4x4& output );
+
+    FSemaphore poses_lock;
 
 };
 

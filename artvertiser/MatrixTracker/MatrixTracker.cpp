@@ -33,6 +33,9 @@ void MatrixTracker::addPose( const ofxMatrix4x4& rot, const ofxVec3f& new_transl
     // convert 4x4 rot matrix to quaternion
     ofxQuaternion new_rotation;
     new_rotation.set( rot );
+
+    lock();
+
     found_poses[timestamp] = Pose( new_translation, new_rotation );
 
     // limit size by trimming oldies
@@ -42,6 +45,8 @@ void MatrixTracker::addPose( const ofxMatrix4x4& rot, const ofxVec3f& new_transl
         found_poses.erase( found_poses.begin() );
         assert( found_poses.size() == PRUNE_MAX_SIZE );
     }
+
+    unlock();
 
 }
 
@@ -87,6 +92,8 @@ bool MatrixTracker::getInterpolatedPose( ofxMatrix4x4& interpolated_pose, const 
     // so then
     // where are we?
 
+    lock();
+
     PoseMap::iterator prev_pose = found_poses.lower_bound( for_time );
     PoseMap::iterator next_pose = found_poses.upper_bound( for_time );
     // we must step forward
@@ -107,17 +114,91 @@ bool MatrixTracker::getInterpolatedPose( ofxMatrix4x4& interpolated_pose, const 
     {
         // exactly on first
         //printf("exactly on prev\n");
-        make4x4MatrixFromQuatTrans( (*prev_pose).second.rotation, (*prev_pose).second.translation, interpolated_pose );
+        smoothAndMakeMatrix( (*prev_pose).second.rotation, (*prev_pose).second.translation, interpolated_pose );
         result = true;
     }
     else if ( next_pose == found_poses.end() )
     {
         // we only have prev : must estimate forwrads from known data
-        //printf("future %f: after last (%f), forwards estimate not implemented yet\n", for_time.ToSeconds(), (--prev_pose)!=found_poses.begin()?(*prev_pose).first.ToSeconds():0.0f );
+        //printf("future %f: after last (%f), forwards estimate: \n", for_time.ToSeconds(), (--prev_pose)!=found_poses.begin()?(*prev_pose).first.ToSeconds():0.0f );
         //interpolated_pose.makeIdentityMatrix();
-        // just use the last one
+
+
+        /*// just use the last one
         make4x4MatrixFromQuatTrans( (*found_poses.rbegin()).second.rotation, (*found_poses.rbegin()).second.translation, interpolated_pose );
-        result = true;
+        */
+        --prev_pose;
+        // walk back 3 frame
+        static const int NUM_FRAMES_BACK = 5;
+        static const int LAST_FRAME_BACK = NUM_FRAMES_BACK-1;
+        const FTime* times[NUM_FRAMES_BACK];// = (*prev_pose).first;
+        Pose*  poses[NUM_FRAMES_BACK];//  = (*prev_pose).second;
+        bool failed = false;
+        // collect previous poses: bail and set failed false if we don't have enough
+        for ( int i=LAST_FRAME_BACK; i>=0 ;i-- )
+        {
+            if ( prev_pose==found_poses.begin() )
+            {
+                smoothAndMakeMatrix( (*found_poses.rbegin()).second.rotation, (*found_poses.rbegin()).second.translation, interpolated_pose );
+                failed = true;
+                break;
+            }
+
+            times[i] = &(*prev_pose).first;
+            poses[i] = &(*prev_pose).second;
+            --prev_pose;
+        }
+        /*
+        i 2 == now
+        i 1 == then
+        i 0 == ages ago
+        */
+
+        if ( !failed )
+        {
+            // calculate velocity: use (/*9*values[2]+*/ 4*values[1] + values[0])/14.0:
+            ofxVec3f pos_velocity;
+            ofxVec4f rot_velocity;
+            float total_rot_mul = 0;
+            float total_pos_mul = 0;
+            for ( int i=0; i<LAST_FRAME_BACK - 1; i++ )
+            {
+                // square falloff : fresher = more important <-- todo: link to this_time_delta somehow?
+                double abs_delta_time = times[i+1]->ToSeconds() - for_time.ToSeconds();
+                //float pos_mul = (i+1)/**(i+1)*/;
+                //float rot_mul = sqrtf(i+1);
+                float pos_mul = 1.0f/(1.0f+abs_delta_time*abs_delta_time);
+                float rot_mul = 1.0f/(1.0f+abs_delta_time);
+                double this_delta_time = times[i+1]->ToSeconds() - times[i]->ToSeconds();
+                ofxVec3f this_pos_velocity = (poses[i+1]->translation       - poses[i]->translation)       / this_delta_time;
+                ofxVec4f this_rot_velocity = (poses[i+1]->rotation.asVec4() - poses[i]->rotation.asVec4()) / this_delta_time;
+
+                // accumulate
+                pos_velocity += pos_mul*this_pos_velocity;
+                rot_velocity += rot_mul*this_rot_velocity;
+                total_rot_mul += rot_mul;
+                total_pos_mul += pos_mul;
+            }
+            pos_velocity /= total_pos_mul;
+            rot_velocity /= total_rot_mul;
+
+            // so now: we have a position velocity + a rotation velocity as at times[2]
+            double time_from_prev = for_time.ToSeconds() - times[LAST_FRAME_BACK]->ToSeconds();
+            /*printf("  dt %f: pos vel %6.3f %6.3f %6.3f, rot vel %6.3f %6.3f %6.3f %6.3f\n",
+                   time_from_prev, pos_velocity.x, pos_velocity.y, pos_velocity.z,
+                   rot_velocity.x, rot_velocity.y, rot_velocity.z, rot_velocity.w );*/
+
+            // so final pos/rot are
+            ofxVec3f final_pos = poses[LAST_FRAME_BACK]->translation + pos_velocity*time_from_prev;
+            ofxVec4f final_rot = poses[LAST_FRAME_BACK]->rotation.asVec4()    + rot_velocity*time_from_prev;
+
+            ofxQuaternion final_rot_quat( final_rot );
+
+            smoothAndMakeMatrix( final_rot_quat, final_pos, interpolated_pose );
+        }
+
+        result = !failed;
+
     }
     else if ( prev_pose == found_poses.begin() )
     {
@@ -148,10 +229,12 @@ bool MatrixTracker::getInterpolatedPose( ofxMatrix4x4& interpolated_pose, const 
         lerp_trans = prev_p.translation + t*(next_p.translation-prev_p.translation);
 
         // store in output
-        make4x4MatrixFromQuatTrans( lerp_rot, lerp_trans, interpolated_pose );
+        smoothAndMakeMatrix( lerp_rot, lerp_trans, interpolated_pose );
 
         result = true;
     }
+
+    unlock();
 
     return result;
 }
@@ -159,7 +242,7 @@ bool MatrixTracker::getInterpolatedPose( ofxMatrix4x4& interpolated_pose, const 
 
 
 //const ofxMatrix4x4&
-void MatrixTracker::make4x4MatrixFromQuatTrans( const ofxQuaternion& rot, const ofxVec3f trans, ofxMatrix4x4& output )
+void MatrixTracker::make4x4MatrixFromQuatTrans( const ofxQuaternion& rot, const ofxVec3f& trans, ofxMatrix4x4& output )
 {
     // fetch quaternion as matrix
     rot.get( output );
@@ -167,4 +250,15 @@ void MatrixTracker::make4x4MatrixFromQuatTrans( const ofxQuaternion& rot, const 
     output( 0, 3 ) = trans.x;
     output( 1, 3 ) = trans.y;
     output( 2, 3 ) = trans.z;
+}
+
+
+void MatrixTracker::smoothAndMakeMatrix( const ofxQuaternion& final_rot, const ofxVec3f& final_pos, ofxMatrix4x4& output )
+{
+    // average with prev returned
+    prev_returned_rotation = final_rot*0.3333f + prev_returned_rotation*0.6666f;
+    prev_returned_translation = final_pos*0.6666f + prev_returned_translation*0.3333f;
+
+    make4x4MatrixFromQuatTrans( prev_returned_rotation, prev_returned_translation, output );
+    //make4x4MatrixFromQuatTrans( final_rot, final_pos, output );
 }

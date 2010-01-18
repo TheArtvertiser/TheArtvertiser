@@ -2,31 +2,55 @@
 <CodeBlocks_layout_file>
 	<ActiveTarget name="profile" />
 	<File name="artvertiser/FProfiler/FProfiler.cpp" open="1" top="0" tabpos="11">
-		<Cursor position="3427" topLine="129" />
+		<Cursor position="3349" topLine="126" />
 	</File>
 	<File name="artvertiser/FProfiler/FProfiler.h" open="1" top="0" tabpos="13">
-		<Cursor position="3876" topLine="144" />
+		<Cursor position="2452" topLine="69" />
 	</File>
 	<File name="artvertiser/FProfiler/FSemaphore.h" open="1" top="0" tabpos="18">
 		<Cursor position="285" topLine="6" />
 	</File>
 	<File name="artvertiser/FProfiler/FThread.cpp" open="1" top="0" tabpos="6">
-		<Cursor position="541" topLine="8" />
+		<Cursor position="815" topLine="15" />
 	</File>
 	<File name="artvertiser/FProfiler/FThread.h" open="1" top="0" tabpos="5">
 		<Cursor position="228" topLine="4" />
 	</File>
-	<File name="artvertiser/FProfiler/FTime.cpp" open="0" top="0" tabpos="0">
-		<Cursor position="187" topLine="0" />
+	<File name="artvertiser/FProfiler/FTime.cpp" open="1" top="0" tabpos="29">
+		<Cursor position="2399" topLine="114" />
 	</File>
-	<File name="artvertiser/FProfiler/FTime.h" open="0" top="0" tabpos="0">
-		<Cursor position="304" topLine="0" />
+	<File name="artvertiser/FProfiler/FTime.h" open="1" top="0" tabpos="28">
+		<Cursor position="1650" topLine="11" />
+	</File>
+	<File name="artvertiser/MatrixTracker/MatrixTracker.cpp" open="1" top="1" tabpos="26">
+		<Cursor position="6221" topLine="159" />
+	</File>
+	<File name="artvertiser/MatrixTracker/MatrixTracker.h" open="1" top="0" tabpos="27">
+		<Cursor position="40" topLine="0" />
+	</File>
+	<File name="artvertiser/MatrixTracker/ofxMatrix3x3.cpp" open="1" top="0" tabpos="34">
+		<Cursor position="0" topLine="0" />
+	</File>
+	<File name="artvertiser/MatrixTracker/ofxMatrix3x3.h" open="1" top="0" tabpos="40">
+		<Cursor position="0" topLine="0" />
+	</File>
+	<File name="artvertiser/MatrixTracker/ofxMatrix4x4.cpp" open="1" top="0" tabpos="31">
+		<Cursor position="0" topLine="0" />
+	</File>
+	<File name="artvertiser/MatrixTracker/ofxMatrix4x4.h" open="1" top="0" tabpos="30">
+		<Cursor position="2912" topLine="94" />
+	</File>
+	<File name="artvertiser/MatrixTracker/ofxQuaternion.cpp" open="1" top="0" tabpos="33">
+		<Cursor position="0" topLine="0" />
+	</File>
+	<File name="artvertiser/MatrixTracker/ofxQuaternion.h" open="1" top="0" tabpos="32">
+		<Cursor position="8871" topLine="303" />
 	</File>
 	<File name="artvertiser/artvertiser.cpp" open="1" top="0" tabpos="1">
-		<Cursor position="16096" topLine="0" />
+		<Cursor position="25717" topLine="953" />
 	</File>
 	<File name="artvertiser/calibmodel.cpp" open="1" top="0" tabpos="9">
-		<Cursor position="8044" topLine="281" />
+		<Cursor position="3420" topLine="92" />
 	</File>
 	<File name="artvertiser/calibmodel.h" open="1" top="0" tabpos="10">
 		<Cursor position="59" topLine="0" />
@@ -38,16 +62,16 @@
 		<Cursor position="12852" topLine="481" />
 	</File>
 	<File name="artvertiser/multigrab.cpp" open="1" top="0" tabpos="3">
-		<Cursor position="1339" topLine="35" />
+		<Cursor position="805" topLine="12" />
 	</File>
 	<File name="artvertiser/multigrab.h" open="1" top="0" tabpos="4">
-		<Cursor position="477" topLine="0" />
+		<Cursor position="1059" topLine="21" />
 	</File>
 	<File name="artvertiser/multithreadcapture.cpp" open="1" top="0" tabpos="8">
-		<Cursor position="6249" topLine="154" />
+		<Cursor position="7974" topLine="216" />
 	</File>
 	<File name="artvertiser/multithreadcapture.h" open="1" top="0" tabpos="7">
-		<Cursor position="2025" topLine="42" />
+		<Cursor position="3129" topLine="62" />
 	</File>
 	<File name="garfeild/calib/CamAugmentation.cpp" open="0" top="0" tabpos="0">
 		<Cursor position="16655" topLine="81" />
@@ -60,6 +84,12 @@
 	</File>
 	<File name="garfeild/keypoints/yape.h" open="1" top="0" tabpos="15">
 		<Cursor position="7362" topLine="220" />
+	</File>
+	<File name="garfeild/lightcalib/ipltexture.cpp" open="1" top="0" tabpos="39">
+		<Cursor position="1004" topLine="0" />
+	</File>
+	<File name="garfeild/lightcalib/ipltexture.h" open="1" top="0" tabpos="38">
+		<Cursor position="911" topLine="44" />
 	</File>
 	<File name="garfeild/viewsets/cvplanardetect.cpp" open="1" top="0" tabpos="19">
 		<Cursor position="25236" topLine="694" />
@@ -82,20 +112,23 @@
 	<File name="garfeild/viewsets/image_classifier.h" open="1" top="0" tabpos="24">
 		<Cursor position="1820" topLine="40" />
 	</File>
-	<File name="garfeild/viewsets/object_view.cpp" open="1" top="1" tabpos="16">
+	<File name="garfeild/viewsets/object_view.cpp" open="1" top="0" tabpos="16">
 		<Cursor position="5250" topLine="156" />
 	</File>
 	<File name="garfeild/viewsets/object_view.h" open="1" top="0" tabpos="25">
 		<Cursor position="1509" topLine="38" />
 	</File>
 	<File name="garfeild/viewsets/planar_object_recognizer.cpp" open="1" top="0" tabpos="12">
-		<Cursor position="28358" topLine="820" />
+		<Cursor position="5764" topLine="189" />
 	</File>
 	<File name="garfeild/viewsets/planar_object_recognizer.h" open="1" top="0" tabpos="2">
 		<Cursor position="6312" topLine="159" />
 	</File>
 	<File name="starter/geometry/projection_matrix.cpp" open="0" top="0" tabpos="0">
 		<Cursor position="4597" topLine="161" />
+	</File>
+	<File name="starter/image/mcv.cpp" open="1" top="0" tabpos="41">
+		<Cursor position="14625" topLine="471" />
 	</File>
 	<File name="starter/optimization/ls_minimizer2.cpp" open="0" top="0" tabpos="0">
 		<Cursor position="14597" topLine="565" />

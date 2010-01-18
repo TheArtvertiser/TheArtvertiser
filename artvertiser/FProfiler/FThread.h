@@ -30,13 +30,17 @@ public:
 protected:
 
     /// override this to do what you want on this object
+    /// called repeatedly until the thread should die
     virtual void ThreadedFunction() { printf("FThread::ThreadedFunction running.. override me!\n"); }
 
 
     /// called internally
     static void * run_function(void * objPtr){
         FThread* the_fthread = (FThread*)objPtr;
-        the_fthread->ThreadedFunction();
+
+        while( !the_fthread->thread_should_stop )
+            the_fthread->ThreadedFunction();
+
         the_fthread->thread_running = false;
 
         pthread_exit(0);
@@ -45,6 +49,7 @@ protected:
 
     pthread_t the_thread;
     bool thread_running;
+    bool thread_should_stop;
 
 };
 

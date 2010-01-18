@@ -18,7 +18,14 @@ void FThread::StartThread()
 	    printf("FThread::Start(): FThread %x already running\n", this );
         return;
 	}
-	int result = pthread_create( &the_thread, NULL, run_function, this );
+	thread_should_stop = false;
+
+    pthread_attr_t thread_attr;
+    pthread_attr_init(&thread_attr);
+    pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
+    // launch
+	int result = pthread_create( &the_thread, &thread_attr, run_function, this );
+    pthread_attr_destroy( &thread_attr );
 	assert( result == 0 );
 	pthread_detach( the_thread );
 	thread_running = true;
@@ -30,11 +37,10 @@ void FThread::StopThread()
 	    printf("FThread::Stop(): FThread %x not running\n", this );
         return;
 	}
-	int err = pthread_kill( the_thread, SIGTERM );
-	if ( err != 0 && err != ESRCH )
-	{
-	    printf("FThread::Stop(): error %i killing FThread %x\n", err, this );
-	}
+	printf("stopping FThread %x\n", this );
+	thread_should_stop = true;
+	void * ret;
+	pthread_join( the_thread, &ret );
 	thread_running = false;
 }
 

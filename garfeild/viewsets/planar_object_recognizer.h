@@ -260,30 +260,37 @@ public:
    * under that threshold.
    */
   float match_score_threshold;
+  float match_score_threshold_ui;
 
   /*! The minimum reprojection distance that RANSAC will consider compatible.
    */
   float ransac_dist_threshold;
+  float ransac_dist_threshold_ui;
 
   //! Distance threshold, in pixels, for non-linear refinement
   float non_linear_refine_threshold;
+  float non_linear_refine_threshold_ui;
 
   //! maximum iteration number for RANSAC
   int max_ransac_iterations;
+  int max_ransac_iterations_ui;
 
-  //! average actual number of iterations preformed for RANSAC
+  //! average actual number of iterations preformed for RANSAC (set by ransac internals)
   int avg_ransac_iterations;
 
   /*! RANSAC will stop if it finds a transformation that satisfies at least
    *  ransac_stop_support matches.
    */
   int ransac_stop_support;
+  int ransac_stop_support_ui;
 
   //! threshold for support for successful detection. originally 10
   int best_support_thresh;
+  int best_support_thresh_ui;
 
   //! tau for point detector //
   int point_detector_tau;
+  int point_detector_tau_ui;
 
   //@{
   //! The following functions are useful for visualization only:
@@ -309,6 +316,12 @@ public:
 private:
 
   static void* estimate_affine_transformation_thread_func(void* data);
+
+  // thread-safe transfer of settings from ui to detection thread
+  void get_ui_settings();
+
+  // initialise ui settings
+  void put_ui_settings();
 
   class EstimateAffineThreadData
   {

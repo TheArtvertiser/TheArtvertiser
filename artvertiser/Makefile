@@ -78,7 +78,7 @@ AUTOMAKE = ${SHELL} /home/julian/devel/The-Artvertiser/missing --run automake-1.
 AWK = gawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS =  -g -O3 -mtune=native -msse3
+CFLAGS = -g -O3 -mtune=native -msse3
 CPP = gcc -E
 CPPFLAGS = -I/usr/include/freetype2
 CXX = g++
@@ -189,7 +189,7 @@ top_srcdir = ..
 #openglprogs = 
 openglprogs = artvertiser
 artvertiser_CXXFLAGS = -I/usr/local/include/opencv   -I../garfeild -I../starter
-artvertiser_LDADD = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml FProfiler/libfprofiler.a  MatrixTracker/libMatrixTracker.a ../garfeild/libgarfeild.a ../starter/libstarter.a \
+artvertiser_LDADD = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml FProfiler/libfprofiler.a  ../garfeild/libgarfeild.a ../starter/libstarter.a MatrixTracker/libMatrixTracker.a \
 		 -lGLEW -lGL  -lm
 
 artvertiser_SOURCES = artvertiser.cpp calibmodel.cpp calibmodel.h \

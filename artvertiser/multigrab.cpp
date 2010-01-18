@@ -142,12 +142,19 @@ void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_w
 
 }
 
+
 MultiGrab::Cam::~Cam() {
 	if (gray && gray != frame) cvReleaseImage(&gray);
 	if (frame_detectsize && frame_detectsize != gray && frame_detectsize != frame ) cvReleaseImage(&frame_detectsize);
 	if (mtc) delete mtc;
 	if (cam) cvReleaseCapture(&cam);
 	if (lc) delete lc;
+}
+
+void MultiGrab::Cam::shutdownMultiThreadCapture()
+{
+    if ( mtc )
+        mtc->stopCapture();
 }
 
 // this could be run in a separate thread

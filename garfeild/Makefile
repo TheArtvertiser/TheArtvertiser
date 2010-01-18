@@ -100,12 +100,12 @@ AUTOMAKE = ${SHELL} /home/artvertiser/Desktop/working/The-Artvertiser/missing --
 AWK = mawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O2
+CFLAGS = -g -O3 -mtune=native -msse3
 CPP = gcc -E
 CPPFLAGS = 
 CXX = g++
 CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -g -O2
+CXXFLAGS = -g -O3 -mtune=native -msse3
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
 DEPDIR = .deps
