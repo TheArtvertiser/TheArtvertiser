@@ -11,6 +11,10 @@ using namespace std;
 class MatrixTracker
 {
 public:
+
+    // prune
+    static const int PRUNE_MAX_SIZE = 8;
+
     MatrixTracker();
 
     /// track. matrix is 3x4 with translation in last column
@@ -24,6 +28,23 @@ public:
     /// Put an interpolated pose for the given timestamp into interpolated_pose, as a 3x4 matrix
     /// with translation in the last column. Return false if a pose couldn't be calculated.
     bool getInterpolatedPose( CvMat* matrix, const FTime& for_time );
+
+
+    float getPositionSmoothing()        { return position_smoothing; }
+    float getPositionZSmoothing()       { return position_smoothing_z; }
+    float getRotationSmoothing()        { return rotation_smoothing; }
+    int getFramesBackRaw()              { return num_frames_back_raw; }
+    int getFramesBackReturned()         { return num_frames_back_returned; }
+    void increasePositionSmoothing()  { position_smoothing    = min(1.0f,position_smoothing*1.05f); }
+    void increasePositionZSmoothing() { position_smoothing_z  = min(1.0f,position_smoothing_z*1.05f); }
+    void increaseRotationSmoothing()  { rotation_smoothing    = min(1.0f,rotation_smoothing*1.05f); }
+    void decreasePositionSmoothing()  { position_smoothing   /= 1.05f; }
+    void decreasePositionZSmoothing() { position_smoothing_z /= 1.05f; }
+    void decreaseRotationSmoothing()  { rotation_smoothing   /= 1.05f; }
+    void increaseFramesBackRaw()      { num_frames_back_raw      = min(num_frames_back_raw+1, PRUNE_MAX_SIZE ); }
+    void increaseFramesBackReturned() { num_frames_back_returned = min(num_frames_back_returned+1, PRUNE_MAX_SIZE ); }
+    void decreaseFramesBackRaw()      { num_frames_back_raw      = max(num_frames_back_raw-1, 1 ); }
+    void decreaseFramesBackReturned() { num_frames_back_returned = max(num_frames_back_returned-1, 1 ); }
 
 private:
 

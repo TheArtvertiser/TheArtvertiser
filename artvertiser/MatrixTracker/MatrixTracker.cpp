@@ -4,8 +4,7 @@
 
 #include <stdio.h>
 
-// prune
-static const int PRUNE_MAX_SIZE = 8;
+
 
 /*static const int NUM_FRAMES_BACK_RAW = 5;
 static const int NUM_FRAMES_BACK_RETURNED = 20;*/
@@ -13,13 +12,13 @@ static const int NUM_FRAMES_BACK_RETURNED = 20;*/
 
 MatrixTracker::MatrixTracker()
 {
-    rotation_smoothing   = 0.95f;
-    position_smoothing   = 0.7f;
+    rotation_smoothing   = 0.8f;
+    position_smoothing   = 0.53f;
     position_smoothing_z = 0.7f;
 
     // num_frames_back_* must be < PRUNE_MAX_SIZE
-    num_frames_back_raw      = 5;
-    num_frames_back_returned = 3;
+    num_frames_back_raw      = 1;
+    num_frames_back_returned = 6;
 
 }
 

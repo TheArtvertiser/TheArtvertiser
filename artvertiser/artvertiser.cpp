@@ -222,6 +222,29 @@ string status_string = "";
    return suffix;
    }
  */
+string getSettingsString()
+{
+    planar_object_recognizer &detector(multi->cams[current_cam]->detector);
+    static char detector_settings_string[2048];
+    sprintf( detector_settings_string, "1.ransac dist %4.2f  2.iter %i   detected points %i match count %i,\n"
+            "3.refine %6.4f  4.score %6.4f  5.best_support thresh %2i  6.tau %2i\n"
+            "smoothing: 7.position %5.3f  8.position_z %5.3f  \n  frames back: 9.raw %2i  0.returned %2i",
+            detector.ransac_dist_threshold_ui,
+            detector.max_ransac_iterations_ui,
+            detector.detected_point_number,
+            detector.match_number,
+            detector.non_linear_refine_threshold_ui,
+            detector.match_score_threshold_ui,
+            detector.best_support_thresh_ui,
+            detector.point_detector_tau_ui,
+            matrix_tracker.getPositionSmoothing(),
+            matrix_tracker.getPositionZSmoothing(),
+            matrix_tracker.getFramesBackRaw(),
+            matrix_tracker.getFramesBackReturned() );
+
+    return detector_settings_string;
+}
+
 
 std::string date(int now)
 {
@@ -627,59 +650,68 @@ static void keyboard(unsigned char c, int x, int y)
             detector.ransac_dist_threshold_ui/=1.02f;
             break;
         case '2':
-            detector.ransac_stop_support_ui++;
-            break;
-        case '@':
-            detector.ransac_stop_support_ui--;
-            break;
-        case '3':
             detector.max_ransac_iterations_ui+=10;
             break;
-        case '#':
+        case '@':
             detector.max_ransac_iterations_ui-=10;
             break;
-        case '4':
+        case '3':
             detector.non_linear_refine_threshold_ui*=1.02f;
             break;
-        case '$':
+        case '#':
             detector.non_linear_refine_threshold_ui/=1.02f;
             break;
-        case '5':
+        case '4':
             detector.match_score_threshold_ui*=1.02f;
             break;
-        case '%':
+        case '$':
             detector.match_score_threshold_ui/=1.02f;
             break;
-        case '6':
+        case '5':
             detector.best_support_thresh_ui++;
             break;
-        case '^':
+        case '%':
             detector.best_support_thresh_ui--;
             break;
-        case '7':
+        case '6':
             detector.point_detector_tau_ui++;
             break;
-        case '&':
+        case '^':
             detector.point_detector_tau_ui--;
             break;
+        case '7':
+            matrix_tracker.increasePositionSmoothing();
+            break;
+        case '&':
+            matrix_tracker.decreasePositionSmoothing();
+            break;
+        case '8':
+            matrix_tracker.increasePositionZSmoothing();
+            break;
+        case '*':
+            matrix_tracker.decreasePositionZSmoothing();
+            break;
+        case '9':
+            matrix_tracker.increaseFramesBackRaw();
+            break;
+        case '(':
+            matrix_tracker.decreaseFramesBackRaw();
+            break;
+        case '0':
+            matrix_tracker.increaseFramesBackReturned();
+            break;
+        case ')':
+            matrix_tracker.decreaseFramesBackReturned();
+            break;
+
+
         default:
             something = false;
             break;
         }
         if ( something )
         {
-            char detector_settings_string[1024];
-            sprintf( detector_settings_string, "ransac dist %4.2f  stop %i iter %i\n"
-                "refine %6.4f  score %6.4f  best_support thresh %2i  tau %2i",
-                detector.ransac_dist_threshold_ui,
-                detector.ransac_stop_support_ui,
-                detector.max_ransac_iterations_ui,
-                detector.non_linear_refine_threshold_ui,
-                detector.match_score_threshold_ui,
-                detector.best_support_thresh_ui,
-                detector.point_detector_tau_ui );
-
-            printf("%s\n", detector_settings_string);
+            printf("%s\n", getSettingsString().c_str());
         }
 
     }
@@ -1385,23 +1417,9 @@ static void draw(void)
         if ( multi )
         {
             // show detector settings
-            planar_object_recognizer &detector(multi->cams[current_cam]->detector);
-            char detector_settings_string[1024];
-            sprintf( detector_settings_string, "ransac dist %4.2f  stop %i  iter %i   detected points %i match count %i,\n"
-                    "refine %6.4f  score %6.4f  best_support thresh %2i  tau %2i",
-                    detector.ransac_dist_threshold_ui,
-                    detector.ransac_stop_support_ui,
-                    detector.max_ransac_iterations_ui,
-                    detector.detected_point_number,
-                    detector.match_number,
-                    detector.non_linear_refine_threshold_ui,
-                    detector.match_score_threshold_ui,
-                    detector.best_support_thresh_ui,
-                    detector.point_detector_tau_ui );
-
-            draw_string += "\n" + string(detector_settings_string);
+            draw_string += "\n" + getSettingsString();
         }
-        drawGlutString( draw_string.c_str(), 1.0f, 0.2f, 0.2f, 0.01f, 0.1f );
+        drawGlutString( draw_string.c_str(), 1.0f, 0.2f, 0.2f, 0.01f, 0.2f );
     }
 
 
