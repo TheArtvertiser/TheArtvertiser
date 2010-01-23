@@ -158,7 +158,7 @@ void MultiGrab::Cam::shutdownMultiThreadCapture()
 }
 
 // this could be run in a separate thread
-bool MultiGrab::Cam::detect()
+bool MultiGrab::Cam::detect( bool &image_detected )
 {
     PROFILE_THIS_FUNCTION();
 	CvSize detect_size = cvSize( detect_width, detect_height );
@@ -263,12 +263,13 @@ bool MultiGrab::Cam::detect()
 	    PROFILE_SECTION_PUSH("light accumulator")
 		if (lc)
             lc->averageImage(frame, detector.H);
-                res = true;
+        res = true;
         PROFILE_SECTION_POP();
 	}
 
 	PROFILE_SECTION_POP();
 
+    image_detected = res;
 
 	return res;
 }

@@ -47,7 +47,7 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
 bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_object_recognizer &detector)
 {
 
-	detector.ransac_dist_threshold = 6;
+	detector.ransac_dist_threshold = 3;
 	detector.max_ransac_iterations = 800;
 	detector.ransac_stop_support = 50;
 	detector.non_linear_refine_threshold = 15.0f;

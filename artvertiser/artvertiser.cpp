@@ -94,6 +94,11 @@
 
 #define NUMARTVERTS 5
 
+// we continue tracking for 3 frames, then fade for 8
+static const int FRAMES_LOST_TRACK = 3;
+static const int FRAMES_LOST_FADE = 8;
+static const float MAX_FADE = 0.6f;
+
 //#define WIDTH 320
 //#define HEIGHT 240
 
@@ -159,7 +164,7 @@ bool label = false;
 double a_proj[3][4];
 double old_a_proj[3][4];
 float fade = 0.0;
-float fade_speed = 2;
+int frame_lost_count = 0;
 int difference = 0;
 int have_proj = 0;
 int nb_light_measures=0;
@@ -176,6 +181,7 @@ char *image_path;
 char *model_file = "model.bmp";
 
 pthread_t detection_thread;
+double detection_fps;
 static void shutdownDetectionThread();
 static void startDetectionThread();
 static void* detectionThreadFunc( void* _data );
@@ -895,7 +901,8 @@ static void geomCalibIdle(void)
     int nbdet=0;
     for (int i=0; i<multi->cams.size(); ++i)
     {
-        if (multi->cams[i]->detect()) nbdet++;
+        bool dummy;
+        if (multi->cams[i]->detect(dummy)) nbdet++;
     }
 
 
@@ -1161,16 +1168,6 @@ static void drawAugmentation()
         glHint(GL_POLYGON_SMOOTH, GL_NICEST);
         glEnable(GL_POLYGON_SMOOTH);
 
-        // create a simple fade-in when we have a track
-        /*if (fade < 1.0)
-        {
-            fade += 0.1 * fade_speed;
-        }
-        else
-        {
-            fade = 1;
-        }*/
-        fade = 0.6;
 
         glColor4f(1.0, 1.0, 1.0, fade);
 
@@ -1306,13 +1303,34 @@ static void draw(void)
     // pixel shift
 
 
-    if (frame_ok and augment == 1)
+    // deal with tracking
+    if (frame_ok)
+    {
+        if ( frame_lost_count > 0 )
+            frame_lost_count--;
+        else
+            frame_lost_count = 0;
+    }
+    else
+    {
+        if ( frame_lost_count < FRAMES_LOST_TRACK+FRAMES_LOST_FADE )
+            frame_lost_count++;
+        else
+            frame_lost_count = FRAMES_LOST_TRACK+FRAMES_LOST_FADE;
+    }
+    // calculate fade
+    float fade_pct;
+    if ( frame_lost_count < FRAMES_LOST_TRACK )
+        fade_pct = 1.0f;
+    else if ( frame_lost_count < FRAMES_LOST_TRACK+FRAMES_LOST_FADE )
+        fade_pct = 1.0f - max(0.0f,min(1.0f,float(frame_lost_count-FRAMES_LOST_TRACK)/FRAMES_LOST_FADE));
+    else
+        fade_pct = 0;
+    fade = MAX_FADE*fade_pct;
+    printf("frame %s, lost_count %i -> fade pct %4.2f, fade %4.2f\n", frame_ok?"y":"n", frame_lost_count, fade_pct, fade );
+    if ( fade > 0 && augment == 1)
     {
         drawAugmentation();
-    }
-    else if (!frame_ok)
-    {
-        fade = 0.0;
     }
 
     glLoadIdentity();
@@ -1357,6 +1375,10 @@ static void draw(void)
         // not using exactly as defined in framerate.h because it's stupid
         frameEnd(1.0f, 0.2f, 0.2f, 0.8, 0.95 );
         frameStart();
+
+        char detect_fps_string[256];
+        sprintf(detect_fps_string, "detection fps: %4.2f", detection_fps );
+        drawGlutString( detect_fps_string, 1.0f, 0.2f, 0.2f, 0.6, 0.9 );
 
         // now status string
         string draw_string = status_string;
@@ -1413,20 +1435,24 @@ static void shutdownDetectionThread()
 static void* detectionThreadFunc( void* _data )
 {
 
+    FTime detection_thread_timer;
+    detection_thread_timer.SetNow();
+
     while ( !detection_thread_should_exit )
     {
-        PROFILE_THIS_BLOCK("detection_thread");
-
-        if ( !multi->cams[0]->detect() )
-        {
-            usleep( 10000 );
-            continue;
-        }
+        double elapsed = detection_thread_timer.Update();
+        detection_fps = (detection_fps*7.0 + (1.0/elapsed))/8.0;
 
         if ( detection_thread_should_exit )
             break;
 
-        frame_ok=false;
+        PROFILE_THIS_BLOCK("detection_thread");
+
+        if ( !multi->cams[0]->detect( frame_ok ) )
+        {
+            usleep( 10000 );
+            continue;
+        }
 
         multi->model.augm.Clear();
         if (multi->cams[0]->detector.object_is_detected)

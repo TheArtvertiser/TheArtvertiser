@@ -39,7 +39,7 @@ public:
             { return mtc->getCopyOfLastFrame( raw_frame, timestamp, true /*block*/ ); }
 
 		void setCam(CvCapture *c, int capture_width, int capture_height, int detect_width, int detect_height );
-		bool detect();
+		bool detect( bool &image_detected );
 
 		Cam(CvCapture *c=0, int _width=0, int _height=0, int _detect_width=320, int _detect_height=240)
 		{
