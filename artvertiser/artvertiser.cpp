@@ -94,10 +94,11 @@
 
 #define NUMARTVERTS 5
 
-// we continue tracking for 3 frames, then fade for 8
-static const int FRAMES_LOST_TRACK = 3;
-static const int FRAMES_LOST_FADE = 8;
-static const float MAX_FADE = 0.6f;
+// we continue tracking for 1 second, then fade for 3
+static const float SECONDS_LOST_TRACK = 1.0f;
+static const float SECONDS_LOST_FADE = 3.0f;
+static const float MAX_FADE_SHOW = 0.6f;
+static const float MAX_FADE_NORMAL = 1.0f;
 
 //#define WIDTH 320
 //#define HEIGHT 240
@@ -164,7 +165,9 @@ bool label = false;
 double a_proj[3][4];
 double old_a_proj[3][4];
 float fade = 0.0;
-int frame_lost_count = 0;
+FTime last_frame_caught_time;
+FTime frame_timer;
+float draw_fps;
 int difference = 0;
 int have_proj = 0;
 int nb_light_measures=0;
@@ -181,9 +184,9 @@ char *image_path;
 char *model_file = "model.bmp";
 
 pthread_t detection_thread;
-double detection_fps;
+double detection_fps = 0.0;
 static void shutdownDetectionThread();
-static void startDetectionThread();
+static void startDetectionThread( int thread_priority = 0 /* only takes effect if root */ );
 static void* detectionThreadFunc( void* _data );
 bool detection_thread_should_exit = false;
 bool detection_thread_running = false;
@@ -383,19 +386,19 @@ static void usage(const char *s)
 void exit_handler()
 {
     printf("in exit_handler\n");
-    // shutdown capture
-    if ( multi )
-    {
-        printf("stopping multithread capture\n");
-        multi->cams[0]->shutdownMultiThreadCapture();
-    }
     // shutdown detection thread
     if ( detection_thread_running )
     {
         printf("stopping detection\n");
         shutdownDetectionThread();
     }
-    // shutdown the capture
+    // shutdown capture
+    if ( multi )
+    {
+        printf("stopping multithread capture\n");
+        multi->cams[0]->shutdownMultiThreadCapture();
+    }
+    // delete cameras
     if ( multi )
     {
         printf("deleteing multi\n");
@@ -575,7 +578,10 @@ static bool init( int argc, char** argv )
 
 
     // start detection
-    startDetectionThread();
+    startDetectionThread( 1 /* priority, only if running as root */ );
+
+    last_frame_caught_time.SetNow();
+    frame_timer.SetNow();
 
     return true;
 }
@@ -933,14 +939,13 @@ static void geomCalibIdle(void)
     int nbdet=0;
     for (int i=0; i<multi->cams.size(); ++i)
     {
-        bool dummy;
-        if (multi->cams[i]->detect(dummy)) nbdet++;
+        if (multi->cams[i]->detect()) nbdet++;
     }
 
 
     if(!raw_frame_texture) raw_frame_texture = new IplTexture;
     IplImage* raw_frame = raw_frame_texture->getImage();
-    multi->cams[current_cam]->getLastRawFrame( &raw_frame );
+    multi->cams[current_cam]->getLastDrawFrame( &raw_frame );
     raw_frame_texture->setImage(raw_frame);
     //raw_frame_texture->setImage(multi->cams[current_cam]->frame);
 
@@ -1310,7 +1315,7 @@ static void drawAugmentation()
  * case, we have access to 3D data. Thus, we can augment the calibration target
  * with cool stuff.
  */
-static void draw(void)
+static void draw()
 {
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1332,38 +1337,44 @@ static void draw(void)
     /* elapsed time
     cout << now/1000.0 << endl;
     */
-    // pixel shift
 
 
-    // deal with tracking
+    // fade
+    double elapsed = frame_timer.Update();
     if (frame_ok)
     {
-        if ( frame_lost_count > 0 )
-            frame_lost_count--;
+        last_frame_caught_time.SetNow();
+        // increase fade
+        if ( fade < show_status?MAX_FADE_SHOW:MAX_FADE_NORMAL )
+        {
+            fade += (1.0f/SECONDS_LOST_FADE)*elapsed;
+        }
         else
-            frame_lost_count = 0;
+            fade = show_status?MAX_FADE_SHOW:MAX_FADE_NORMAL;
     }
     else
     {
-        if ( frame_lost_count < FRAMES_LOST_TRACK+FRAMES_LOST_FADE )
-            frame_lost_count++;
-        else
-            frame_lost_count = FRAMES_LOST_TRACK+FRAMES_LOST_FADE;
+        FTime now;
+        now.SetNow();
+        double elapsed_since_last_caught = (now-last_frame_caught_time).ToSeconds();
+        if ( elapsed_since_last_caught > SECONDS_LOST_TRACK )
+        {
+            if ( fade > 0.0f )
+                fade -= (1.0f/SECONDS_LOST_FADE)*elapsed;
+            else
+                fade = 0.0f;
+        }
     }
-    // calculate fade
-    float fade_pct;
-    if ( frame_lost_count < FRAMES_LOST_TRACK )
-        fade_pct = 1.0f;
-    else if ( frame_lost_count < FRAMES_LOST_TRACK+FRAMES_LOST_FADE )
-        fade_pct = 1.0f - max(0.0f,min(1.0f,float(frame_lost_count-FRAMES_LOST_TRACK)/FRAMES_LOST_FADE));
-    else
-        fade_pct = 0;
-    fade = MAX_FADE*fade_pct;
-    printf("frame %s, lost_count %i -> fade pct %4.2f, fade %4.2f\n", frame_ok?"y":"n", frame_lost_count, fade_pct, fade );
+    //printf("frame %s, lost_count %f -> fade pct %4.2f, fade %4.2f\n", frame_ok?"y":"n", frame_lost_count, fade_pct, fade );
+
+    // draw augmentation
     if ( fade > 0 && augment == 1)
     {
         drawAugmentation();
     }
+
+    // calculate fps
+    draw_fps = (draw_fps*7.0+1.0/elapsed)/8.0f;
 
     glLoadIdentity();
     // we need to setup a new projection matrix for the title font.
@@ -1404,13 +1415,9 @@ static void draw(void)
 
         drawDetectedPoints();
 
-        // not using exactly as defined in framerate.h because it's stupid
-        frameEnd(1.0f, 0.2f, 0.2f, 0.8, 0.95 );
-        frameStart();
-
         char detect_fps_string[256];
-        sprintf(detect_fps_string, "detection fps: %4.2f", detection_fps );
-        drawGlutString( detect_fps_string, 1.0f, 0.2f, 0.2f, 0.6, 0.9 );
+        sprintf(detect_fps_string, "draw fps: %4.2f\ndetection fps: %4.2f", draw_fps, detection_fps );
+        drawGlutString( detect_fps_string, 1.0f, 0.2f, 0.2f, 0.7, 0.94 );
 
         // now status string
         string draw_string = status_string;
@@ -1430,13 +1437,32 @@ static void draw(void)
 
 
 
-static void startDetectionThread()
+static void startDetectionThread( int thread_priority )
 {
     pthread_attr_t thread_attr;
     pthread_attr_init(&thread_attr);
     pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
     // launch the thread
     pthread_create( &detection_thread, &thread_attr, detectionThreadFunc, NULL );
+    if ( thread_priority > 0 )
+    {
+        printf("attempting to set detection thread priority to %i\n", thread_priority );
+        struct sched_param param;
+        param.sched_priority = thread_priority;
+
+        int res = pthread_setschedparam( detection_thread, SCHED_RR, &param );
+        if ( res != 0 )
+        {
+            fprintf(stderr,"pthread_setschedparam failed: %s\n",
+                   (res == ENOSYS) ? "ENOSYS" :
+                   (res == EINVAL) ? "EINVAL" :
+                   (res == ENOTSUP) ? "ENOTSUP" :
+                   (res == EPERM) ? "EPERM" :
+                   (res == ESRCH) ? "ESRCH" :
+                   "???"
+                   );
+        }
+    }
     detection_thread_running = true;
     pthread_attr_destroy( &thread_attr );
 }
@@ -1458,16 +1484,21 @@ static void* detectionThreadFunc( void* _data )
 
     while ( !detection_thread_should_exit )
     {
-        double elapsed = detection_thread_timer.Update();
-        detection_fps = (detection_fps*7.0 + (1.0/elapsed))/8.0;
-
         if ( detection_thread_should_exit )
             break;
 
         PROFILE_THIS_BLOCK("detection_thread");
 
-        if ( !multi->cams[0]->detect( frame_ok ) )
+        bool frame_retrieved = false;
+        bool frame_retrieved_and_ok = multi->cams[0]->detect( &frame_retrieved, &frame_ok );
+        if( frame_retrieved )
         {
+            double elapsed = detection_thread_timer.Update();
+            detection_fps = (detection_fps*7.0 + (1.0/elapsed))/8.0;
+        }
+        if ( !frame_retrieved_and_ok )
+        {
+            PROFILE_THIS_BLOCK("sleep till next");
             usleep( 10000 );
             continue;
         }
@@ -1524,7 +1555,10 @@ static void idle()
 
     if(!raw_frame_texture) raw_frame_texture = new IplTexture;
     IplImage* raw_frame = raw_frame_texture->getImage();
-    multi->cams[current_cam]->getLastRawFrame( &raw_frame, &raw_frame_timestamp );
+
+    PROFILE_SECTION_PUSH("getting last frame");
+    multi->cams[current_cam]->getLastDrawFrame( &raw_frame, &raw_frame_timestamp );
+    PROFILE_SECTION_POP();
     //printf(". getLastRawFrame gave us %f\n", raw_frame_timestamp.ToSeconds() );
     raw_frame_texture->setImage(raw_frame);
     /*raw_frame_texture->setImage(multi->cams[current_cam]->frame);

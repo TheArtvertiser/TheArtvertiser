@@ -232,12 +232,12 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 	bool pause=false;
 	#ifdef USE_MULTITHREADCAPTURE
     IplImage *frame_gray, *frame = NULL;
-    FTime* timestamp = NULL;
+    FTime timestamp;
     MultiThreadCapture* mtc = MultiThreadCaptureManager::getInstance()->getCaptureForCam(capture);
     int timeout = 10000;
     bool got = false;
     do {
-        got = mtc->getLastProcessedFrame( &frame_gray, &frame, &timestamp );
+        got = mtc->getLastDetectFrame( &frame_gray, &frame, &timestamp, /*blocking*/true );
     }
     while ( !got &&
            !usleep( 100000 ) &&
@@ -269,7 +269,7 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 		// clear text or grab the image to display
 		if (!pause || shot==0) {
             #ifdef USE_MULTITHREADCAPTURE
-            bool got = mtc->getLastProcessedFrame( &frame_gray, &frame, NULL,/*block until available*/true );
+            bool got = mtc->getLastDetectFrame( &frame_gray, &frame, NULL,/*block until available*/true );
             if ( !got )
                 continue;
             #else

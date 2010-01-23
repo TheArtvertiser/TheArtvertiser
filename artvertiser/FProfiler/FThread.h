@@ -22,9 +22,9 @@ public:
     FThread( ) { thread_running = false; }
     virtual ~FThread() { if ( thread_running ) StopThread(); }
 
-    /// start running the ThreadedFunction
-    void StartThread();
-    /// stop running ThreadedFunction explicitly. not recommended..
+    /// start running the ThreadedFunction. thread_priority only takes effect if running as root.
+    void StartThread( int thread_priority = 0 ) ;
+    /// stop running ThreadedFunction
     void StopThread();
 
 protected:

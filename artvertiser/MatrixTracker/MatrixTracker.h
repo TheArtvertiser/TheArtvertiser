@@ -13,7 +13,7 @@ class MatrixTracker
 public:
 
     // prune
-    static const int PRUNE_MAX_SIZE = 8;
+    static const int PRUNE_MAX_SIZE = 32;
 
     MatrixTracker();
 

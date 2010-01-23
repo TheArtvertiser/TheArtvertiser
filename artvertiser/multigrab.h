@@ -35,13 +35,13 @@ public:
         const FTime& getLastProcessedFrameTimestamp() { return detected_frame_timestamp; }
 		IplImage* getLastProcessedFrame() { return frame; }
 		/// fetch the last raw frame + timestamp and put into *frame + timestamp. if *frame is NULL, create.
-		bool getLastRawFrame( IplImage** raw_frame, FTime* timestamp=NULL )
-            { return mtc->getCopyOfLastFrame( raw_frame, timestamp, true /*block*/ ); }
+		bool getLastDrawFrame( IplImage** raw_frame, FTime* timestamp=NULL )
+            { return mtc->getLastDrawFrame( raw_frame, timestamp, true /*block*/ ); }
 
 		void setCam(CvCapture *c, int capture_width, int capture_height, int detect_width, int detect_height );
-		bool detect( bool &image_detected );
+		bool detect( bool* frame_retrieved = NULL, bool *detect_succeeded = NULL );
 
-		Cam(CvCapture *c=0, int _width=0, int _height=0, int _detect_width=320, int _detect_height=240)
+		Cam(CvCapture *c=0, int _width=0, int _height=0, int _detect_width=320, int _detect_height=240 )
 		{
 		    frame = 0;
 			width=0;

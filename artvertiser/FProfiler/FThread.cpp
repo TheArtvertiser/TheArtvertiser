@@ -12,7 +12,7 @@
 #include <sys/errno.h>
 #include <signal.h>
 
-void FThread::StartThread()
+void FThread::StartThread( int thread_priority )
 {
 	if ( thread_running ) {
 	    printf("FThread::Start(): FThread %x already running\n", this );
@@ -25,9 +25,32 @@ void FThread::StartThread()
     pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
     // launch
 	int result = pthread_create( &the_thread, &thread_attr, run_function, this );
+    if ( result != 0 )
+    {
+        fprintf(stderr, "FThread %x: pthread_create failed with error %i\n", this, result );
+    }
+    // priority
+    if ( thread_priority > 0 )
+    {
+        printf("FThread %x attempting to set thread priority to %i\n", this ,thread_priority );
+        struct sched_param param;
+        param.sched_priority = thread_priority;
+        int res = pthread_setschedparam( the_thread, SCHED_RR, &param );
+        if ( res != 0 )
+        {
+            fprintf(stderr,"pthread_setschedparam failed: %s\n",
+                   (res == ENOSYS) ? "ENOSYS" :
+                   (res == EINVAL) ? "EINVAL" :
+                   (res == ENOTSUP) ? "ENOTSUP" :
+                   (res == EPERM) ? "EPERM" :
+                   (res == ESRCH) ? "ESRCH" :
+                   "???"
+                   );
+        }
+    }
+
     pthread_attr_destroy( &thread_attr );
-	assert( result == 0 );
-	pthread_detach( the_thread );
+
 	thread_running = true;
 }
 

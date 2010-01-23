@@ -5,6 +5,9 @@
 int W;
 int H;
 
+static const int DESIRED_FPS = 20;
+
+
 MultiGrab::~MultiGrab()
 {
     printf("in ~MultiGrab\n");
@@ -84,8 +87,9 @@ void MultiGrab::allocLightCollector()
 	for (vector<Cam *>::iterator it=cams.begin(); it!=cams.end(); ++it)
 		(*it)->lc = new LightCollector(model.map.reflc);
 }
+void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_width, int _detect_height )
+{
 
-void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_width, int _detect_height ) {
 	if (cam)
 	{
 	    if ( mtc )
@@ -97,7 +101,7 @@ void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_w
 	cam = c;
 
 	// avoid saturating the firewire bus
-	cvSetCaptureProperty(cam, CV_CAP_PROP_FPS, 30);
+	cvSetCaptureProperty(cam, CV_CAP_PROP_FPS, DESIRED_FPS);
 	cout << "setting cv capture property for size to " << _width << "x" << _height << endl;
 	int res1 = cvSetCaptureProperty(cam, CV_CAP_PROP_FRAME_WIDTH, _width);
 	int res2 = cvSetCaptureProperty(cam, CV_CAP_PROP_FRAME_HEIGHT, _height);
@@ -107,10 +111,11 @@ void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_w
     detect_width = _detect_width;
     detect_height = _detect_height;
 
+
     #ifdef USE_MULTITHREADCAPTURE
     // now mtc
     mtc = new MultiThreadCapture( cam );
-    mtc->setupResolution( detect_width, detect_height, /*grayscale*/ 1 );
+    mtc->setupResolution( detect_width, detect_height, /*grayscale*/ 1, DESIRED_FPS /* capture at ~20 fps internally */ );
     mtc->startCapture();
     IplImage* f = NULL;
     int timeout = 5000;
@@ -144,7 +149,8 @@ void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_w
 
 
 MultiGrab::Cam::~Cam() {
-	if (gray && gray != frame) cvReleaseImage(&gray);
+    // gray is owned by mtc
+	//if (gray && gray != frame) cvReleaseImage(&gray);
 	if (frame_detectsize && frame_detectsize != gray && frame_detectsize != frame ) cvReleaseImage(&frame_detectsize);
 	if (mtc) delete mtc;
 	if (cam) cvReleaseCapture(&cam);
@@ -158,7 +164,7 @@ void MultiGrab::Cam::shutdownMultiThreadCapture()
 }
 
 // this could be run in a separate thread
-bool MultiGrab::Cam::detect( bool &image_detected )
+bool MultiGrab::Cam::detect( bool* frame_retrieved, bool *detect_succeeded )
 {
     PROFILE_THIS_FUNCTION();
 	CvSize detect_size = cvSize( detect_width, detect_height );
@@ -168,17 +174,23 @@ bool MultiGrab::Cam::detect( bool &image_detected )
     #ifdef USE_MULTITHREADCAPTURE
     PROFILE_SECTION_PUSH("retrieve");
     IplImage *gray_temp, *frame_temp;
-    FTime *timestamp;
-    bool got = mtc->getLastProcessedFrame( &gray_temp, &frame_temp, &timestamp,/*block until available*/ true );
+    FTime timestamp;
+    bool got = mtc->getLastDetectFrame( &gray_temp, &frame_temp, &timestamp,/*block until available*/ false );
     PROFILE_SECTION_POP();
     if ( !got || frame_temp == 0 || gray_temp == 0 )
     {
         PROFILE_SECTION_POP();
+        if ( frame_retrieved )
+            *frame_retrieved = false;
         return false;
+    }
+    if ( frame_retrieved )
+    {
+        *frame_retrieved = true;
     }
     gray = gray_temp;
     frame = frame_temp;
-    detected_frame_timestamp = *timestamp;
+    detected_frame_timestamp = timestamp;
     #else
 	PROFILE_SECTION_PUSH("retrieve");
 	IplImage *f = myRetrieveFrame(cam);
@@ -269,7 +281,8 @@ bool MultiGrab::Cam::detect( bool &image_detected )
 
 	PROFILE_SECTION_POP();
 
-    image_detected = res;
+    if ( detect_succeeded )
+        *detect_succeeded = res;
 
 	return res;
 }
