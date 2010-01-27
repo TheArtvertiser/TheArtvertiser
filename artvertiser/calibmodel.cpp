@@ -46,6 +46,7 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
 
 bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_object_recognizer &detector)
 {
+    detector.lock();
 
 	detector.ransac_dist_threshold = 3;
 	detector.max_ransac_iterations = 800;
@@ -63,10 +64,10 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
     detector.min_view_rate = .2;
 
     static const int MAX_MODEL_KEYPOINTS = 100;     // maximum number of keypoints on the model
-    static const int PATCH_SIZE = 16;               // patch size in pixels
-    static const int YAPE_RADIUS = 3;               // yape radius
+    static const int PATCH_SIZE = 32;               // patch size in pixels
+    static const int YAPE_RADIUS = 5;               // yape radius
     static const int NUM_TREES = 25;                // num classifier trees
-    static const int NUM_GAUSSIAN_LEVELS = 5;       // num gaussian levels
+    static const int NUM_GAUSSIAN_LEVELS = 3;       // num gaussian levels
 
 	// Should we train or load the classifier ?
 	if(cache && detector.build_with_cache(
@@ -98,7 +99,6 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 		corners[3].x = detector.new_images_generator.u_corner4;
 		corners[3].y = detector.new_images_generator.v_corner4;
 
-        #ifdef USE_MULTITHREADCAPTURE
         IplImage* init_image = NULL;
         MultiThreadCapture* mtc = MultiThreadCaptureManager::getInstance()->getCaptureForCam(capture);
         int timeout = 10000;
@@ -112,19 +112,21 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
         if ( init_image == NULL )
         {
             printf("capture failed\n");
+            detector.unlock();
             return false;
         }
 		image = cvLoadImage(modelfile, init_image->nChannels == 3);
 		cvReleaseImage(&init_image);
-		#else
-		image = cvLoadImage(modelfile, cvQueryFrame(capture)->nChannels==3 );
-		#endif
+
 	}
 	else
 	{
 		// ask the user the take a shot of the model
-		if (!interactiveSetup(capture)) return false;
-
+		if (!interactiveSetup(capture))
+		{
+		    detector.unlock();
+            return false;
+		}
 		// train the classifier to detect this model
 		//if (!detector.build(image, 500, 32, 3, 12, 3,0, 0))
 		//if (!detector.build(image, 200, 32, 5, 20, 3,0, 0))
@@ -140,18 +142,30 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 				YAPE_RADIUS,                 // yape radius. Use 3,5 or 7.
 				NUM_TREES,                // number of trees for the classifier. Somewhere between 12-50
 				NUM_GAUSSIAN_LEVELS,      // number of levels in the gaussian pyramid
-				progress,
-				working_roi
+				progress/*,
+				working_roi*/
 				))
+        {
+			detector.unlock();
 			return false;
 
+		}
+
 		// save the image
-		if (!cvSaveImage(modelfile, image)) return false;
+		if (!cvSaveImage(modelfile, image))
+		{
+		    detector.unlock();
+		    return false;
+		}
 
 		// and the region of interest (ROI)
 		string roifn = string(modelfile) + ".roi";
 		ofstream roif(roifn.c_str());
-		if (!roif.good()) return false;
+		if (!roif.good())
+		{
+		    detector.unlock();
+            return false;
+		}
 		for (int i=0;i<4; i++)
 			roif << corners[i].x << " " << corners[i].y << "\n";
 		roif.close();
@@ -159,6 +173,9 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 		// and the trained classifier
 		detector.save(string(modelfile)+".classifier");
 	}
+
+	detector.unlock();
+	assert( detector.isReady() );
 
 	float cn[4][2];
 	for (int i=0; i<4; i++)

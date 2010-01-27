@@ -95,9 +95,9 @@
 #define NUMARTVERTS 5
 
 // we continue tracking for 1 second, then fade for 3
-static const float SECONDS_LOST_TRACK = 1.0f;
-static const float SECONDS_LOST_FADE = 3.0f;
-static const float MAX_FADE_SHOW = 0.6f;
+static const float SECONDS_LOST_TRACK = 0.5f;
+static const float SECONDS_LOST_FADE = 1.0f;
+static const float MAX_FADE_SHOW = 0.9f;
 static const float MAX_FADE_NORMAL = 1.0f;
 
 //#define WIDTH 320
@@ -368,7 +368,7 @@ static void usage(const char *s)
     cerr << "usage:\n" << s
          << "[-m <model image>] [-r]\n"
          //"   -a <path>  specify path to AVI (instead of v4l device)\n"
-         "   -b <path>  specify path to AVI (instead of v4l device) MUST ALSO SPECIFY -vs"
+         "   -b <path>  specify path to AVI (instead of v4l device), ignores -vs\n"
          "   -m	specifies model image\n"
          "   -r	do not load any data\n"
          "   -t	train a new classifier\n"
@@ -939,7 +939,8 @@ static void geomCalibIdle(void)
     int nbdet=0;
     for (int i=0; i<multi->cams.size(); ++i)
     {
-        if (multi->cams[i]->detect()) nbdet++;
+        bool dummy = false;
+        if (multi->cams[i]->detect(dummy, dummy)) nbdet++;
     }
 
 
@@ -1043,6 +1044,12 @@ static void drawAugmentation()
             matrix_tracker.getInterpolatedPose( world, raw_frame_timestamp );
         }
 
+        // apply a scale factor
+        float scalef = 1.0f;
+        for ( int i=0; i<3; i++ )
+            cvmSet(world, i, i, scalef*cvmGet( world, i, i ));
+
+
         // instead of this:
            /*CvMat *proj = multi->model.augm.GetProjectionMatrix(current_cam);
            CvMat *old_proj = multi->model.augm.GetProjectionMatrix(current_cam);*/
@@ -1054,8 +1061,11 @@ static void drawAugmentation()
 
         Mat3x4 moveObject, rot, obj2World, movedRT_;
         moveObject.setTranslate(im->width/2,im->height/2,-120*3/4);
+        // apply rotation
         rot.setRotate(Vec3(1,0,0),2*M_PI*180.0/360.0);
         moveObject.mul(rot);
+        //moveObject.scale
+
         CvMat cvMoveObject = cvMat(3,4,CV_64FC1, moveObject.m);
         CvMat movedRT=cvMat(3,4,CV_64FC1,movedRT_.m);
 
@@ -1210,13 +1220,13 @@ static void drawAugmentation()
 
         glBegin(GL_QUADS);
         glTexCoord2f(0, 0);
-        glVertex3f(roi_vec[0], roi_vec[1], 0);
+        glVertex3f(roi_vec[0]-10, roi_vec[1]-10, 0);
         glTexCoord2f(1, 0);
-        glVertex3f(roi_vec[2], roi_vec[3], 0);
+        glVertex3f(roi_vec[2]+10, roi_vec[3]-10, 0);
         glTexCoord2f(1, 1);
-        glVertex3f(roi_vec[4], roi_vec[5], 0);
+        glVertex3f(roi_vec[4]+10, roi_vec[5]+10, 0);
         glTexCoord2f(0, 1);
-        glVertex3f(roi_vec[6], roi_vec[7], 0);
+        glVertex3f(roi_vec[6]-10, roi_vec[7]+10, 0);
         glEnd();
 
         glDisable(GL_TEXTURE_2D);
@@ -1341,16 +1351,17 @@ static void draw()
 
     // fade
     double elapsed = frame_timer.Update();
-    if (frame_ok)
+    if ( frame_ok )
     {
         last_frame_caught_time.SetNow();
         // increase fade
-        if ( fade < show_status?MAX_FADE_SHOW:MAX_FADE_NORMAL )
+        if ( fade < (show_status?MAX_FADE_SHOW:MAX_FADE_NORMAL) )
         {
             fade += (1.0f/SECONDS_LOST_FADE)*elapsed;
         }
         else
             fade = show_status?MAX_FADE_SHOW:MAX_FADE_NORMAL;
+        //printf("frame_ok: fade %f\n", fade );
     }
     else
     {
@@ -1364,6 +1375,7 @@ static void draw()
             else
                 fade = 0.0f;
         }
+        //printf("frame_ok: fade %f, elapsed since last caught %f\n", fade, elapsed_since_last_caught );
     }
     //printf("frame %s, lost_count %f -> fade pct %4.2f, fade %4.2f\n", frame_ok?"y":"n", frame_lost_count, fade_pct, fade );
 
@@ -1490,7 +1502,7 @@ static void* detectionThreadFunc( void* _data )
         PROFILE_THIS_BLOCK("detection_thread");
 
         bool frame_retrieved = false;
-        bool frame_retrieved_and_ok = multi->cams[0]->detect( &frame_retrieved, &frame_ok );
+        bool frame_retrieved_and_ok = multi->cams[0]->detect( frame_retrieved, frame_ok );
         if( frame_retrieved )
         {
             double elapsed = detection_thread_timer.Update();

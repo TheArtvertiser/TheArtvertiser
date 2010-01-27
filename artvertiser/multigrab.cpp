@@ -5,7 +5,7 @@
 int W;
 int H;
 
-static const int DESIRED_FPS = 20;
+static const int DESIRED_FPS = 15;
 
 
 MultiGrab::~MultiGrab()
@@ -112,8 +112,7 @@ void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_w
     detect_height = _detect_height;
 
 
-    #ifdef USE_MULTITHREADCAPTURE
-    // now mtc
+   // now mtc
     mtc = new MultiThreadCapture( cam );
     mtc->setupResolution( detect_width, detect_height, /*grayscale*/ 1, DESIRED_FPS /* capture at ~20 fps internally */ );
     mtc->startCapture();
@@ -129,10 +128,6 @@ void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_w
         got = mtc->getCopyOfLastFrame( &f );
     }
 	assert(f != 0 && "camera did not become ready");
-	#else
-	IplImage *f = myQueryFrame(cam);
-	assert(f != 0);
-	#endif
 
 	width = f->width; //cvRound(cvGetCaptureProperty(cam, CV_CAP_PROP_FRAME_WIDTH));
 	height = f->height; //cvRound(cvGetCaptureProperty(cam, CV_CAP_PROP_FRAME_HEIGHT));
@@ -141,9 +136,7 @@ void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_w
 		<< fps << " fps, " << f->nChannels << " channels.\n"
 		" Detecting at "<< detect_width <<"x" << detect_height << endl;
 
-    #ifdef USE_MULTITHREADCAPTURE
 	cvReleaseImage(&f);
-	#endif
 
 }
 
@@ -164,14 +157,12 @@ void MultiGrab::Cam::shutdownMultiThreadCapture()
 }
 
 // this could be run in a separate thread
-bool MultiGrab::Cam::detect( bool* frame_retrieved, bool *detect_succeeded )
+bool MultiGrab::Cam::detect( bool &frame_retrieved, bool &detect_succeeded )
 {
     PROFILE_THIS_FUNCTION();
 	CvSize detect_size = cvSize( detect_width, detect_height );
 
 	PROFILE_SECTION_PUSH("frame management");
-
-    #ifdef USE_MULTITHREADCAPTURE
     PROFILE_SECTION_PUSH("retrieve");
     IplImage *gray_temp, *frame_temp;
     FTime timestamp;
@@ -180,111 +171,43 @@ bool MultiGrab::Cam::detect( bool* frame_retrieved, bool *detect_succeeded )
     if ( !got || frame_temp == 0 || gray_temp == 0 )
     {
         PROFILE_SECTION_POP();
-        if ( frame_retrieved )
-            *frame_retrieved = false;
+        frame_retrieved = false;
         return false;
     }
-    if ( frame_retrieved )
-    {
-        *frame_retrieved = true;
-    }
+    frame_retrieved = true;
     gray = gray_temp;
     frame = frame_temp;
     detected_frame_timestamp = timestamp;
-    #else
-	PROFILE_SECTION_PUSH("retrieve");
-	IplImage *f = myRetrieveFrame(cam);
-	PROFILE_SECTION_POP();
-	if (f == 0)
-	{
-	    PROFILE_SECTION_POP();
+    PROFILE_SECTION_POP();
+
+
+    if ( !detector.isReady() )
+    {
+        printf("detector not yet ready\n");
+        detect_succeeded = false;
         return false;
-	}
-
-
-    PROFILE_SECTION_PUSH("copy local");
-	// construct frame if necessary
-	CvSize frame_size = cvGetSize( f );
-	if (frame == 0)
-        frame = cvCreateImage( frame_size, f->depth, f->nChannels );
-	if ( frame_size.width != width || frame_size.height != height )
-	{
-        assert( false && "frame size input didn't match camera setup size" );
-	}
-    else
-        cvCopy( f, frame );
-    PROFILE_SECTION_POP();
-
-    // ok
-    // if framesize == detectsize and already gray then gray=frame
-    // if framesize != detectsize and already gray, resize frame->grey
-
-    // if framesize == detectsize and frame rgb,         framedetect=frame then cvtcolor framedetect->gray
-    // if framesize != detectsize and frame rgb, resize frame->framedetect then cvtcolor framedetect->gray
-
-    // already gray?
-    bool frame_detect_same_size = (frame_size.width == detect_width && frame_size.height == detect_height);
-    if ( frame->nChannels == 1 )
-    {
-        if ( frame_detect_same_size )
-            gray = frame;
-        else
-        {
-            PROFILE_SECTION_PUSH( "resize" );
-            if ( !gray )
-                gray = cvCreateImage( cvSize( detect_width, detect_height ), IPL_DEPTH_8U, 1 );
-            cvResize( frame, gray );
-            PROFILE_SECTION_POP();
-        }
     }
-    else
-    {
-        PROFILE_SECTION_PUSH( "resize" );
-        if ( frame_detect_same_size )
-            frame_detectsize = frame;
-        else
-        {
-            if ( !frame_detectsize || frame_detectsize->width != detect_width || frame_detectsize->height != detect_height )
-            {
-                if ( frame_detectsize )
-                    cvReleaseImage( &frame_detectsize );
-                frame_detectsize = cvCreateImage( detect_size, IPL_DEPTH_8U, f->nChannels );
-            }
-            cvResize( frame, frame_detectsize );
-        }
-        PROFILE_SECTION_POP();
-
-        PROFILE_SECTION_PUSH( "convert to gray" );
-        if ( !gray )
-            gray = cvCreateImage( cvSize( detect_width, detect_height ), IPL_DEPTH_8U, 1 );
-        cvCvtColor( frame_detectsize, gray, CV_RGBA2GRAY );
-        PROFILE_SECTION_POP();
-
-    }
-
-
-    #endif // USE_MULTITHREADCAPTURE
-
-    PROFILE_SECTION_POP();
-
 
 	PROFILE_SECTION_PUSH( "detection" );
+
+
+
 	// run the detector
 	bool res = false;
-	if (detector.detect(gray)) {
+	detector.lock();
+	res = detector.detect(gray);
+    detect_succeeded = detector.object_is_detected;
+	detector.unlock();
+	if (res) {
 	    PROFILE_SECTION_PUSH("light accumulator")
 		if (lc)
             lc->averageImage(frame, detector.H);
-        res = true;
         PROFILE_SECTION_POP();
 	}
 
 	PROFILE_SECTION_POP();
 
-    if ( detect_succeeded )
-        *detect_succeeded = res;
-
-	return res;
+    return res;
 }
 
 bool add_detected_homography(int n, planar_object_recognizer &detector, CamCalibration &calib)

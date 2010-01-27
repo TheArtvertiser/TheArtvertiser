@@ -61,6 +61,8 @@ planar_object_recognizer::planar_object_recognizer()
 
   put_ui_settings();
 
+  ready = false;
+
 }
 
 void planar_object_recognizer::default_settings(void)
@@ -173,6 +175,9 @@ bool planar_object_recognizer::build(IplImage *model_image,
 
   learn(max_point_number_on_model, patch_size, yape_radius, tree_number, nbLev, LearnProgress);
 
+  ready = true;
+  printf("**~ detector now ready\n");
+
   return true;
 }
 
@@ -206,6 +211,9 @@ bool planar_object_recognizer::build_with_cache(string filename,
   if (load(dirname) and model)
   {
      new_images_generator.set_original_image(model, u[0], v[0], u[1], v[1], u[2], v[2], u[3], v[3]);
+
+    ready = true;
+    printf("**~ detector now ready\n");
 	 return true;
   }
 
@@ -221,17 +229,23 @@ bool planar_object_recognizer::build_with_cache(string filename,
 
   save(dirname);
 
+  ready = true;
+  printf("**~ detector now ready\n");
+
   return true;
 }
 
 planar_object_recognizer::planar_object_recognizer(string directory_name)
 {
+    ready = false;
   forest = 0;
   model_points = 0;
   for(int i = 0; i < hard_max_detected_pts; i++)
     match_probabilities[i] =0;
 
   load(directory_name);
+
+
 }
 
 bool planar_object_recognizer::load(string directory_name)
@@ -854,8 +868,8 @@ void planar_object_recognizer::construct_match_lut()
     for ( int i=0; i<match_number; i++ )
     {
         float this_score = matches[i].score*matches[i].score;
-        int end = table_pos+this_score*steps_per_score;
-        //printf("%i: %f -> %i entries\n", i, this_score, end-table_pos );
+        int end = table_pos+this_score*steps_per_score+1;
+        //printf("%i: %f -> %i entries (end %i)\n", i, this_score, end-table_pos, end );
         for ( ; table_pos<end && table_pos < MATCH_LOOKUP_TABLE_SIZE; table_pos++ )
         {
             match_index_lookup[table_pos] = i;
@@ -863,6 +877,7 @@ void planar_object_recognizer::construct_match_lut()
         if ( table_pos >= MATCH_LOOKUP_TABLE_SIZE )
             break;
     }
+    assert( match_number ==0 || table_pos == MATCH_LOOKUP_TABLE_SIZE );
 }
 
 bool planar_object_recognizer::estimate_affine_transformation_mt(void)
@@ -984,6 +999,7 @@ bool planar_object_recognizer::estimate_affine_transformation_unrolled(void)
         // in case three_random_correpsondencies fails early, we store how many we actually have
         actual_ransac_iterations = i;
     }
+    //printf("%i actual iterations\n", actual_ransac_iterations );
 
 
     // transform points
@@ -995,6 +1011,11 @@ bool planar_object_recognizer::estimate_affine_transformation_unrolled(void)
             image_object_point_match *m1 = matches + randoms[3*i+0];
             image_object_point_match *m2 = matches + randoms[3*i+1];
             image_object_point_match *m3 = matches + randoms[3*i+2];
+            /*printf("%i: %x %x %x: ", i, m1, m2, m3 );
+            printf(" %x ", m1->object_point );
+            printf(" %x ", m2->object_point );
+            printf(" %x ", m3->object_point );
+            printf("\n");*/
 
             transformed_points[4*3*i+0 ] = PyrImage::convCoordf(float(m1->object_point->M[0]), int(m1->object_point->scale), 0);
             transformed_points[4*3*i+1 ] = PyrImage::convCoordf(float(m1->object_point->M[1]), int(m1->object_point->scale), 0);

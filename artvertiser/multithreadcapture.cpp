@@ -285,6 +285,8 @@ void MultiThreadCapture::processThreadedFunction( )
             if ( last_frame_working )
                 cvReleaseImage( &last_frame_working );
             last_frame_working = cvCreateImage( cvGetSize( capture_frame ) , IPL_DEPTH_8U, capture_frame->nChannels );
+            printf("constructing last_frame_working\n");
+
         }
         cvCopy( capture_frame, last_frame_working );
         capture_frame_lock.Signal();
@@ -315,7 +317,10 @@ void MultiThreadCapture::processThreadedFunction( )
                 {
                     PROFILE_SECTION_PUSH( "resize" );
                     if ( !processed_working )
+                    {
+                        printf("constructing processed_working b\n");
                         processed_working = cvCreateImage( cvSize( process_size.width, process_size.height ), IPL_DEPTH_8U, nChannels );
+                    }
                     cvResize( last_frame_working, processed_working );
                     PROFILE_SECTION_POP();
                 }
@@ -329,6 +334,7 @@ void MultiThreadCapture::processThreadedFunction( )
                 {
                     if ( !frame_processsize || frame_processsize->width != process_size.width || frame_processsize->height != process_size.height )
                     {
+                        printf("constructing frame_processsize\n");
                         if ( frame_processsize )
                             cvReleaseImage( &frame_processsize );
                         frame_processsize = cvCreateImage( process_size, IPL_DEPTH_8U, capture_frame->nChannels );
@@ -339,7 +345,10 @@ void MultiThreadCapture::processThreadedFunction( )
 
                 PROFILE_SECTION_PUSH( "convert colors" );
                 if ( !processed_working )
+                {
                     processed_working = cvCreateImage( cvSize( process_size.width, process_size.height ), IPL_DEPTH_8U, nChannels );
+                    printf("constructing processed_working a\n");
+                }
                 int convert = (nChannels == 1?CV_RGBA2GRAY:CV_GRAY2RGBA);
                 cvCvtColor( frame_processsize, processed_working, convert );
                 PROFILE_SECTION_POP();
@@ -356,7 +365,10 @@ void MultiThreadCapture::processThreadedFunction( )
 
             // copy last_frame to last_frame_draw
             if ( last_frame_draw == NULL )
+            {
+                printf("constructing last_frame_draw\n");
                 last_frame_draw = (IplImage*)cvClone( last_frame_working );
+            }
             else
                 cvCopy( last_frame_working, last_frame_draw );
 
@@ -551,6 +563,7 @@ bool MultiThreadCapture::getLastDetectFrame(
     if ( last_frame )
     {
         last_frame_lock.Wait();
+
         // get image pointers
         if ( processedFrame )
             *processedFrame = processed;
@@ -578,7 +591,7 @@ void MultiThreadCapture::swapDetectPointers()
 
     temp            = processed;
     processed       = processed_ret;
-    processed_ret   = processed;
+    processed_ret   = temp;
 
     FTime* temp_t   = timestamp;
     timestamp       = timestamp_ret;

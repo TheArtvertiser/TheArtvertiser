@@ -313,6 +313,10 @@ public:
 
   void check_target_size(IplImage *image);
 
+  void lock()   { detector_sem.Wait();   }
+  void unlock() { detector_sem.Signal(); }
+  bool isReady() { return ready; }
+
 private:
 
   static void* estimate_affine_transformation_thread_func(void* data);
@@ -343,6 +347,9 @@ private:
   FBarrier* shared_barrier;
   vector<EstimateAffineThreadData*> affine_thread_data;
 
+  FSemaphore detector_sem;
+
+    bool ready;
 
 };
 
