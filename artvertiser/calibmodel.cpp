@@ -67,7 +67,7 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
     static const int PATCH_SIZE = 32;               // patch size in pixels
     static const int YAPE_RADIUS = 5;               // yape radius
     static const int NUM_TREES = 25;                // num classifier trees
-    static const int NUM_GAUSSIAN_LEVELS = 3;       // num gaussian levels
+    static const int NUM_GAUSSIAN_LEVELS = 5;       // num gaussian levels
 
 	// Should we train or load the classifier ?
 	if(cache && detector.build_with_cache(

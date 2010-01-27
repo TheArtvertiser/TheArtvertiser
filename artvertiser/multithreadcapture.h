@@ -12,6 +12,7 @@
 
 class MultiThreadCapture;
 
+using namespace std;
 
 class MultiThreadCaptureManager
 {
@@ -97,6 +98,9 @@ public:
                             bool block_until_available = false );
 
 
+    /// get the frame index for the requested ftime
+    unsigned int getFrameIndexForTime( const FTime& timestamp );
+
     /// start capture
     void startCapture();
 
@@ -150,6 +154,10 @@ private:
     int width, height, nChannels;
     float desired_framerate;
     FTime framerate_timer;
+
+    typedef map<FTime, unsigned int> FTimeToFrameNumberIdx;
+    FTimeToFrameNumberIdx ftime_framenum_idx;
+    unsigned int frame_counter;
 
 };
 

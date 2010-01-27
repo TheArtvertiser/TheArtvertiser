@@ -8,6 +8,7 @@
 #include "viewsets/object_view.h"
 
 static const float DEFAULT_FRAMERATE=22.0f;
+static const int FRAMENUM_INDEX_PRUNE_SIZE=32;
 
 MultiThreadCaptureManager* MultiThreadCaptureManager::instance = NULL;
 
@@ -19,6 +20,7 @@ MultiThreadCapture* MultiThreadCaptureManager::getCaptureForCam( CvCapture* cam 
         result = capture_map[cam];
     lock.Signal();
     return result;
+
 }
 
 void MultiThreadCaptureManager::addCaptureForCam(CvCapture* cam, MultiThreadCapture* cap )
@@ -43,7 +45,8 @@ MultiThreadCapture::MultiThreadCapture( CvCapture* _capture )
     processed(0),   processed_ret(0),   processed_working(0),
     capture_frame(0), process_thread_should_exit(false), process_thread_semaphore(0), /* start semaphore in busy state */
     new_draw_frame_available(false),
-    new_detect_frame_available(false)
+    new_detect_frame_available(false),
+    frame_counter(0)
     {
     MultiThreadCaptureManager* manager = MultiThreadCaptureManager::getInstance();
     assert( manager->getCaptureForCam( capture ) == NULL );
@@ -151,6 +154,7 @@ void MultiThreadCapture::ThreadedFunction()
 {
     // try to get the frame
     PROFILE_THIS_BLOCK("mtc thread func");
+
     PROFILE_SECTION_PUSH("grab");
     bool grabbed = cvGrabFrame( capture );
     PROFILE_SECTION_POP();
@@ -204,15 +208,22 @@ void MultiThreadCapture::ThreadedFunction()
         cvSetCaptureProperty( capture, CV_CAP_PROP_POS_FRAMES, 0 );
     }
 
+    PROFILE_SECTION_PUSH("idle sleeping");
     // wait a bit, to maintain desired framerate
     double elapsed = framerate_timer.Update();
     float desired_frame_duration = 1.0f/desired_framerate;
     float seconds_to_sleep = desired_frame_duration-elapsed;
-    if ( seconds_to_sleep > 0 )
-    {
-        //printf("waiting until next frame grab: %fs\n", seconds_to_sleep );
-        usleep( seconds_to_sleep*1e6 );
-    }
+    //printf("elapsed %fs, will wait %fs until next frame grab -> %i us\n", elapsed, seconds_to_sleep, int(seconds_to_sleep*1e6)  );
+    /*struct timespec sleeptime;
+    sleeptime.tv_sec = 0;
+    sleeptime.tv_nsec = (unsigned int)(max(0.0, seconds_to_sleep*1e9));*/
+    unsigned int sleeptime = max(0.0, seconds_to_sleep*1e6);
+    usleep( sleeptime );
+    // update the timer
+    elapsed = framerate_timer.Update();
+    //printf("actually slept %i us\n", int(elapsed*1e6) );
+
+    PROFILE_SECTION_POP();
 
 }
 
@@ -275,6 +286,13 @@ void MultiThreadCapture::processThreadedFunction( )
         }
         timestamp_working->SetNow();
 
+
+        // store in frame counter struct
+        ftime_framenum_idx[*timestamp_working] = frame_counter++;
+        if ( ftime_framenum_idx.size() > FRAMENUM_INDEX_PRUNE_SIZE )
+        {
+            ftime_framenum_idx.erase( ftime_framenum_idx.begin() );
+        }
 
         // capture_frame_lock.Wait(); <-- already have the lock from above
         // store locally
@@ -609,5 +627,15 @@ void MultiThreadCapture::swapDrawPointers()
     timestamp_draw      = timestamp_draw_ret;
     timestamp_draw_ret  = temp_t;
 
+}
+
+unsigned int MultiThreadCapture::getFrameIndexForTime( const FTime& time )
+{
+    capture_frame_lock.Wait();
+    FTimeToFrameNumberIdx::const_iterator it = ftime_framenum_idx.find( time );
+    assert( it != ftime_framenum_idx.end() );
+    unsigned int idx = (*it).second;
+    capture_frame_lock.Signal();
+    return idx;
 }
 

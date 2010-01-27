@@ -77,6 +77,9 @@
 // framerate counter
 #include "framerate.h"
 
+#include <list>
+using namespace std;
+
 // matrix tracker
 #include "MatrixTracker/MatrixTracker.h"
 
@@ -99,6 +102,8 @@ static const float SECONDS_LOST_TRACK = 0.5f;
 static const float SECONDS_LOST_FADE = 1.0f;
 static const float MAX_FADE_SHOW = 0.9f;
 static const float MAX_FADE_NORMAL = 1.0f;
+
+static const int DEFAULT_CAPTURE_FPS = 20;
 
 //#define WIDTH 320
 //#define HEIGHT 240
@@ -125,6 +130,7 @@ int video_width = DEFAULT_WIDTH;
 int video_height = DEFAULT_HEIGHT;
 int detect_width = DEFAULT_WIDTH;
 int detect_height = DEFAULT_HEIGHT;
+int desired_capture_fps = DEFAULT_CAPTURE_FPS;
 
 // load some images. hard-coded for know until i get the path parsing together.
 IplImage *image1 = cvLoadImage("artvert1.png");
@@ -471,6 +477,11 @@ static bool init( int argc, char** argv )
         {
             image_path=argv[i+1];
         }
+        else if ( strcmp(argv[i], "-fps")==0 )
+        {
+            desired_capture_fps=atoi(argv[i+1]);
+            i++;
+        }
         else if (strcmp(argv[i], "-vd")==0)
         {
             v4l_device=atoi(argv[i+1]);
@@ -522,11 +533,13 @@ static bool init( int argc, char** argv )
         CvCapture* temp_cap = cvCaptureFromAVI(avi_bg_path);
         video_width = (int)cvGetCaptureProperty( temp_cap, CV_CAP_PROP_FRAME_WIDTH );
         video_height = (int)cvGetCaptureProperty( temp_cap, CV_CAP_PROP_FRAME_HEIGHT );
+        int video_fps = (int)cvGetCaptureProperty( temp_cap, CV_CAP_PROP_FPS );
         printf(" -b: read video width/height %i/%i from avi (ignoring -vs)\n", video_width, video_height );
         if ( !got_ds )
         {
             detect_width = video_width;
             detect_height = video_height;
+            desired_capture_fps = video_fps;
         }
         cvReleaseCapture(&temp_cap);
     }
@@ -538,7 +551,8 @@ static bool init( int argc, char** argv )
 
     multi = new MultiGrab(model_file);
 
-    if( multi->init(!redo_training, model_file, avi_bg_path, video_width, video_height, v4l_device, detect_width, detect_height ) ==0)
+    if( multi->init(!redo_training, model_file, avi_bg_path, video_width, video_height, v4l_device,
+                    detect_width, detect_height, desired_capture_fps ) ==0)
     {
         cerr <<"Initialization error.\n";
         return false;
@@ -1042,6 +1056,8 @@ static void drawAugmentation()
 
             //printf(". now we want interpolated pose for %f\n", raw_frame_timestamp.ToSeconds() );
             matrix_tracker.getInterpolatedPose( world, raw_frame_timestamp );
+            /*matrix_tracker.getInterpolatedPoseKalman( world,
+                    multi->cams[0]->getFrameIndexForTime( raw_frame_timestamp ) );*/
         }
 
         // apply a scale factor
@@ -1063,6 +1079,7 @@ static void drawAugmentation()
         moveObject.setTranslate(im->width/2,im->height/2,-120*3/4);
         // apply rotation
         rot.setRotate(Vec3(1,0,0),2*M_PI*180.0/360.0);
+        //rot.setIdentity();
         moveObject.mul(rot);
         //moveObject.scale
 
@@ -1496,9 +1513,6 @@ static void* detectionThreadFunc( void* _data )
 
     while ( !detection_thread_should_exit )
     {
-        if ( detection_thread_should_exit )
-            break;
-
         PROFILE_THIS_BLOCK("detection_thread");
 
         bool frame_retrieved = false;
@@ -1506,7 +1520,7 @@ static void* detectionThreadFunc( void* _data )
         if( frame_retrieved )
         {
             double elapsed = detection_thread_timer.Update();
-            detection_fps = (detection_fps*7.0 + (1.0/elapsed))/8.0;
+            detection_fps = (detection_fps*0.0 + (1.0/elapsed))/1.0;
         }
         if ( !frame_retrieved_and_ok )
         {
@@ -1514,6 +1528,9 @@ static void* detectionThreadFunc( void* _data )
             usleep( 10000 );
             continue;
         }
+
+        if ( detection_thread_should_exit )
+            break;
 
         multi->model.augm.Clear();
         if (multi->cams[0]->detector.object_is_detected)
@@ -1537,7 +1554,9 @@ static void* detectionThreadFunc( void* _data )
 
             // continue to track
             matrix_tracker.addPose( mat, multi->cams[0]->getLastProcessedFrameTimestamp() );
-
+            /*matrix_tracker.addPoseKalman( mat, multi->cams[0]->getFrameIndexForTime(
+                        multi->cams[0]->getLastProcessedFrameTimestamp() ) );
+*/
             cvReleaseMat(&mat);
 
         }
@@ -1564,13 +1583,39 @@ static void idle()
     // (this loop could be paralelized)
     int nbdet=1;
 
-
     if(!raw_frame_texture) raw_frame_texture = new IplTexture;
-    IplImage* raw_frame = raw_frame_texture->getImage();
+    //IplImage* raw_frame = raw_frame_texture->getImage();
 
     PROFILE_SECTION_PUSH("getting last frame");
-    multi->cams[current_cam]->getLastDrawFrame( &raw_frame, &raw_frame_timestamp );
+    IplImage* captured_frame;
+    multi->cams[current_cam]->getLastDrawFrame( &captured_frame, &raw_frame_timestamp );
     PROFILE_SECTION_POP();
+
+    static list< pair<IplImage*, FTime> > frameRingBuffer;
+    while ( frameRingBuffer.size()<10 )
+    {
+        IplImage* first_frame =  cvCreateImage( cvGetSize( captured_frame ), captured_frame->depth, captured_frame->nChannels );
+        cvCopy( captured_frame, first_frame );
+        frameRingBuffer.push_back( make_pair( first_frame, raw_frame_timestamp ) );
+    }
+
+    IplImage* ringbuffered = frameRingBuffer.front().first;
+    cvCopy( captured_frame, ringbuffered );
+    frameRingBuffer.push_back( make_pair( ringbuffered, raw_frame_timestamp ) );
+
+    frameRingBuffer.pop_front();
+
+    IplImage* raw_frame = frameRingBuffer.front().first;
+    raw_frame_timestamp = frameRingBuffer.front().second;
+
+
+/*
+    FTime now;
+    now.SetNow();
+    static FTime idle_timer = now;
+    double idle_elapsed = idle_timer.Update();
+    printf("idle frame time is %i us\n", int(idle_elapsed*1e6) );
+*/
     //printf(". getLastRawFrame gave us %f\n", raw_frame_timestamp.ToSeconds() );
     raw_frame_texture->setImage(raw_frame);
     /*raw_frame_texture->setImage(multi->cams[current_cam]->frame);

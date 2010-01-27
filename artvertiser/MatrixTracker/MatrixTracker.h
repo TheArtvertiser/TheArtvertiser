@@ -16,6 +16,7 @@ public:
     static const int PRUNE_MAX_SIZE = 32;
 
     MatrixTracker();
+    ~MatrixTracker();
 
     /// track. matrix is 3x4 with translation in last column
     void addPose( CvMat* matrix, const FTime& timestamp );
@@ -29,7 +30,16 @@ public:
     /// with translation in the last column. Return false if a pose couldn't be calculated.
     bool getInterpolatedPose( CvMat* matrix, const FTime& for_time );
 
+    /// set kalman dt
+    void setKalmanDt( float dt ) { kalman_dt = dt; }
+    /// track using kalman. matrix is 3x4 with translation in last column.
+    /// frame indices are monotonically-increasing indices come from the camera frames.
+    void addPoseKalman( CvMat* matrix, unsigned int at_frame_index );
+    /// fetch interpolated pose using kalman filtering.
+    bool getInterpolatedPoseKalman( CvMat* matrix, unsigned int for_frame_index );
+    bool getInterpolatedPoseKalman( ofxMatrix4x4& matrix, unsigned int for_frame_index );
 
+    /// user interface
     float getPositionSmoothing()        { return position_smoothing; }
     float getPositionZSmoothing()       { return position_smoothing_z; }
     float getRotationSmoothing()        { return rotation_smoothing; }
@@ -63,6 +73,21 @@ private:
     typedef map<FTime, Pose> PoseMap;
     PoseMap found_poses;
     PoseMap returned_poses;
+
+
+    // kalman
+    void createKalman();
+    bool hasMeasurementForTime( unsigned int frame_index );
+    typedef map<unsigned int, Pose> PoseMapKalman;
+    PoseMapKalman kalman_found_poses;
+    Pose predicted_pose_kalman;
+    int kalman_curr_frame_index;
+    float kalman_dt;
+    CvKalman* kalman;
+    CvRandState kalman_rng;
+    CvMat* x_k; // predicted state
+    CvMat* w_k; // process noise
+    CvMat* z_k; // measurements
 
 
     /// estimate a pose by combining velocities for the last few frames

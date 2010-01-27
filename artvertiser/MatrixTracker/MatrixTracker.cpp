@@ -11,6 +11,7 @@ static const int NUM_FRAMES_BACK_RETURNED = 20;*/
 
 
 MatrixTracker::MatrixTracker()
+: kalman(0)
 {
     rotation_smoothing   = 0.5f;
     position_smoothing   = 0.576f;
@@ -20,7 +21,25 @@ MatrixTracker::MatrixTracker()
     num_frames_back_raw      = 1;
     num_frames_back_returned = 5;
 
+    kalman_dt = 0.05f; // 20 fps kalman default
+
 }
+
+MatrixTracker::~MatrixTracker()
+{
+    lock();
+    if ( kalman )
+    {
+        cvReleaseKalman( &kalman );
+        cvReleaseMat( &x_k );
+        cvReleaseMat( &w_k );
+        cvReleaseMat( &z_k );
+    }
+    unlock();
+}
+
+
+
 
 void MatrixTracker::addPose( CvMat* matrix, const FTime& timestamp )
 {
@@ -62,6 +81,169 @@ void MatrixTracker::addPose( const ofxMatrix4x4& rot, const ofxVec3f& new_transl
     }
 
     unlock();
+
+}
+
+void MatrixTracker::addPoseKalman( CvMat* matrix, unsigned int at_frame_index )
+{
+    assert( matrix->width == 4 && matrix->height == 3 );
+
+    // construct 4x4 rot matrix from 3x3 in top left of matrix,
+    ofxMatrix4x4 rot;
+    for ( int i=0; i<4; i++ ) // y
+        for ( int j=0; j<4; j++ ) // x
+            // fill; for last row/col use 0,0,0,0
+            rot._mat[i][j] = (i==3||j==3)?0:cvGet2D(matrix, i, j).val[0];
+    // now set bottom-right corner to 1
+    rot._mat[3][3] = 1;
+
+    ofxVec3f trans( cvGet2D(matrix, 0/*y*/, 3/*x*/ ).val[0], cvGet2D(matrix, 1, 3 ).val[0], cvGet2D( matrix, 2, 3 ).val[0] );
+
+    // store in kalman map
+    ofxQuaternion rot_quat;
+    rot_quat.set( rot );
+
+    lock();
+    kalman_found_poses[ at_frame_index ] = Pose( trans, rot_quat );
+    // limit size by trimming oldies
+    if ( kalman_found_poses.size() > PRUNE_MAX_SIZE )
+    {
+        //delete (*found_poses.begin()).second;
+        kalman_found_poses.erase( kalman_found_poses.begin() );
+        assert( kalman_found_poses.size() == PRUNE_MAX_SIZE );
+    }
+
+    printf("added kalman pose at frame %i\n", at_frame_index );
+
+    unlock();
+}
+
+bool MatrixTracker::getInterpolatedPoseKalman( CvMat* matrix, unsigned int for_frame_index )
+{
+    ofxMatrix4x4 interpolated_pose;
+    bool res = getInterpolatedPoseKalman( interpolated_pose, for_frame_index );
+    for ( int i=0; i<3; i++ )
+        for ( int j=0; j<4; j++ )
+            cvmSet( matrix, i, j, interpolated_pose( i, j ) );
+    return res;
+}
+
+bool MatrixTracker::getInterpolatedPoseKalman( ofxMatrix4x4& interpolated_pose, unsigned int for_frame_index )
+{
+    lock();
+
+    printf("kalman pose for frame %i requested\n", for_frame_index );
+
+    if ( kalman == 0 )
+        createKalman();
+
+    // step through frames until we reach for_frame_index, updating kalman
+    while ( kalman_curr_frame_index != for_frame_index /* use != not < in case it wraps */  )
+    {
+        // predict the new state
+        const CvMat* y_k = cvKalmanPredict( kalman ); // predicted new state
+
+        // new measurement?
+        if ( hasMeasurementForTime( kalman_curr_frame_index ) )
+        {
+            // copy measurement to kalman_measurement matrix (z_k)
+            const Pose& measurement = kalman_found_poses[kalman_curr_frame_index];
+            // store translation
+            cvmSet( z_k, 0, 0, measurement.translation.x );
+            cvmSet( z_k, 1, 0, measurement.translation.y );
+            cvmSet( z_k, 2, 0, measurement.translation.z );
+            // and rotation
+            cvmSet( z_k, 3, 0, measurement.rotation.asVec4().x );
+            cvmSet( z_k, 4, 0, measurement.rotation.asVec4().y );
+            cvmSet( z_k, 5, 0, measurement.rotation.asVec4().z );
+            cvmSet( z_k, 6, 0, measurement.rotation.asVec4().w );
+            // multiply measurements by measurement matrix
+            // z_k = x_k*kalman->measurement_matrix + z_k
+            cvMatMulAdd( kalman->measurement_matrix, x_k, z_k, z_k );
+
+            // correct against our measurements
+            cvKalmanCorrect( kalman, z_k );
+        }
+
+        // apply transition matrix to step prediction forward + apply process noise w_k
+        cvRandSetRange( &kalman_rng, 0, sqrt( kalman->process_noise_cov->data.fl[0] ) );
+        cvRand( &kalman_rng, w_k );
+        cvMatMulAdd( kalman->transition_matrix, x_k, w_k, x_k );
+
+        // read state back
+        predicted_pose_kalman.translation.set(cvmGet( y_k, 0, 0 ),
+                                              cvmGet( y_k, 1, 0 ),
+                                              cvmGet( y_k, 2, 0 )
+                                              );
+        /*predicted_pose_kalman.rotation.set(   cvmGet( y_k, 3, 0 ),
+                                              cvmGet( y_k, 4, 0 ),
+                                              cvmGet( y_k, 5, 0 ),
+                                              cvmGet( y_k, 6, 0 )
+                                              );*/
+
+        // step time forward
+        kalman_curr_frame_index++;
+    }
+
+    // return
+    make4x4MatrixFromQuatTrans(predicted_pose_kalman.rotation,
+                               predicted_pose_kalman.translation,
+                               interpolated_pose );
+    unlock();
+}
+
+bool MatrixTracker::hasMeasurementForTime( unsigned int frame_index )
+{
+    return (kalman_found_poses.find(frame_index)!= kalman_found_poses.end());
+}
+
+void MatrixTracker::createKalman()
+{
+    assert( kalman == 0 );
+
+    // construct kalman struct
+    int num_dynamic_params = 3+3+4+4; // pos+vel+rot+vr
+    int num_measured_params = 3+4;  // pos, rot
+    kalman = cvCreateKalman( num_dynamic_params, num_measured_params );
+
+    // setup transition matrix
+    const float dt = kalman_dt;
+    const float transition_matrix[] = { /*px*/ 1,  0,  0,  0,  0,  0,  0, dt,  0,  0,  0,  0,  0,  0, // px = px + dt*vx;
+                                        /*py*/ 0,  1,  0,  0,  0,  0,  0,  0, dt,  0,  0,  0,  0,  0, // py = py + dt*vy;
+                                        /*pz*/ 0,  0,  1,  0,  0,  0,  0,  0,  0, dt,  0,  0,  0,  0, // pz = pz + dt*vz;
+                                        /*rot*/0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, // rx = rx + dt*vrx
+                                        /*rot*/0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0, // ...
+                                        /*rot*/0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,
+                                        /*rot*/0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,
+                                        /*vx*/ 0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,
+                                        /*vy*/ 0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,
+                                        /*vz*/ 0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,
+                                        /*vr */0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+                                        /*vr */0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+                                        /*vr */0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+                                        /*vr */0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
+                                         };
+    memcpy( kalman->transition_matrix->data.fl, transition_matrix, sizeof(transition_matrix) );
+
+    // setup other matrices
+    w_k = cvCreateMat( num_dynamic_params,  1, CV_32FC1 );
+    z_k = cvCreateMat( num_measured_params, 1, CV_32FC1 );
+    x_k = cvCreateMat( num_dynamic_params,  1, CV_32FC1 );
+
+    // initialise remaining kalman struct
+    cvSetIdentity( kalman->measurement_matrix,      cvRealScalar(1) );
+    cvSetIdentity( kalman->process_noise_cov,       cvRealScalar(1e-5) );
+    cvSetIdentity( kalman->measurement_noise_cov,   cvRealScalar(1e-3) );
+    cvSetIdentity( kalman->error_cov_pre,           cvRealScalar(1) );
+
+    // choose random initial state
+    CvRandState rng;
+    cvRandInit( &rng, 0, 1, -1, CV_RAND_UNI );
+
+    cvRandSetRange( &rng, 0, 0.1, 0  );
+    rng.disttype = CV_RAND_NORMAL;
+    cvRand( &rng, x_k );
+    cvRand( &rng, kalman->state_post );
 
 }
 
