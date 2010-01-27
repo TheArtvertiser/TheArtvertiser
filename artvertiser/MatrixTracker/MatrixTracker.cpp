@@ -14,12 +14,12 @@ MatrixTracker::MatrixTracker()
 : kalman(0)
 {
     rotation_smoothing   = 0.5f;
-    position_smoothing   = 0.576f;
+    position_smoothing   = 0.147f;
     position_smoothing_z = 0.7f;
 
     // num_frames_back_* must be < PRUNE_MAX_SIZE
-    num_frames_back_raw      = 1;
-    num_frames_back_returned = 5;
+    num_frames_back_raw      = 2;
+    num_frames_back_returned = 10;
 
     kalman_dt = 0.05f; // 20 fps kalman default
 
@@ -142,6 +142,30 @@ bool MatrixTracker::getInterpolatedPoseKalman( ofxMatrix4x4& interpolated_pose, 
     {
         // predict the new state
         const CvMat* y_k = cvKalmanPredict( kalman ); // predicted new state
+        printf("kalman predicts:\n ");
+        for ( int i=0; i<y_k->rows; i++ )
+            printf("%7.3f ", cvmGet( y_k, i, 0 ) );
+        printf("\n");
+
+        // read state back
+        predicted_pose_kalman.translation.set(cvmGet( y_k, 0, 0 ),
+                                              cvmGet( y_k, 1, 0 ),
+                                              cvmGet( y_k, 2, 0 )
+                                              );
+        ofxVec4f kalman_predicted_rot(        cvmGet( y_k, 3, 0 ),
+                                              cvmGet( y_k, 4, 0 ),
+                                              cvmGet( y_k, 5, 0 ),
+                                              cvmGet( y_k, 6, 0 )
+                                              );
+
+        kalman_predicted_rot.normalize();
+        predicted_pose_kalman.rotation = kalman_predicted_rot;
+        printf("got rotation quaternion %7.3f %7.3f %7.3f %7.3f\n",
+                kalman_predicted_rot.x,
+                kalman_predicted_rot.y,
+                kalman_predicted_rot.z,
+                kalman_predicted_rot.w
+               );
 
         // new measurement?
         if ( hasMeasurementForTime( kalman_curr_frame_index ) )
@@ -157,29 +181,52 @@ bool MatrixTracker::getInterpolatedPoseKalman( ofxMatrix4x4& interpolated_pose, 
             cvmSet( z_k, 4, 0, measurement.rotation.asVec4().y );
             cvmSet( z_k, 5, 0, measurement.rotation.asVec4().z );
             cvmSet( z_k, 6, 0, measurement.rotation.asVec4().w );
+            /*predicted_pose_kalman.rotation = measurement.rotation * (1.0f-rotation_smoothing)
+                + predicted_pose_kalman.rotation * rotation_smoothing;*/
             // multiply measurements by measurement matrix
             // z_k = x_k*kalman->measurement_matrix + z_k
-            cvMatMulAdd( kalman->measurement_matrix, x_k, z_k, z_k );
+            //cvMatMulAdd( kalman->measurement_matrix, x_k, z_k, z_k );
+            //cvMatMul( kalman->measurement_matrix, z_k, z_k );
 
-            // correct against our measurements
+            // correct the prediction against our measurements
+            cvKalmanCorrect( kalman, z_k );
+        }
+        else
+        {
+            // update process noise (w_k)
+            cvRand( &kalman_rng, w_k );
+            // multiply by process noise matrix
+            cvMatMul( kalman->process_noise_cov, w_k, w_k );
+            // update by pushing last predicted state through transition matrix, adding process noise
+            cvMatMulAdd( kalman->transition_matrix, y_k, w_k, x_k );
+            // read off values for z
+            printf("pushing prediction through transition matrix gives us:\n ");
+            for ( int i=0; i<3+4; i++ )
+            {
+                printf("%7.3f ", cvmGet( x_k, i, 0 ) );
+                cvmSet( z_k, i, 0, cvmGet( x_k, i, 0 ) );
+            }
+            printf("\n");
+            // normalise the rotation quaternion, to be sure
+            ofxVec4f rot_quat(cvmGet(x_k, 3, 0),
+                              cvmGet(x_k, 4, 0),
+                              cvmGet(x_k, 5, 0),
+                              cvmGet(x_k, 6, 0));
+            rot_quat.normalize();
+            // put back
+            cvmSet( z_k, 3, 0, rot_quat.x );
+            cvmSet( z_k, 4, 0, rot_quat.y );
+            cvmSet( z_k, 5, 0, rot_quat.z );
+            cvmSet( z_k, 6, 0, rot_quat.w );
+            // update kalman
             cvKalmanCorrect( kalman, z_k );
         }
 
-        // apply transition matrix to step prediction forward + apply process noise w_k
-        cvRandSetRange( &kalman_rng, 0, sqrt( kalman->process_noise_cov->data.fl[0] ) );
-        cvRand( &kalman_rng, w_k );
-        cvMatMulAdd( kalman->transition_matrix, x_k, w_k, x_k );
 
-        // read state back
-        predicted_pose_kalman.translation.set(cvmGet( y_k, 0, 0 ),
-                                              cvmGet( y_k, 1, 0 ),
-                                              cvmGet( y_k, 2, 0 )
-                                              );
-        /*predicted_pose_kalman.rotation.set(   cvmGet( y_k, 3, 0 ),
-                                              cvmGet( y_k, 4, 0 ),
-                                              cvmGet( y_k, 5, 0 ),
-                                              cvmGet( y_k, 6, 0 )
-                                              );*/
+        /*// copy pre to post
+        memcpy( x_k->data.fl, kalman->state_post->data.fl,
+               sizeof(float)*kalman->state_pre->cols*kalman->state_pre->rows );*/
+
 
         // step time forward
         kalman_curr_frame_index++;
@@ -211,17 +258,17 @@ void MatrixTracker::createKalman()
     const float transition_matrix[] = { /*px*/ 1,  0,  0,  0,  0,  0,  0, dt,  0,  0,  0,  0,  0,  0, // px = px + dt*vx;
                                         /*py*/ 0,  1,  0,  0,  0,  0,  0,  0, dt,  0,  0,  0,  0,  0, // py = py + dt*vy;
                                         /*pz*/ 0,  0,  1,  0,  0,  0,  0,  0,  0, dt,  0,  0,  0,  0, // pz = pz + dt*vz;
-                                        /*rot*/0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, // rx = rx + dt*vrx
-                                        /*rot*/0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0, // ...
-                                        /*rot*/0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,
-                                        /*rot*/0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,
+                                        /*rot*/0,  0,  0,  1,  0,  0,  0,  0,  0,  0, dt,  0,  0,  0, // rx = rx + dt*vrx
+                                        /*rot*/0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0, dt,  0,  0, // ...
+                                        /*rot*/0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0, dt,  0,
+                                        /*rot*/0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0, dt,
                                         /*vx*/ 0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,
                                         /*vy*/ 0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,
                                         /*vz*/ 0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,
-                                        /*vr */0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-                                        /*vr */0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-                                        /*vr */0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-                                        /*vr */0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
+                                        /*vr */0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,
+                                        /*vr */0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,
+                                        /*vr */0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,
+                                        /*vr */0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1
                                          };
     memcpy( kalman->transition_matrix->data.fl, transition_matrix, sizeof(transition_matrix) );
 
@@ -231,19 +278,40 @@ void MatrixTracker::createKalman()
     x_k = cvCreateMat( num_dynamic_params,  1, CV_32FC1 );
 
     // initialise remaining kalman struct
+
+    // measurement matrix is num_measured_params rows x num_dynamic_params cols
     cvSetIdentity( kalman->measurement_matrix,      cvRealScalar(1) );
-    cvSetIdentity( kalman->process_noise_cov,       cvRealScalar(1e-5) );
-    cvSetIdentity( kalman->measurement_noise_cov,   cvRealScalar(1e-3) );
+
+    // dunno what this is
     cvSetIdentity( kalman->error_cov_pre,           cvRealScalar(1) );
 
-    // choose random initial state
-    CvRandState rng;
-    cvRandInit( &rng, 0, 1, -1, CV_RAND_UNI );
+    // how noisy are our measurements?
+    cvSetIdentity( kalman->process_noise_cov );
+    cvSetIdentity( kalman->measurement_noise_cov );
+    // position is quite noisy
+    for ( int i=0; i<3; i++ )
+    {
+        cvmSet( kalman->process_noise_cov,     i, i, 1e-2 );
+        cvmSet( kalman->measurement_noise_cov, i, i, 1 );
+    }
+    // rotation is not so noisy
+    for ( int i=3; i<7; i++ )
+    {
+        cvmSet( kalman->process_noise_cov,     i, i, 1e-3 );
+        cvmSet( kalman->measurement_noise_cov, i, i, 1e-1 );
+    }
 
-    cvRandSetRange( &rng, 0, 0.1, 0  );
-    rng.disttype = CV_RAND_NORMAL;
-    cvRand( &rng, x_k );
-    cvRand( &rng, kalman->state_post );
+    // choose random initial state
+    cvRandInit( &kalman_rng, 0, 1, -1, CV_RAND_UNI );
+
+    /*cvRandSetRange( &kalman_rng, 0, 0.1, 0  );
+    kalman_rng.disttype = CV_RAND_NORMAL;*/
+    cvRand( &kalman_rng, x_k );
+    //cvRand( &kalman_rng, kalman->state_post );
+    cvZero( x_k );
+    cvZero( kalman->state_post );
+    cvmSet( x_k, 7, 0, 1 );
+    cvmSet( kalman->state_post, 7, 0, 1 );
 
 }
 
@@ -391,7 +459,7 @@ bool MatrixTracker::getInterpolatedPose( ofxMatrix4x4& interpolated_pose, const 
         ofxVec3f lerp_trans;
         // calculate t percentage
         float t = (for_time.ToSeconds()-prev_time.ToSeconds())/(next_time.ToSeconds()-prev_time.ToSeconds());
-        printf("t is %f: before %f requested %f after %f\n", t, prev_time.ToSeconds(), for_time.ToSeconds(), next_time.ToSeconds() );
+        //printf("t is %f: before %f requested %f after %f\n", t, prev_time.ToSeconds(), for_time.ToSeconds(), next_time.ToSeconds() );
         lerp_rot.slerp( t, prev_p.rotation, next_p.rotation );
         lerp_trans = prev_p.translation + t*(next_p.translation-prev_p.translation);
 

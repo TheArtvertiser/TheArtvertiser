@@ -97,6 +97,7 @@ using namespace std;
 
 #define NUMARTVERTS 5
 
+
 // we continue tracking for 1 second, then fade for 3
 static const float SECONDS_LOST_TRACK = 0.5f;
 static const float SECONDS_LOST_FADE = 1.0f;
@@ -168,6 +169,9 @@ bool avi_play_init=false;
 bool lbutton_down = false;
 bool label = false;
 
+bool track_kalman = false;
+bool delay_video = false;
+
 double a_proj[3][4];
 double old_a_proj[3][4];
 float fade = 0.0;
@@ -185,6 +189,7 @@ int cnt=0;
 
 vector<int> roi_vec;
 CvPoint2D32f *c1 = new CvPoint2D32f[4];
+vector<int> artvert_roi_vec;
 
 char *image_path;
 char *model_file = "model.bmp";
@@ -435,6 +440,7 @@ static bool init( int argc, char** argv )
     bool redo_lighting=false;
     char *avi_bg_path="";
     bool got_ds = false;
+    bool got_fps = false;
     bool video_source_is_avi = false;
 
     // parse command line
@@ -480,6 +486,7 @@ static bool init( int argc, char** argv )
         else if ( strcmp(argv[i], "-fps")==0 )
         {
             desired_capture_fps=atoi(argv[i+1]);
+            got_fps = true;
             i++;
         }
         else if (strcmp(argv[i], "-vd")==0)
@@ -539,6 +546,9 @@ static bool init( int argc, char** argv )
         {
             detect_width = video_width;
             detect_height = video_height;
+        }
+        if ( !got_fps )
+        {
             desired_capture_fps = video_fps;
         }
         cvReleaseCapture(&temp_cap);
@@ -577,6 +587,16 @@ static bool init( int argc, char** argv )
     strcpy (s, model_file);
     strcat(s, ".roi");
     roi_vec = readROI(s);
+
+
+    strcpy( s, model_file );
+    strcat(s, ".artvertroi");
+    artvert_roi_vec = readROI(s);
+    if ( artvert_roi_vec.empty() )
+    {
+        // use roi_vec
+        artvert_roi_vec.insert( artvert_roi_vec.begin(), roi_vec.begin(), roi_vec.end() );
+    }
 
     // load model_image for use with diffing, later
     model_image = cvLoadImage(model_file);
@@ -625,8 +645,11 @@ static void keyboard(unsigned char c, int x, int y)
     case 27 /*esc*/:
         exit(0);
         break;
-    case 'd':
+    case 'l':
         dynamic_light = !dynamic_light;
+        break;
+    case 'd':
+        delay_video = !delay_video;
         break;
     case 'a':
         if (avi_play == true)
@@ -635,6 +658,9 @@ static void keyboard(unsigned char c, int x, int y)
             avi_play = true;
     case 'f':
         glutFullScreen();
+        break;
+    case 'k':
+        track_kalman = !track_kalman;
         break;
     case 'S':
         show_status = !show_status;
@@ -888,6 +914,9 @@ static void geomCalibDraw(void)
     planar_object_recognizer &detector(multi->cams[current_cam]->detector);
     if (!im) return;
 
+    if (!detector.isReady()) return;
+    detector.lock();
+
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(0, im->width-1, im->height-1, 0, -1, 1);
@@ -917,6 +946,8 @@ static void geomCalibDraw(void)
         }
         glEnd();
     }
+
+    detector.unlock();
 
     glutSwapBuffers();
 }
@@ -1055,9 +1086,11 @@ static void drawAugmentation()
             world = cvCreateMat( 3, 4, CV_64FC1 );
 
             //printf(". now we want interpolated pose for %f\n", raw_frame_timestamp.ToSeconds() );
-            matrix_tracker.getInterpolatedPose( world, raw_frame_timestamp );
-            /*matrix_tracker.getInterpolatedPoseKalman( world,
-                    multi->cams[0]->getFrameIndexForTime( raw_frame_timestamp ) );*/
+            if ( track_kalman )
+                matrix_tracker.getInterpolatedPoseKalman( world,
+                    multi->cams[0]->getFrameIndexForTime( raw_frame_timestamp ) );
+            else
+                matrix_tracker.getInterpolatedPose( world, raw_frame_timestamp );
         }
 
         // apply a scale factor
@@ -1237,13 +1270,13 @@ static void drawAugmentation()
 
         glBegin(GL_QUADS);
         glTexCoord2f(0, 0);
-        glVertex3f(roi_vec[0]-10, roi_vec[1]-10, 0);
+        glVertex3f(artvert_roi_vec[0], artvert_roi_vec[1], 0);
         glTexCoord2f(1, 0);
-        glVertex3f(roi_vec[2]+10, roi_vec[3]-10, 0);
+        glVertex3f(artvert_roi_vec[2], artvert_roi_vec[3], 0);
         glTexCoord2f(1, 1);
-        glVertex3f(roi_vec[4]+10, roi_vec[5]+10, 0);
+        glVertex3f(artvert_roi_vec[4], artvert_roi_vec[5], 0);
         glTexCoord2f(0, 1);
-        glVertex3f(roi_vec[6]-10, roi_vec[7]+10, 0);
+        glVertex3f(artvert_roi_vec[6], artvert_roi_vec[7], 0);
         glEnd();
 
         glDisable(GL_TEXTURE_2D);
@@ -1553,10 +1586,12 @@ static void* detectionThreadFunc( void* _data )
                 normal[j] = cvGet2D(mat, j, 2).val[0];
 
             // continue to track
-            matrix_tracker.addPose( mat, multi->cams[0]->getLastProcessedFrameTimestamp() );
-            /*matrix_tracker.addPoseKalman( mat, multi->cams[0]->getFrameIndexForTime(
+            if ( track_kalman )
+                matrix_tracker.addPoseKalman( mat, multi->cams[0]->getFrameIndexForTime(
                         multi->cams[0]->getLastProcessedFrameTimestamp() ) );
-*/
+            else
+                matrix_tracker.addPose( mat, multi->cams[0]->getLastProcessedFrameTimestamp() );
+
             cvReleaseMat(&mat);
 
         }
@@ -1584,42 +1619,43 @@ static void idle()
     int nbdet=1;
 
     if(!raw_frame_texture) raw_frame_texture = new IplTexture;
-    //IplImage* raw_frame = raw_frame_texture->getImage();
 
     PROFILE_SECTION_PUSH("getting last frame");
-    IplImage* captured_frame;
-    multi->cams[current_cam]->getLastDrawFrame( &captured_frame, &raw_frame_timestamp );
-    PROFILE_SECTION_POP();
 
-    static list< pair<IplImage*, FTime> > frameRingBuffer;
-    while ( frameRingBuffer.size()<10 )
+    if ( delay_video )
     {
-        IplImage* first_frame =  cvCreateImage( cvGetSize( captured_frame ), captured_frame->depth, captured_frame->nChannels );
-        cvCopy( captured_frame, first_frame );
-        frameRingBuffer.push_back( make_pair( first_frame, raw_frame_timestamp ) );
+        IplImage* captured_frame;
+        multi->cams[current_cam]->getLastDrawFrame( &captured_frame, &raw_frame_timestamp );
+
+        static list< pair<IplImage*, FTime> > frameRingBuffer;
+        while ( frameRingBuffer.size()<10 )
+        {
+            IplImage* first_frame =  cvCreateImage( cvGetSize( captured_frame ), captured_frame->depth, captured_frame->nChannels );
+            cvCopy( captured_frame, first_frame );
+            frameRingBuffer.push_back( make_pair( first_frame, raw_frame_timestamp ) );
+        }
+
+        IplImage* ringbuffered = frameRingBuffer.front().first;
+        cvCopy( captured_frame, ringbuffered );
+        frameRingBuffer.push_back( make_pair( ringbuffered, raw_frame_timestamp ) );
+
+        frameRingBuffer.pop_front();
+
+        IplImage* raw_frame = frameRingBuffer.front().first;
+        raw_frame_timestamp = frameRingBuffer.front().second;
+
+        raw_frame_texture->setImage(raw_frame);
+    }
+    else
+    {
+        IplImage* raw_frame = raw_frame_texture->getImage();
+        multi->cams[current_cam]->getLastDrawFrame( &raw_frame, &raw_frame_timestamp );
+        raw_frame_texture->setImage(raw_frame);
     }
 
-    IplImage* ringbuffered = frameRingBuffer.front().first;
-    cvCopy( captured_frame, ringbuffered );
-    frameRingBuffer.push_back( make_pair( ringbuffered, raw_frame_timestamp ) );
-
-    frameRingBuffer.pop_front();
-
-    IplImage* raw_frame = frameRingBuffer.front().first;
-    raw_frame_timestamp = frameRingBuffer.front().second;
+    PROFILE_SECTION_POP();
 
 
-/*
-    FTime now;
-    now.SetNow();
-    static FTime idle_timer = now;
-    double idle_elapsed = idle_timer.Update();
-    printf("idle frame time is %i us\n", int(idle_elapsed*1e6) );
-*/
-    //printf(". getLastRawFrame gave us %f\n", raw_frame_timestamp.ToSeconds() );
-    raw_frame_texture->setImage(raw_frame);
-    /*raw_frame_texture->setImage(multi->cams[current_cam]->frame);
-    frameTimestamp = multi->cams[current_cam]->frame_timestamp;*/
 
 
     //doDetection();

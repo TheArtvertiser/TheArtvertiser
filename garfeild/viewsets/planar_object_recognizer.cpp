@@ -206,6 +206,20 @@ bool planar_object_recognizer::build_with_cache(string filename,
     roif.close();
   }
 
+/*
+  roifn = string(filename)+".artvertroi";
+  roif = ifstream(roifn.data());
+  if ( roif.good() )
+  {
+    cout << "Reading artvert ROI from file " << roifn << ".\n";
+    for (int i = 0; i < 4; i++) {
+      roif >> u[i];
+      roif >> v[i];
+    }
+    roif.close();
+  }
+*/
+
   IplImage * model = mcvLoadImage(filename.data(), 0);
 
   if (load(dirname) and model)
@@ -1542,7 +1556,7 @@ void planar_object_recognizer::detect_most_stable_model_points(int max_point_num
   cout << "... Point " << i << " detected " << it->second << " times ("
        << view_nb << " generated views, "
        << min_view_rate*100 << "% minimum rate)." << endl;
-
+  cout << i << " points in total." << endl;
   model_point_number = i;
 
   new_images_generator.set_object_keypoints(model_points, model_point_number);

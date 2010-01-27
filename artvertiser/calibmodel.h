@@ -9,6 +9,7 @@ class CalibModel {
 public:
 	IplImage *image;
 	CvPoint corners[4];
+	CvPoint artvert_corners[4];
 
 	LightMap map;
 	CamAugmentation augm;
@@ -22,7 +23,7 @@ private:
 	const char *win;
 	const char *modelfile;
 
-	enum State { TAKE_SHOT, CORNERS };
+	enum State { TAKE_SHOT, CORNERS, ARTVERT_CORNERS };
 	State state;
 	int grab;
 	static void onMouseStatic(int event, int x, int y, int flags, void* param);

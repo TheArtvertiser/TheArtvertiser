@@ -17,14 +17,19 @@ CalibModel *objectPtr=0;
 
 void CalibModel::onMouse(int event, int x, int y, int flags)
 {
+    CvPoint* ptr;
+    if ( state == ARTVERT_CORNERS )
+        ptr = artvert_corners;
+    else
+        ptr = corners;
 	if (event == CV_EVENT_LBUTTONDOWN)
 	{
 		// try to grab something
 		grab = -1;
 		for (int i=0; i<4; i++)
 		{
-			int dx = x-corners[i].x;
-			int dy = y-corners[i].y;
+			int dx = x-ptr[i].x;
+			int dy = y-ptr[i].y;
 			if (sqrt((double)(dx*dx+dy*dy)) <10) {
 				grab = i;
 				break;
@@ -34,8 +39,8 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
 
 	if (grab!=-1)
 	{
-		corners[grab].x = x;
-		corners[grab].y = y;
+		ptr[grab].x = x;
+		ptr[grab].y = y;
 	}
 
 	if (event == CV_EVENT_LBUTTONUP)
@@ -51,7 +56,7 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 	detector.ransac_dist_threshold = 3;
 	detector.max_ransac_iterations = 800;
 	detector.ransac_stop_support = 50;
-	detector.non_linear_refine_threshold = 15.0f;
+	//detector.non_linear_refine_threshold = 15.0f;
 	//detector.point_detector_tau = 10;
 
 	// A lower threshold will allow detection in harder conditions, but
@@ -64,10 +69,16 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
     detector.min_view_rate = .2;
 
     static const int MAX_MODEL_KEYPOINTS = 100;     // maximum number of keypoints on the model
-    static const int PATCH_SIZE = 32;               // patch size in pixels
-    static const int YAPE_RADIUS = 5;               // yape radius
+    static const int PATCH_SIZE = 16;               // patch size in pixels
+    static const int YAPE_RADIUS = 3;               // yape radius
     static const int NUM_TREES = 25;                // num classifier trees
     static const int NUM_GAUSSIAN_LEVELS = 5;       // num gaussian levels
+    /*static const int MAX_MODEL_KEYPOINTS = 500;     // maximum number of keypoints on the model
+    static const int PATCH_SIZE = 32;               // patch size in pixels
+    static const int YAPE_RADIUS = 5;               // yape radius
+    static const int NUM_TREES = 12;                // num classifier trees
+    static const int NUM_GAUSSIAN_LEVELS = 3;       // num gaussian levels*/
+
 
 	// Should we train or load the classifier ?
 	if(cache && detector.build_with_cache(
@@ -142,8 +153,8 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 				YAPE_RADIUS,                 // yape radius. Use 3,5 or 7.
 				NUM_TREES,                // number of trees for the classifier. Somewhere between 12-50
 				NUM_GAUSSIAN_LEVELS,      // number of levels in the gaussian pyramid
-				progress/*,
-				working_roi*/
+				progress,
+				working_roi
 				))
         {
 			detector.unlock();
@@ -169,6 +180,18 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 		for (int i=0;i<4; i++)
 			roif << corners[i].x << " " << corners[i].y << "\n";
 		roif.close();
+
+		// and the artvert corners
+ 		roifn = string(modelfile) + ".artvertroi";
+		ofstream artvert_roif(roifn.c_str());
+		if (!artvert_roif.good())
+		{
+		    detector.unlock();
+            return false;
+		}
+		for (int i=0;i<4; i++)
+			artvert_roif << artvert_corners[i].x << " " << artvert_corners[i].y << "\n";
+		artvert_roif.close();
 
 		// and the trained classifier
 		detector.save(string(modelfile)+".classifier");
@@ -272,6 +295,7 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 	state = TAKE_SHOT;
 
 	bool accepted =false;
+    bool artvert_accepted = false;
 	while (!accepted) {
 
 		// wait for a key
@@ -315,6 +339,8 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 				cvCopy(shot, text);
 		}
 
+        int four = 4;
+        CvPoint *ptr;
 		// display text / react to keyboard
 		switch (state) {
 			default:
@@ -332,7 +358,7 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 					break;
 				}
 			case CORNERS:
-					putText(text, "Drag corners to match the", cvPoint(3,20), &font);
+					putText(text, "Drag yellow corners to match the", cvPoint(3,20), &font);
 					putText(text, "calibration target", cvPoint(3,40), &font);
 					putText(text, "press 'r' to restart", cvPoint(3,60), &font);
 					putText(text, "press space when ready", cvPoint(3,80), &font);
@@ -341,13 +367,36 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 						state = TAKE_SHOT;
 					}
 					if (k==' ') {
-						accepted=true;
+					    for ( int i=0;i<4; i++ )
+					    {
+                            artvert_corners[i].x = corners[i].x;
+                            artvert_corners[i].y = corners[i].y;
+					    }
+						state = ARTVERT_CORNERS;
 					}
-					int four = 4;
-					CvPoint *ptr = corners;
+                    ptr = corners;
 					cvPolyLine(text, &ptr, &four, 1, 1,
 							cvScalar(0,255,0));
 					break;
+            case ARTVERT_CORNERS:
+            		putText(text, "Drag red corners to match the", cvPoint(3,20), &font);
+					putText(text, "artvert target area;", cvPoint(3,40), &font);
+					putText(text, "press 'r' to restart", cvPoint(3,60), &font);
+					putText(text, "press space when ready", cvPoint(3,80), &font);
+					if (k=='r') {
+						pause = false;
+						state = TAKE_SHOT;
+					}
+					if (k==' ') {
+						accepted = true;
+					}
+					ptr = corners;
+					cvPolyLine(text, &ptr, &four, 1, 1,
+							cvScalar(0,255,0));
+                    ptr = artvert_corners;
+					cvPolyLine(text, &ptr, &four, 1, 1,
+							cvScalar(0,0,255));
+                    break;
 		}
 		cvShowImage(win, text);
 	}

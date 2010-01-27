@@ -633,8 +633,14 @@ unsigned int MultiThreadCapture::getFrameIndexForTime( const FTime& time )
 {
     capture_frame_lock.Wait();
     FTimeToFrameNumberIdx::const_iterator it = ftime_framenum_idx.find( time );
-    assert( it != ftime_framenum_idx.end() );
-    unsigned int idx = (*it).second;
+    unsigned int idx;
+    if( it != ftime_framenum_idx.end() )
+        idx = (*it).second;
+    else
+    {
+        assert(!ftime_framenum_idx.empty());
+        idx = (*ftime_framenum_idx.rbegin()).second;
+    }
     capture_frame_lock.Signal();
     return idx;
 }
