@@ -561,12 +561,14 @@ static bool init( int argc, char** argv )
 
     multi = new MultiGrab(model_file);
 
-    if( multi->init(!redo_training, model_file, avi_bg_path, video_width, video_height, v4l_device,
+    if( multi->init(avi_bg_path, video_width, video_height, v4l_device,
                     detect_width, detect_height, desired_capture_fps ) ==0)
     {
         cerr <<"Initialization error.\n";
         return false;
     }
+
+    //multi->loadOrTrainCache(!redo_training, model_file);
 
     geomCalibStart(!redo_geom);
 
@@ -677,6 +679,9 @@ static void keyboard(unsigned char c, int x, int y)
         else
             cnt ++;
         cout << "we are on image " << cnt << endl;
+        break;
+    case '\\':
+        multi->loadOrTrainCache( /*try to load from cache*/ true, model_file );
         break;
     default:
         break;
@@ -976,9 +981,6 @@ static void geomCalibEnd()
  */
 static void geomCalibIdle(void)
 {
-    // acquire images
-    multi->grabFrames();
-
     // detect the calibration object in every image
     // (this loop could be paralelized)
     int nbdet=0;
@@ -1610,9 +1612,6 @@ static void* detectionThreadFunc( void* _data )
 static void idle()
 {
     PROFILE_SECTION_PUSH( "idle loop" );
-
-    // acquire images
-    multi->grabFrames();
 
     // detect the calibration object in every image
     // (this loop could be paralelized)

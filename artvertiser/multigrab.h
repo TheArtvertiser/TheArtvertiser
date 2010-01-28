@@ -15,10 +15,12 @@ public:
 	MultiGrab(const char *modelfile="model.bmp") : model(modelfile) {}
     ~MultiGrab();
 
-	int init(bool cacheTraining, char *modelfile, char *avi_bg_path,
+	int init( char *avi_bg_path,
           int capture_width, int capture_height, int v4l_device, int detect_width, int detect_height,
           int desired_capture_fps );
-	void grabFrames();
+    /// load or train the cache using the given modelfile
+    bool loadOrTrainCache( bool cacheTraining, const char* modelfile );
+
 	void allocLightCollector();
 
 	class Cam {
