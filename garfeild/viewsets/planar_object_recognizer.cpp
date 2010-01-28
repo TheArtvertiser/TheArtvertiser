@@ -37,6 +37,7 @@ using namespace std;
 
 planar_object_recognizer::planar_object_recognizer()
 {
+
   forest = 0;
   model_points = 0;
   object_input_view = 0;
@@ -68,6 +69,7 @@ planar_object_recognizer::planar_object_recognizer()
 void planar_object_recognizer::default_settings(void)
 {
   set_max_depth(10);
+  do_proportional_match_lut = true;
 
   best_support_thresh = 10;
 
@@ -252,7 +254,8 @@ bool planar_object_recognizer::build_with_cache(string filename,
 
 planar_object_recognizer::planar_object_recognizer(string directory_name)
 {
-    ready = false;
+  do_proportional_match_lut = true;
+  ready = false;
   forest = 0;
   model_points = 0;
   for(int i = 0; i < hard_max_detected_pts; i++)
@@ -869,30 +872,48 @@ void* planar_object_recognizer::estimate_affine_transformation_thread_func( void
 
 void planar_object_recognizer::construct_match_lut()
 {
-    // total scores
-    float total_score = 0;
-    for ( int i=0; i<match_number; i++ )
+    if ( do_proportional_match_lut )
     {
-        total_score += matches[i].score*matches[i].score;
-    }
-    int table_pos = 0;
-    float score_remaining = total_score;
-    float score_per_step = total_score/MATCH_LOOKUP_TABLE_SIZE;
-    float steps_per_score = 1.0f/score_per_step;
-    // normalise
-    for ( int i=0; i<match_number; i++ )
-    {
-        float this_score = matches[i].score*matches[i].score;
-        int end = table_pos+this_score*steps_per_score+1;
-        //printf("%i: %f -> %i entries (end %i)\n", i, this_score, end-table_pos, end );
-        for ( ; table_pos<end && table_pos < MATCH_LOOKUP_TABLE_SIZE; table_pos++ )
+        // total scores
+        float total_score = 0;
+        for ( int i=0; i<match_number; i++ )
         {
-            match_index_lookup[table_pos] = i;
+            total_score += matches[i].score*matches[i].score;
         }
-        if ( table_pos >= MATCH_LOOKUP_TABLE_SIZE )
-            break;
+        int table_pos = 0;
+        float score_remaining = total_score;
+        float score_per_step = total_score/MATCH_LOOKUP_TABLE_SIZE;
+        float steps_per_score = 1.0f/score_per_step;
+        // normalise
+        for ( int i=0; i<match_number; i++ )
+        {
+            float this_score = matches[i].score*matches[i].score;
+            int end = table_pos+this_score*steps_per_score+1;
+            //printf("%i: %f -> %i entries (end %i)\n", i, this_score, end-table_pos, end );
+            for ( ; table_pos<end && table_pos < MATCH_LOOKUP_TABLE_SIZE; table_pos++ )
+            {
+                match_index_lookup[table_pos] = i;
+            }
+            if ( table_pos >= MATCH_LOOKUP_TABLE_SIZE )
+                break;
+        }
+        assert( match_number ==0 || table_pos == MATCH_LOOKUP_TABLE_SIZE );
     }
-    assert( match_number ==0 || table_pos == MATCH_LOOKUP_TABLE_SIZE );
+    else
+    {
+        float curr_pos = 0;
+        float step = float(MATCH_LOOKUP_TABLE_SIZE)/match_number;
+        printf("step: %f\n", step );
+        for ( int i=0; i<match_number; i++)
+        {
+            float next_start_pos = curr_pos+step;
+            printf("%i: %i->%i\n", i, (int)curr_pos, (int)next_start_pos );
+            for ( int j=curr_pos; j<next_start_pos && j<MATCH_LOOKUP_TABLE_SIZE; j++ )
+                match_index_lookup[j] = i;
+            curr_pos = next_start_pos;
+        }
+        //assert( match_number==0 || int(curr_pos) == MATCH_LOOKUP_TABLE_SIZE-1 );
+    }
 }
 
 bool planar_object_recognizer::estimate_affine_transformation_mt(void)

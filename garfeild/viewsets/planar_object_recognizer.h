@@ -243,6 +243,7 @@ public:
   void default_settings(void);
   bool use_bins_for_model_points;
   bool use_bins_for_input_image;
+  bool do_proportional_match_lut;
   int index_of_model_point_to_debug;
 
   //! number of generated views for finding stable points
