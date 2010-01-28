@@ -53,26 +53,27 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 {
     detector.lock();
 
-	detector.ransac_dist_threshold = 3;
+	detector.ransac_dist_threshold = 5;
 	detector.max_ransac_iterations = 800;
-	detector.ransac_stop_support = 50;
+	//detector.ransac_stop_support = 50;
 	//detector.non_linear_refine_threshold = 15.0f;
 	//detector.point_detector_tau = 10;
+	detector.views_number = 100;
 
 	// A lower threshold will allow detection in harder conditions, but
 	// might lead to false positives.
-	detector.match_score_threshold=.013f;
+	detector.match_score_threshold=.03f;
 
 	//detector.min_view_rate=.1;
 	//detector.views_number = 100;
 	// damian below
-    detector.min_view_rate = .2;
+    detector.min_view_rate = .1;
 
-    static const int MAX_MODEL_KEYPOINTS = 100;     // maximum number of keypoints on the model
-    static const int PATCH_SIZE = 16;               // patch size in pixels
-    static const int YAPE_RADIUS = 3;               // yape radius
-    static const int NUM_TREES = 25;                // num classifier trees
-    static const int NUM_GAUSSIAN_LEVELS = 5;       // num gaussian levels
+    static const int MAX_MODEL_KEYPOINTS = 500;     // maximum number of keypoints on the model
+    static const int PATCH_SIZE = 32;               // patch size in pixels
+    static const int YAPE_RADIUS = 5;               // yape radius
+    static const int NUM_TREES = 12;                // num classifier trees
+    static const int NUM_GAUSSIAN_LEVELS = 3;       // num gaussian levels
     /*static const int MAX_MODEL_KEYPOINTS = 500;     // maximum number of keypoints on the model
     static const int PATCH_SIZE = 32;               // patch size in pixels
     static const int YAPE_RADIUS = 5;               // yape radius
