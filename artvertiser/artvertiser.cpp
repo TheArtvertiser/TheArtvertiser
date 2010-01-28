@@ -91,8 +91,8 @@ using namespace std;
 #endif
 #define GL_MIRROR_CLAMP_EXT 0x8742
 
-#define DEFAULT_WIDTH 640
-#define DEFAULT_HEIGHT 480
+#define DEFAULT_WIDTH 1024 
+#define DEFAULT_HEIGHT 576
 #define DEFAULT_V4LDEVICE 1
 
 #define NUMARTVERTS 5
@@ -385,6 +385,7 @@ static void usage(const char *s)
          "   -t	train a new classifier\n"
          "   -g	recompute geometric calibration\n"
          "   -a <path>  load an AVI movie as an artvert\n"
+         "   -i <path>  load an image as an artvert\n"
          "   -l	rebuild irradiance map from scratch\n"
          "   -vd <num>  V4L video device number (0-n)\n"
          "   -vs <width> <height>  video width and height (default 640x480)\n"
@@ -472,6 +473,10 @@ static bool init( int argc, char** argv )
         {
             avi_capture=cvCaptureFromAVI(argv[i+1]);
             avi_play=true;
+        }
+        else if (strcmp(argv[i], "-i")==0)
+        {
+			IplImage *image1 = cvLoadImage(argv[i]+1);
         }
         else if (strcmp(argv[i], "-b")==0)
         {
