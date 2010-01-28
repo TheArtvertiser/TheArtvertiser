@@ -1,6 +1,6 @@
 /*
-Copyright 2005, 2006 Computer Vision Lab, 
-Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland. 
+Copyright 2005, 2006 Computer Vision Lab,
+Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland.
 All rights reserved.
 
 This file is part of BazAR.
@@ -16,7 +16,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 BazAR; if not, write to the Free Software Foundation, Inc., 51 Franklin
-Street, Fifth Floor, Boston, MA 02110-1301, USA 
+Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 #ifndef IMAGE_CLASSIFICATION_FOREST_H
 #define IMAGE_CLASSIFICATION_FOREST_H
@@ -25,7 +25,7 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA
 #include "image_classification_tree.h"
 
 /*!
-  \ingroup viewsets 
+  \ingroup viewsets
   \brief Set of classifier trees.
 */
 
@@ -34,8 +34,8 @@ class image_classification_forest : public image_classifier
 public:
   image_classification_forest(LEARNPROGRESSION LearnProgress=0);
 
-  image_classification_forest(int image_width, int image_height, int class_number, 
-                              int max_depth, int trees_number, 
+  image_classification_forest(int image_width, int image_height, int class_number,
+                              int max_depth, int trees_number,
                               LEARNPROGRESSION LearnProgress=0);
 
   ~image_classification_forest();
@@ -66,6 +66,8 @@ public:
   int tree_number, max_depth;
 
   float* weights;
+
+  void dump();
 
   string directory_name;
 };

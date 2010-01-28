@@ -130,8 +130,9 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 		image = cvLoadImage(modelfile, init_image->nChannels == 3);
 		cvReleaseImage(&init_image);
 
-        printf("dumping loaded cache:\n");
+        /*printf("dumping loaded cache:\n");
         detector.dump();
+        */
 
 	}
 	else
@@ -198,7 +199,8 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 		artvert_roif.close();
 
 		// and the trained classifier
-		detector.save(string(modelfile)+".classifier");
+		string classifier_directory = string(modelfile)+".classifier";
+		detector.save(classifier_directory);
 
         string stable_points_filename = string(modelfile)+"_stable_points.bmp";
         printf("saving stable points to %s\n", stable_points_filename.c_str());
@@ -209,8 +211,8 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
         printf("renaming %s to %s\n", initial_points_filename, initial_points_new_filename.c_str() );
         rename(initial_points_filename, initial_points_new_filename.c_str() );
 
-        printf("dumping trained cache:\n");
-        detector.dump();
+        /*printf("dumping trained cache:\n");
+        detector.dump();*/
 
 	}
 

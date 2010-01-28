@@ -78,10 +78,12 @@ void planar_object_recognizer::default_settings(void)
 
   index_of_model_point_to_debug = -1;
 
-  sample_number_for_refining = 1000;
+  //sample_number_for_refining = 1000;
+  //views_number = 1000;
+  sample_number_for_refining = 100;
+  views_number = 100;
 
   max_detected_pts = 1000;
-  views_number = 1000;
   min_view_rate = .4;
   keypoint_distance_threshold = 1.5;
   point_detector_tau = 10;
@@ -228,9 +230,10 @@ bool planar_object_recognizer::build_with_cache(string filename,
   if (load(dirname) and model)
   {
      new_images_generator.set_original_image(model, u[0], v[0], u[1], v[1], u[2], v[2], u[3], v[3]);
-
+     /*new_images_generator.set_level_number(nbLev);
+     new_images_generator.set_gaussian_smoothing_kernel_size(yape_radius);*/
     ready = true;
-    printf("**~ detector now ready\n");
+    printf("**~ detector now ready A\n");
 	 return true;
   }
 
@@ -247,12 +250,12 @@ bool planar_object_recognizer::build_with_cache(string filename,
   save(dirname);
 
   ready = true;
-  printf("**~ detector now ready\n");
+  printf("**~ detector now ready B\n");
 
   return true;
 }
 
-planar_object_recognizer::planar_object_recognizer(string directory_name)
+/*planar_object_recognizer::planar_object_recognizer(string directory_name)
 {
   do_proportional_match_lut = true;
   ready = false;
@@ -264,7 +267,7 @@ planar_object_recognizer::planar_object_recognizer(string directory_name)
   load(directory_name);
 
 
-}
+}*/
 
 bool planar_object_recognizer::load(string directory_name)
 {
@@ -1977,5 +1980,7 @@ void planar_object_recognizer::dump()
         object_keypoint& op = model_points[i];
         op.dump();
     }
+    printf("dumping forest\n");
+    forest->dump();
     printf("done");
 }

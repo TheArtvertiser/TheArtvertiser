@@ -56,7 +56,7 @@ public:
   planar_object_recognizer();
 
   //! Create from the data stored in the directory \c directory_name
-  planar_object_recognizer(string directory_name);
+  //planar_object_recognizer(string directory_name);
 
   ~planar_object_recognizer(void);
 
@@ -130,6 +130,7 @@ public:
   //! load data from a given directory.
   //! \return true on success, false on failure.
   bool load(string directory_name);
+
 
   /*!
   \brief Detect the object in the given input image.

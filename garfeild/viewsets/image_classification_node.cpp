@@ -1,6 +1,6 @@
 /*
-Copyright 2005, 2006 Computer Vision Lab, 
-Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland. 
+Copyright 2005, 2006 Computer Vision Lab,
+Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland.
 All rights reserved.
 
 This file is part of BazAR.
@@ -16,27 +16,42 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 BazAR; if not, write to the Free Software Foundation, Inc., 51 Franklin
-Street, Fifth Floor, Boston, MA 02110-1301, USA 
+Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 #include <assert.h>
 
 #include <starter.h>
 #include "image_classification_node.h"
 
-image_classification_node::image_classification_node(void) : children_number(2)
+void image_classification_node::init()
 {
   depth = -1;
   class_number = -1;
+  best_class = -1;
   parent = 0;
   P = 0;
+  P_sum = 0;
+  probability_sum = 0;
+  d1=0; d2=0; du1=0; du2=0; dv1=0; dv2=0;
+  index = 0;
+
+}
+
+image_classification_node::image_classification_node(void)
+: children_number(2)
+{
+    init();
 
   leaf = true;
 
   examples = 0;
 }
 
-image_classification_node::image_classification_node(int _depth, int _class_number, image_classification_node * _parent) : children_number(2)
+image_classification_node::image_classification_node(int _depth, int _class_number, image_classification_node * _parent)
+: children_number(2)
 {
+    init();
+
   depth = _depth;
   class_number = _class_number;
   parent = _parent;
@@ -154,7 +169,7 @@ int image_classification_node::dot_product(image_class_example * pv) const
 int image_classification_node::child_index(image_class_example * pv) const
 {
   int dp = dot_product(pv);
-  if (dp <= 0) return 0; 
+  if (dp <= 0) return 0;
 
   return 1;
 }
@@ -230,7 +245,7 @@ void image_classification_node::reestimate_probabilities_recursive(float * weigh
 void image_classification_node::restore_occurances_recursive(float * weights)
 {
   if (is_leaf())
-  {    
+  {
     if (weights == 0)
     {
       for(int i = 0; i < class_number; i++)
@@ -256,7 +271,7 @@ void image_classification_node::reset_class_occurances_recursive(int class_index
       children[i]->reset_class_occurances_recursive(class_index);
 }
 
-void image_classification_node::save_probability_sums_recursive(std::ofstream& wfs) 
+void image_classification_node::save_probability_sums_recursive(std::ofstream& wfs)
 {
   if (is_leaf())
     wfs << probability_sum << " ";
@@ -265,7 +280,7 @@ void image_classification_node::save_probability_sums_recursive(std::ofstream& w
       children[i]->save_probability_sums_recursive(wfs);
 }
 
-void image_classification_node::load_probability_sums_recursive(std::ifstream& wfs) 
+void image_classification_node::load_probability_sums_recursive(std::ifstream& wfs)
 {
   if (is_leaf())
     wfs >> probability_sum;
@@ -293,7 +308,7 @@ int image_classification_node::node_number(void)
 {
   if (is_leaf())
     return 0;
-  else 
+  else
   {
     int n = 1;
 

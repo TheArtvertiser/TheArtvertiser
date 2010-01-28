@@ -91,7 +91,7 @@ using namespace std;
 #endif
 #define GL_MIRROR_CLAMP_EXT 0x8742
 
-#define DEFAULT_WIDTH 1024 
+#define DEFAULT_WIDTH 1024
 #define DEFAULT_HEIGHT 576
 #define DEFAULT_V4LDEVICE 1
 
@@ -170,7 +170,7 @@ bool lbutton_down = false;
 bool label = false;
 
 bool track_kalman = false;
-bool delay_video = false;
+bool delay_video = true;
 
 double a_proj[3][4];
 double old_a_proj[3][4];
@@ -683,6 +683,9 @@ static void keyboard(unsigned char c, int x, int y)
             cnt ++;
         cout << "we are on image " << cnt << endl;
         break;
+    /*case 'D':
+        multi->cams[0]->detector.dump();
+        break;*/
     default:
         break;
     }

@@ -1,6 +1,6 @@
 /*
-Copyright 2005, 2006 Computer Vision Lab, 
-Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland. 
+Copyright 2005, 2006 Computer Vision Lab,
+Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland.
 All rights reserved.
 
 This file is part of BazAR.
@@ -16,24 +16,24 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 BazAR; if not, write to the Free Software Foundation, Inc., 51 Franklin
-Street, Fifth Floor, Boston, MA 02110-1301, USA 
+Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 #include <fstream>
 #include <iomanip>
 using namespace std;
 
-#include <starter.h> 
+#include <starter.h>
 #include "image_classification_forest.h"
 
-image_classification_forest::image_classification_forest(LEARNPROGRESSION _LearnProgress) 
+image_classification_forest::image_classification_forest(LEARNPROGRESSION _LearnProgress)
                                                          : image_classifier(_LearnProgress)
 {
   weights=0;
 }
 
-image_classification_forest::image_classification_forest(int _image_width, int _image_height, int _class_number, 
-                                                         int _max_depth, int _tree_number, 
-                                                         LEARNPROGRESSION _LearnProgress) 
+image_classification_forest::image_classification_forest(int _image_width, int _image_height, int _class_number,
+                                                         int _max_depth, int _tree_number,
+                                                         LEARNPROGRESSION _LearnProgress)
                                                          : image_classifier(_image_width, _image_height, _class_number,_LearnProgress)
 {
   max_depth = _max_depth;
@@ -51,7 +51,7 @@ bool image_classification_forest::load(string directory_name)
 {
   int i = 0;
   bool ok;
-  
+
   thresholds = misclassification_rates = 0;
   cout << "Reading Forest in " << directory_name << ":" << endl;
 
@@ -68,11 +68,11 @@ bool image_classification_forest::load(string directory_name)
       cout << " Reading " << tree_filename << ": " << flush;
 
       image_classification_tree * tree = new image_classification_tree();
-      
-      if ( !tree->load(tree_filename) ) 
+
+      if ( !tree->load(tree_filename) )
       {
-        delete tree; 
-        return false; 
+        delete tree;
+        return false;
       }
 
       trees.push_back(tree);
@@ -158,12 +158,12 @@ void image_classification_forest::create_trees_at_random(void)
 {
   for(int i = 0; i < tree_number; i++)
   {
-    if (LearnProgression!=0) 
+    if (LearnProgression!=0)
       LearnProgression(BUILDING_TREE, i, tree_number);
 
     cout << "FOREST: BUILDING TREE # " << i << endl;
 
-    image_classification_tree * tree = new image_classification_tree(image_width, image_height, 
+    image_classification_tree * tree = new image_classification_tree(image_width, image_height,
                                                                      class_number, max_depth);
 
     tree->root = new image_classification_node(0, class_number);
@@ -212,27 +212,27 @@ void image_classification_forest::refine(example_generator * vg, int call_number
 {
   for(int i = 0; i < call_number; i++)
   {
-    if (LearnProgression!=0) 
+    if (LearnProgression!=0)
       LearnProgression(FOREST_REFINEMENT, i, call_number);
 
     cout << "FOREST REFINEMENT: " << call_number - i << "...    " << (char)13 << flush;
 
     vector<image_class_example *> * examples = vg->generate_random_examples();
 
-    for(vector<image_class_example *>::iterator example_it = examples->begin(); example_it < examples->end(); example_it++) 
+    for(vector<image_class_example *>::iterator example_it = examples->begin(); example_it < examples->end(); example_it++)
     {
       for(vector<image_classification_tree *>::iterator tree_it = trees.begin(); tree_it < trees.end(); tree_it++)
       {
         image_classification_node * node = (*tree_it)->root;
         unsigned char * I = (unsigned char *)((*example_it)->preprocessed->imageData);
 
-        while(!node->is_leaf()) 
-        { 
+        while(!node->is_leaf())
+        {
           int dot_product = (int)I[node->d1] - (int)I[node->d2];
 
-          if (dot_product <= 0) 
+          if (dot_product <= 0)
             node = node->children[0];
-          else 
+          else
             node = node->children[1];
         }
         node->P[(*example_it)->class_index]++;
@@ -291,7 +291,7 @@ void image_classification_forest::test(example_generator * vg, int call_number)
   for(int i = 0; i < class_number; i++)
   {
     inlier_total[i] = total[i] = 0;
-    
+
     correct_samples[i] = new int[bin_number];
     uncorrect_samples[i] = new int[bin_number];
     for(int j = 0; j < bin_number; j++)
@@ -300,9 +300,9 @@ void image_classification_forest::test(example_generator * vg, int call_number)
 
   for(int i = 0; i < call_number; i++)
   {
-    if (LearnProgression!=0) 
+    if (LearnProgression!=0)
       LearnProgression(GENERATING_TESTING_SET, i, call_number);
-    
+
     cout << "GENERATING TESTING SET: " << call_number - i << "... " << (char)13 << flush;
 
     vector<image_class_example *> * examples = vg->generate_random_examples();
@@ -453,7 +453,7 @@ void image_classification_forest::posterior_probabilities(image_class_example * 
       p[i] = 0.;
 
     for(vector<image_classification_tree *>::iterator tree_it = trees.begin();
-        tree_it < trees.end(); 
+        tree_it < trees.end();
         tree_it++)
     {
       float * tree_p = (*tree_it)->posterior_probabilities(pv);
@@ -466,7 +466,7 @@ void image_classification_forest::posterior_probabilities(image_class_example * 
     for(int i = 0; i < class_number; i++)
       p[i] *= inv_tree_number;
   }
-  else 
+  else
   {
     for(int i = 0; i < class_number; i++)
       p[i] = 0.;
@@ -476,7 +476,7 @@ void image_classification_forest::posterior_probabilities(image_class_example * 
       tree_number = trees.size();
 
     for(vector<image_classification_tree *>::iterator tree_it = trees.begin();
-      tree_it < trees.end(); 
+      tree_it < trees.end();
       tree_it++)
     {
       float * tree_p = (*tree_it)->posterior_probabilities(pv);
@@ -507,8 +507,8 @@ void image_classification_forest::change_class_number_and_reset_probabilities(in
     weights[i] = 0;
 
   for(vector<image_classification_tree *>::iterator tree_it = trees.begin();
-      tree_it < trees.end(); 
-      tree_it++) 
+      tree_it < trees.end();
+      tree_it++)
   {
     (*tree_it)->change_class_number_and_reset_probabilities(new_class_number);
   }
@@ -516,17 +516,45 @@ void image_classification_forest::change_class_number_and_reset_probabilities(in
 
 bool image_classification_forest::save(string directory_name)
 {
-  int tree_index = 0;
+    int tree_index = 0;
+
+    // trash any old forest, if it exists
+    printf("deleting old tree..\n");
+    static int MAX_TREE_TRASH_INDEX = 1024;
+    for ( int i=0; i<MAX_TREE_TRASH_INDEX; i++)
+    {
+        // construct filename
+        char filename[1024];
+        sprintf( filename, "%s/tree%04d.txt", directory_name.data(), i);
+        //printf(" %s", filename );
+        // if this tree file already exists, kill it
+        FILE* f;
+        if ( f=fopen( filename, "r" ) )
+        {
+            fclose(f);
+            int res = unlink( filename );
+            printf(" unlinking %s\n", filename );
+            if ( res != 0 )
+            {
+                fprintf(stderr,"couldn't remove %s\n", filename );
+                return false;
+            }
+        }
+    }
+
+  tree_index = 0;
 
   for(vector<image_classification_tree *>::iterator tree_it = trees.begin();
-      tree_it < trees.end(); 
+      tree_it < trees.end();
       tree_it++)
   {
+
     char tree_name[1000];
 
     sprintf(tree_name, "%s/tree%04d.txt", directory_name.data(), tree_index);
 
     (*tree_it)->save(tree_name);
+    printf(" saving tree %i:", tree_index );
 
     tree_index++;
   }
@@ -561,8 +589,18 @@ bool image_classification_forest::save(string directory_name)
     wfs << endl;
   }
   wfs.close();
-  
+
 
   return true;
+}
+
+void image_classification_forest::dump()
+{
+  for(vector<image_classification_tree *>::iterator tree_it = trees.begin();
+      tree_it < trees.end();
+      tree_it++)
+  {
+    (*tree_it)->dump();
+  }
 }
 

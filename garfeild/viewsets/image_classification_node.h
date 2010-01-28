@@ -1,6 +1,6 @@
 /*
-Copyright 2005, 2006 Computer Vision Lab, 
-Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland. 
+Copyright 2005, 2006 Computer Vision Lab,
+Ecole Polytechnique Federale de Lausanne (EPFL), Switzerland.
 All rights reserved.
 
 This file is part of BazAR.
@@ -16,7 +16,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 BazAR; if not, write to the Free Software Foundation, Inc., 51 Franklin
-Street, Fifth Floor, Boston, MA 02110-1301, USA 
+Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 #ifndef IMAGE_CLASSIFICATION_NODE_H
 #define IMAGE_CLASSIFICATION_NODE_H
@@ -33,7 +33,7 @@ using namespace std;
 //!\ingroup viewsets
 //@{
 
-/*! 
+/*!
   \ingroup viewsets
   \brief Node for classifier trees (cf \ref image_classification_tree)
 */
@@ -42,18 +42,20 @@ class image_classification_node
 public:
   image_classification_node(void);
   ~image_classification_node(void);
+  // shared var initialisation
+  void init();
   image_classification_node(int depth, int class_number, image_classification_node * parent = 0);
-  
+
   friend ostream& operator<< (ostream& o, const image_classification_node& node);
   friend istream& operator>> (istream& i, image_classification_node& node);
-  
+
   void add_example(image_class_example * pv);
 
   bool should_stop_recursion(void);
   void end_recursion(void);
   void expand(void);
   void premature_end_recursion(void);
-  
+
   bool is_leaf(void) const;
   int leaves_number(void);
   int node_number(void);
@@ -63,7 +65,7 @@ public:
   bool fall_in_child(image_class_example * pv, int child_index);
   int dot_product(image_class_example * pv) const;
   int child_index(image_class_example * pv) const;
-  
+
   void reestimate_probabilities_recursive(float * weights = 0);
   void restore_occurances_recursive(float * weights = 0);
   void reset_class_occurances_recursive(int class_index);
@@ -71,14 +73,14 @@ public:
   void load_probability_sums_recursive(std::ifstream& wfs);
 
   float projection(image_class_example * pv) const;
-  
+
   void change_class_number_and_reset_probabilities(int new_class_number);
 
   int represented_class_number(void) const;
-  
+
   void print_name(void);
   ostream& name(ostream& o) const;
-  
+
   int nb_examples() { if (examples == 0) return 0; else return int(examples->size()); }
 
   const int children_number;
@@ -89,16 +91,22 @@ public:
   int depth, index;
 
   int * children_index; // for tree loading only
-  
-  float * P;
+
+  float * P; // has class_number elements
   int best_class;
   float P_sum;
 
   float probability_sum;
-  
+
   vector<image_class_example *> *examples;
 
   int class_number;
+
+  void dump( std::string prefix="" ) {
+      printf( "%s %i %i %i %i %i %i %i %i %f %f", prefix.c_str(), class_number, d1, d2, du1, dv1, du2, dv2, best_class, P_sum, probability_sum );
+      printf( "\n");
+    if ( !is_leaf() ) for ( int i=0; i<children_number; i++ ) children[i]->dump( prefix+" " ); }
+
 };
 
 inline bool image_classification_node::is_leaf(void) const
