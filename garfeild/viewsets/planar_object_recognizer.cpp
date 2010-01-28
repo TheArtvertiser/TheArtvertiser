@@ -175,6 +175,7 @@ bool planar_object_recognizer::build(IplImage *model_image,
 
   learn(max_point_number_on_model, patch_size, yape_radius, tree_number, nbLev, LearnProgress);
 
+
   ready = true;
   printf("**~ detector now ready\n");
 
@@ -1568,7 +1569,7 @@ void planar_object_recognizer::detect_most_stable_model_points(int max_point_num
 
 // VISUALIZATION: The following functions are useful for visualization only !!!
 
-void planar_object_recognizer::save_image_of_model_points(int patch_size, char * filename)
+void planar_object_recognizer::save_image_of_model_points(int patch_size, const char * filename)
 {
   IplImage* model_image = mcvGrayToColor(new_images_generator.original_image);
 

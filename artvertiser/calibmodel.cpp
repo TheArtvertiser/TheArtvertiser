@@ -195,6 +195,15 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 
 		// and the trained classifier
 		detector.save(string(modelfile)+".classifier");
+
+        string stable_points_filename = string(modelfile)+"_stable_points.bmp";
+        printf("saving stable points to %s\n", stable_points_filename.c_str());
+        detector.save_image_of_model_points(PATCH_SIZE, stable_points_filename.c_str() );
+
+        const char* initial_points_filename = "initial_model_points.bmp";
+        string initial_points_new_filename = string(modelfile)+"_initial_points.bmp";
+        printf("renaming %s to %s\n", initial_points_filename, initial_points_new_filename.c_str() );
+        rename(initial_points_filename, initial_points_new_filename.c_str() );
 	}
 
 	detector.unlock();

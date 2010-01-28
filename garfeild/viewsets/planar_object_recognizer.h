@@ -224,7 +224,7 @@ public:
                                        int patch_size, int view_number,
                                        double min_view_rate,
                                        LEARNPROGRESSION LearnProgress=0);
-  void save_image_of_model_points(int patch_size, char * filename = 0);
+  void save_image_of_model_points(int patch_size, const char * filename = 0);
 
   //! Image classifier
   image_classification_forest * forest;
