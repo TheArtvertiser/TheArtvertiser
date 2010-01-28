@@ -129,6 +129,9 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 		image = cvLoadImage(modelfile, init_image->nChannels == 3);
 		cvReleaseImage(&init_image);
 
+        printf("dumping loaded cache:\n");
+        detector.dump();
+
 	}
 	else
 	{
@@ -204,6 +207,10 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
         string initial_points_new_filename = string(modelfile)+"_initial_points.bmp";
         printf("renaming %s to %s\n", initial_points_filename, initial_points_new_filename.c_str() );
         rename(initial_points_filename, initial_points_new_filename.c_str() );
+
+        printf("dumping trained cache:\n");
+        detector.dump();
+
 	}
 
 	detector.unlock();

@@ -1967,3 +1967,15 @@ void planar_object_recognizer::put_ui_settings()
     best_support_thresh_ui      = best_support_thresh;
     point_detector_tau_ui       = point_detector_tau;
 }
+
+void planar_object_recognizer::dump()
+{
+    printf("dumping %3i model points\n", model_point_number );
+    for ( int i=0; i<model_point_number; i++)
+    {
+        printf(" %3i: ", i );
+        object_keypoint& op = model_points[i];
+        op.dump();
+    }
+    printf("done");
+}

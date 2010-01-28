@@ -71,6 +71,10 @@ public:
 		  int max_point_number_on_model, int patch_size,
 		  int yape_radius, int tree_number, int nbLev,
 		  LEARNPROGRESSION LearnProgress=0, int *roi=0);
+
+  /// dump out cache to console
+  void dump();
+
   //@{
   /** \name Functions for fine tuning:
   */
