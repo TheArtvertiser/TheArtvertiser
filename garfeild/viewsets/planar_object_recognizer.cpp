@@ -40,6 +40,11 @@ planar_object_recognizer::planar_object_recognizer()
 model_and_input_images(0), point_detector(0), homography_estimator(0), affine_motion(0), H(0),
 detected_points(0), detected_point_views(0)
 {
+    for(int i = 0; i < hard_max_detected_pts; i++) {
+        (match_probabilities[i] = 0);
+    }
+
+
     clear();
 
 
