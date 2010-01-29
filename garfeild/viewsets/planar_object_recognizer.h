@@ -60,6 +60,8 @@ public:
 
   ~planar_object_recognizer(void);
 
+
+
   //! Build the model and save it on disk.
   //! \return true on success, false on failure
   bool build_with_cache(string filename, int max_point_number_on_model,
@@ -131,6 +133,8 @@ public:
   //! \return true on success, false on failure.
   bool load(string directory_name);
 
+    /// erase all data
+    void clear();
 
   /*!
   \brief Detect the object in the given input image.

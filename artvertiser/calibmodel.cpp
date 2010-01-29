@@ -1,16 +1,22 @@
 #include "calibmodel.h"
 #include "multigrab.h"
 
-CalibModel::CalibModel(const char *modelfile)
-	: modelfile (modelfile)
+CalibModel::CalibModel()
 {
 	image=0;
+	image_width = 0;
+	image_height = 0;
 	win = "The Artvertiser 0.4";
 }
 
 CalibModel::~CalibModel()
 {
 	if (image) cvReleaseImage(&image);
+}
+
+void CalibModel::useModelFile(const char* file)
+{
+    modelfile = file;
 }
 
 CalibModel *objectPtr=0;
@@ -51,6 +57,8 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
 
 bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_object_recognizer &detector)
 {
+    detector.clear();
+
     detector.lock();
 
 	detector.ransac_dist_threshold = 5;
@@ -64,10 +72,10 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 	// might lead to false positives.
 	detector.match_score_threshold=.03f;
 
-	//detector.min_view_rate=.1;
-	//detector.views_number = 100;
+	detector.min_view_rate=.1;
+	detector.views_number = 100;
 	// damian below
-    detector.min_view_rate = .1;
+   //detector.min_view_rate = .2;
 
     static const int MAX_MODEL_KEYPOINTS = 500;     // maximum number of keypoints on the model
     static const int PATCH_SIZE = 32;               // patch size in pixels
@@ -82,6 +90,8 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 
 
 	// Should we train or load the classifier ?
+	if ( cache )
+        printf("model.buildCached() trying to load from %s...\n", modelfile );
 	if(cache && detector.build_with_cache(
 				string(modelfile), // mode image file name
 				/*500,               // maximum number of keypoints on the model
@@ -111,24 +121,30 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 		corners[3].x = detector.new_images_generator.u_corner4;
 		corners[3].y = detector.new_images_generator.v_corner4;
 
-        IplImage* init_image = NULL;
         MultiThreadCapture* mtc = MultiThreadCaptureManager::getInstance()->getCaptureForCam(capture);
+        /*
+        IplImage* init_image = NULL;
         int timeout = 10000;
         bool got = false;
         do {
             got = mtc->getCopyOfLastFrame( &init_image );
         }
         while ( !got &&
-               !usleep( 100000 ) &&
-               (timeout-=100) > 0 );
+               !usleep( 10*1000 ) &&
+               (timeout-=10) > 0 );
         if ( init_image == NULL )
         {
-            printf("capture failed\n");
+            printf("getCopyOfLastFrame timed out: capture failed\n");
             detector.unlock();
+            detector.clear();
             return false;
-        }
-		image = cvLoadImage(modelfile, init_image->nChannels == 3);
-		cvReleaseImage(&init_image);
+        }*/
+        if ( image != 0 )
+            cvReleaseImage( &image );
+		image = cvLoadImage(modelfile, mtc->getNumChannelsRaw()==3 );
+		image_width = image->width;
+		image_height = image->height;
+		//cvReleaseImage(&init_image);
 
         /*printf("dumping loaded cache:\n");
         detector.dump();
@@ -137,12 +153,21 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 	}
 	else
 	{
+        if ( image != 0 )
+            cvReleaseImage( &image );
+        image =0;
 		// ask the user the take a shot of the model
 		if (!interactiveSetup(capture))
 		{
+		    printf("interactiveSetup failed\n");
 		    detector.unlock();
+		    detector.clear();
             return false;
 		}
+
+        image_width = image->width;
+		image_height = image->height;
+
 		// train the classifier to detect this model
 		//if (!detector.build(image, 500, 32, 3, 12, 3,0, 0))
 		//if (!detector.build(image, 200, 32, 5, 20, 3,0, 0))
@@ -162,7 +187,9 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 				working_roi
 				))
         {
+		    printf("build based on interactiveSetup failed\n");
 			detector.unlock();
+			detector.clear();
 			return false;
 
 		}
@@ -170,7 +197,9 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 		// save the image
 		if (!cvSaveImage(modelfile, image))
 		{
+		    printf("saving input image failed\n");
 		    detector.unlock();
+		    detector.clear();
 		    return false;
 		}
 
@@ -180,6 +209,8 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 		if (!roif.good())
 		{
 		    detector.unlock();
+		    detector.clear();
+ 		    printf("saving .roi file failed\n");
             return false;
 		}
 		for (int i=0;i<4; i++)
@@ -192,6 +223,8 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 		if (!artvert_roif.good())
 		{
 		    detector.unlock();
+		    detector.clear();
+ 		    printf("saving .artvertroi file failed\n");
             return false;
 		}
 		for (int i=0;i<4; i++)
@@ -224,8 +257,8 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 	{
 		cn[i][0] = corners[i].x;
 		cn[i][1] = corners[i].y;
+        cout << corners[i].x << " " << corners[i].y << endl;
 	}
-	cout << corners[1].x << " " << corners[1].y << "\n" << endl;
 
 	// prepare the light calibration reference
 	return map.init(nbcam, image, cn, 8, 6);
@@ -275,7 +308,7 @@ IplImage *myQueryFrame(CvCapture *capture)
 
 
 
-bool CalibModel::interactiveSetup(CvCapture *capture)
+bool CalibModel::interactiveSetup(CvCapture *capture )
 {
 
 	CvFont font, fontbold;
@@ -371,16 +404,18 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 					state = CORNERS;
 					k=-1;
 				} else {
-					putText(text,"Please take a frontal view", cvPoint(3,20), &font);
-					putText(text,"of a textured planar surface", cvPoint(3,40), &font);
-					putText(text,"and press space", cvPoint(3,60), &font);
+					putText(text, modelfile, cvPoint(3,20), &font);
+					putText(text,"Please take a frontal view", cvPoint(3,40), &font);
+					putText(text,"of a textured planar surface", cvPoint(3,60), &font);
+					putText(text,"and press space", cvPoint(3,80), &font);
 					break;
 				}
 			case CORNERS:
-					putText(text, "Drag yellow corners to match the", cvPoint(3,20), &font);
-					putText(text, "calibration target", cvPoint(3,40), &font);
-					putText(text, "press 'r' to restart", cvPoint(3,60), &font);
-					putText(text, "press space when ready", cvPoint(3,80), &font);
+					putText(text, modelfile, cvPoint(3,20), &font);
+					putText(text, "Drag yellow corners to match the", cvPoint(3,40), &font);
+					putText(text, "calibration target", cvPoint(3,60), &font);
+					putText(text, "press 'r' to restart", cvPoint(3,80), &font);
+					putText(text, "press space when ready", cvPoint(3,100), &font);
 					if (k=='r') {
 						pause = false;
 						state = TAKE_SHOT;
@@ -423,6 +458,9 @@ bool CalibModel::interactiveSetup(CvCapture *capture)
 	cvReleaseImage(&text);
 	image = shot;
 
+    cvDestroyWindow( win );
+    // make sure the destroy window succeeds
+    cvWaitKey(0);
 
 	return true;
 }

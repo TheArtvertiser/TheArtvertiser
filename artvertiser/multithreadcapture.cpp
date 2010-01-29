@@ -39,7 +39,7 @@ void MultiThreadCaptureManager::removeCaptureForCam( CvCapture* cam )
 
 MultiThreadCapture::MultiThreadCapture( CvCapture* _capture )
 : capture (_capture), FThread(), width(0), height(0), nChannels(0), desired_framerate(DEFAULT_FRAMERATE),
-    frame_processsize( 0 ),
+    frame_processsize( 0 ), nChannelsRaw(0),
     last_frame(0),  last_frame_ret(0),  last_frame_draw(0),     last_frame_draw_ret(0),     last_frame_working(0),
     timestamp(0),   timestamp_ret(0),   timestamp_draw(0),      timestamp_draw_ret(0),      timestamp_working(0),
     processed(0),   processed_ret(0),   processed_working(0),
@@ -190,6 +190,7 @@ void MultiThreadCapture::ThreadedFunction()
                 capture_frame = cvCreateImage( cvGetSize( f ) , IPL_DEPTH_8U, f->nChannels );
             }
             cvCopy( f, capture_frame );
+            nChannelsRaw = f->nChannels;
 
             capture_frame_lock.Signal();
 
@@ -643,5 +644,16 @@ unsigned int MultiThreadCapture::getFrameIndexForTime( const FTime& time )
     }
     capture_frame_lock.Signal();
     return idx;
+}
+
+int MultiThreadCapture::getNumChannelsRaw()
+{
+    int timeout = 10*1000;
+    while( timeout > 0 && nChannelsRaw==0 ) {
+        usleep( 1000 );
+        timeout -= 1;
+    }
+    assert( timeout>0 && "timed out waiting for camera" );
+    return nChannelsRaw;
 }
 

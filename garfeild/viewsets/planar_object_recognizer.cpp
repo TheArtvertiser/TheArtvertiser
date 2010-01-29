@@ -36,34 +36,85 @@ using namespace std;
 #include "../artvertiser/FProfiler/FProfiler.h"
 
 planar_object_recognizer::planar_object_recognizer()
+: forest(0), model_points(0), object_input_view(0),
+model_and_input_images(0), point_detector(0), homography_estimator(0), affine_motion(0), H(0),
+detected_points(0), detected_point_views(0)
 {
+    clear();
 
-  forest = 0;
-  model_points = 0;
-  object_input_view = 0;
-  model_and_input_images = 0;
-  point_detector = 0;
-  homography_estimator=0;
 
-  for(int i = 0; i < hard_max_detected_pts; i++)
-    match_probabilities[i] =0;
 
-  default_settings();
+}
 
-  affine_motion = 0;
-  H = 0;
-  detected_points = new keypoint[hard_max_detected_pts];
-  detected_point_views = new image_class_example[hard_max_detected_pts];
-  match_score_threshold = .05f;
-  ransac_dist_threshold = 10;
-  ransac_stop_support = 50;
-  max_ransac_iterations = 800;
-  non_linear_refine_threshold = 3;
+planar_object_recognizer::planar_object_recognizer(string directory_name)
+: forest(0), model_points(0), object_input_view(0),
+model_and_input_images(0), point_detector(0), homography_estimator(0), affine_motion(0), H(0),
+detected_points(0), detected_point_views(0)
+{
+    clear();
 
-  put_ui_settings();
+  load(directory_name);
 
-  ready = false;
+}
 
+void planar_object_recognizer::clear()
+{
+    lock();
+
+    ready = false;
+
+    // damian: clean up multithreaded tracker stuff
+    if ( affine_thread_data.size() > 0 )
+    {
+      // kill all the threads
+      for ( int i=0; i<affine_thread_data.size(); i++ )
+      {
+          // tell the thread to stop
+          affine_thread_data[i]->should_stop = true;
+          affine_thread_data[i]->start_signal.Signal();
+          // wait for completion
+          void* res;
+          pthread_join( affine_thread_data[i]->thread, &res );
+          // delete
+          delete( affine_thread_data[i] );
+      }
+      affine_thread_data.clear();
+      delete shared_barrier;    shared_barrier = 0;
+    }
+
+    if (object_input_view)  delete object_input_view;   object_input_view = 0;
+    if (point_detector)     delete point_detector;      point_detector = 0;
+
+    if (model_points != 0)  delete [] model_points;     model_points = 0;
+
+    if (forest != 0)        delete forest;              forest =0;
+
+    for(int i = 0; i < hard_max_detected_pts; i++) {
+    if (match_probabilities[i])
+        delete [] match_probabilities[i];   match_probabilities[i] = 0;
+    }
+
+    if (detected_points) delete[] detected_points;      detected_points = 0;
+    if (detected_point_views) delete[] detected_point_views;    detected_point_views = 0;
+    if (affine_motion) delete affine_motion;            affine_motion = 0;
+    if (H) delete H;                                    H = 0;
+    if (homography_estimator) delete homography_estimator;  homography_estimator = 0;
+
+
+    default_settings();
+
+    detected_points = new keypoint[hard_max_detected_pts];
+    detected_point_views = new image_class_example[hard_max_detected_pts];
+
+    match_score_threshold = .05f;
+    ransac_dist_threshold = 10;
+    ransac_stop_support = 50;
+    max_ransac_iterations = 800;
+    non_linear_refine_threshold = 3;
+
+    put_ui_settings();
+
+    unlock();
 }
 
 void planar_object_recognizer::default_settings(void)
@@ -255,20 +306,6 @@ bool planar_object_recognizer::build_with_cache(string filename,
   return true;
 }
 
-/*planar_object_recognizer::planar_object_recognizer(string directory_name)
-{
-  do_proportional_match_lut = true;
-  ready = false;
-  forest = 0;
-  model_points = 0;
-  for(int i = 0; i < hard_max_detected_pts; i++)
-    match_probabilities[i] =0;
-
-  load(directory_name);
-
-
-}*/
-
 bool planar_object_recognizer::load(string directory_name)
 {
   // Read parameters:
@@ -335,6 +372,7 @@ bool planar_object_recognizer::load(string directory_name)
   if ( !forest->load(directory_name) )
   {
     delete forest;
+    forest = 0;
     return false;
   }
 
@@ -371,44 +409,13 @@ void planar_object_recognizer::initialize(void)
 
 planar_object_recognizer::~planar_object_recognizer(void)
 {
-  // damian: clean up multithreaded tracker stuff
-  if ( affine_thread_data.size() > 0 )
-  {
-      // kill all the threads
-      for ( int i=0; i<affine_thread_data.size(); i++ )
-      {
-          // tell the thread to stop
-          affine_thread_data[i]->should_stop = true;
-          affine_thread_data[i]->start_signal.Signal();
-          // wait for completion
-          void* res;
-          pthread_join( affine_thread_data[i]->thread, &res );
-          // delete
-          delete( affine_thread_data[i] );
-      }
-      affine_thread_data.clear();
-      delete shared_barrier;
-  }
+    clear();
 
-  if (object_input_view)   delete object_input_view;
-  if (point_detector)      delete point_detector;
+    if ( detected_points)
+        delete[] detected_points;
+    if ( detected_point_views )
+        delete[] detected_point_views;
 
-  if (model_points != 0)
-    delete [] model_points;
-
-  if (forest != 0)
-    delete forest;
-
-  for(int i = 0; i < hard_max_detected_pts; i++) {
-    if (match_probabilities[i])
-      delete [] match_probabilities[i];
-  }
-
-  if (detected_points) delete[] detected_points;
-  if (detected_point_views) delete[] detected_point_views;
-  if (affine_motion) delete affine_motion;
-  if (H) delete H;
-  if (homography_estimator) delete homography_estimator;
 }
 
 void planar_object_recognizer::learn(int max_point_number_on_model, int patch_size,
