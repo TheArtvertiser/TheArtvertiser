@@ -46,6 +46,7 @@ public:
 	LightMap(const LightMap &a);
 
 	bool init(int nbCam, IplImage *model, float corners[4][2], int nx, int ny);
+	void clear();
 	void setCamNum(int n);
 
 	bool initGL();
@@ -79,9 +80,9 @@ public:
 
 	bool saveImage(const char *filename);
 
-	//! return the (B,G,R) gain of a camera. 
+	//! return the (B,G,R) gain of a camera.
 	const float *getGain(int cam);
-	//! return the (B,G,R) bias of a camera. 
+	//! return the (B,G,R) bias of a camera.
 	const float *getBias(int cam);
 
 	//! returns the irradiance for a given normal.

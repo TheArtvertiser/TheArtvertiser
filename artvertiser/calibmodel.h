@@ -7,19 +7,26 @@
 
 class CalibModel {
 public:
-	IplImage *image;
 	CvPoint corners[4];
 	CvPoint artvert_corners[4];
 
 	LightMap map;
 	CamAugmentation augm;
 
-	CalibModel(const char *modelfile = "model.bmp");
+	CalibModel();
 	~CalibModel();
+
+	void useModelFile( const char *modelfile );
 
 	bool buildCached(int nbcam, CvCapture *capture, bool cache, planar_object_recognizer &detector);
 
+    int getImageWidth() { return image_width; }
+    int getImageHeight() { return image_height; }
 private:
+	IplImage *image;
+
+	int image_width, image_height;
+
 	const char *win;
 	const char *modelfile;
 

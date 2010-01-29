@@ -192,7 +192,11 @@ CvPoint2D32f *c1 = new CvPoint2D32f[4];
 vector<int> artvert_roi_vec;
 
 char *image_path;
-char *model_file = "model.bmp";
+vector< string > model_file_list;
+int which_model_file=0;
+bool next_model_requested = false;
+vector< bool > model_file_needs_training;
+#include "ofxXmlSettings/ofxXmlSettings.h"
 
 pthread_t detection_thread;
 double detection_fps = 0.0;
@@ -377,10 +381,13 @@ static void reshape(int width, int height)
 static void usage(const char *s)
 {
     cerr << "usage:\n" << s
-         << "[-m <model image>] [-r]\n"
+         << " [-m <model image>] [-m <model image>] ... \n "
+         "  [-ml <model images file .xml>] [-r] [-t] [-g] [-a <path>] [-l] [-vd <num>] [-vs <width> <height>]\n"
+         "  [-ds <width> <height>] [-fps <fps>]\n\n"
          //"   -a <path>  specify path to AVI (instead of v4l device)\n"
          "   -b <path>  specify path to AVI (instead of v4l device), ignores -vs\n"
-         "   -m	specifies model image\n"
+         "   -m	specifies model image (may be used multiple times)\n"
+         "   -ml <path> load model images from <path> (respects additional -m paths)\n"
          "   -r	do not load any data\n"
          "   -t	train a new classifier\n"
          "   -g	recompute geometric calibration\n"
@@ -388,7 +395,8 @@ static void usage(const char *s)
          "   -l	rebuild irradiance map from scratch\n"
          "   -vd <num>  V4L video device number (0-n)\n"
          "   -vs <width> <height>  video width and height (default 640x480)\n"
-         "   -ds <width> <height>  frame size at which to run the detector (default to video width/height)\n";
+         "   -ds <width> <height>  frame size at which to run the detector (default to video width/height)\n"
+         "   -fps <fps> desired fps at which to run the image capture\n\n";
     exit(1);
 }
 
@@ -417,6 +425,61 @@ void exit_handler()
     }
 }
 
+bool loadOrTrain( bool wants_training, const char* model_file )
+{
+    bool trained = multi->loadOrTrainCache( wants_training, model_file);
+    if ( !trained )
+        return false;
+
+    // copy char model_file before munging with strcat
+    char s[strlen(model_file)];
+    strcpy (s, model_file);
+    strcat(s, ".roi");
+    roi_vec = readROI(s);
+
+    strcpy( s, model_file );
+    strcat(s, ".artvertroi");
+    artvert_roi_vec = readROI(s);
+    if ( artvert_roi_vec.empty() )
+    {
+        // use roi_vec
+        artvert_roi_vec.insert( artvert_roi_vec.begin(), roi_vec.begin(), roi_vec.end() );
+    }
+
+    // load model_image for use with diffing, later
+    model_image = cvLoadImage(model_file);
+
+    c1[0].x = roi_vec[0];
+    c1[0].y = roi_vec[1];
+    c1[1].x = roi_vec[2];
+    c1[1].y = roi_vec[3];
+    c1[2].x = roi_vec[4];
+    c1[2].y = roi_vec[5];
+    c1[3].x = roi_vec[6];
+    c1[3].y = roi_vec[7];
+
+    return true;
+
+}
+
+
+bool loadOrTrainNext()
+{
+    // get next filename
+    string filename = model_file_list.at(which_model_file);
+    printf("next model requested: loading model %i:%s\n", which_model_file, filename.c_str() );
+    // load or train
+    bool success = loadOrTrain( model_file_needs_training.at(which_model_file), filename.c_str() );
+    // store if we need to train again
+    model_file_needs_training[which_model_file] = !success;
+
+    // for next time
+    which_model_file = (which_model_file+1)%model_file_list.size();
+
+    return success;
+}
+
+
 
 /*!\brief Initialize everything
  *
@@ -435,21 +498,32 @@ static bool init( int argc, char** argv )
     printf("built with opencv version %s\n", CV_VERSION );
 
     // more from before init should be moved here
-    bool redo_geom=false;
-    bool redo_training=false;
     bool redo_lighting=false;
+    bool redo_training = false;
+    bool redo_geom = false;
     char *avi_bg_path="";
     bool got_ds = false;
     bool got_fps = false;
     bool video_source_is_avi = false;
+    char *model_file_list_file = NULL;
 
     // parse command line
     for (int i=1; i<argc; i++)
     {
         if (strcmp(argv[i], "-m") ==0)
         {
-            if (i==argc-1) usage(argv[0]);
-            model_file = argv[i+1];
+            if (i==argc-1)
+                usage(argv[0]);
+            model_file_list.push_back( argv[i+1] );
+            printf(" -m: adding model image '%s'\n", argv[i+1] );
+            i++;
+        }
+        else if ( strcmp(argv[i], "-ml" )== 0 )
+        {
+            if ( i==argc-1)
+                usage(argv[0]);
+            model_file_list_file = argv[i+1];
+            printf(" -ml: loading model image list from '%s'\n", argv[i+1] );
             i++;
         }
         else if (strcmp(argv[i], "-r")==0)
@@ -467,6 +541,7 @@ static bool init( int argc, char** argv )
         else if (strcmp(argv[i], "-t")==0)
         {
             redo_training=true;
+            printf( "-t: redoing training\n");
         }
         else if (strcmp(argv[i], "-a")==0)
         {
@@ -533,6 +608,46 @@ static bool init( int argc, char** argv )
 
     }
 
+
+    // read model files from model_file_list_file
+    if ( model_file_list_file != NULL )
+    {
+        // try to open
+        ofxXmlSettings data;
+        data.loadFile( model_file_list_file );
+
+        if ( data.getNumTags( "models" ) == 1 )
+        {
+            data.pushTag( "models" );
+            int num_filenames = data.getNumTags( "model" );
+            printf("   -ml: opened %s, %i models\n", model_file_list_file, num_filenames );
+            for ( int i=0; i<num_filenames; i++ )
+            {
+                data.pushTag("model", i);
+                string filename = data.getValue("filename", "" );
+                printf("   -ml: got model image '%s'\n", filename.c_str() );
+                model_file_list.push_back( filename );
+                data.popTag();
+            }
+            data.popTag();
+        }
+        else
+        {
+            printf("   -ml: error reading '%s'\n", model_file_list_file );
+        }
+    }
+
+    // check if model file list is empty
+    if ( model_file_list.empty() )
+    {
+        // add default
+        model_file_list.push_back("model.bmp");
+    }
+
+    // set up training flags
+    for ( int i=0; i<model_file_list.size(); i++ )
+        model_file_needs_training.push_back( redo_training );
+
     // check for video size arg if necessary
     if ( video_source_is_avi )
     {
@@ -559,7 +674,7 @@ static bool init( int argc, char** argv )
 
     glutReshapeWindow( video_width, video_height );
 
-    multi = new MultiGrab(model_file);
+    multi = new MultiGrab();
 
     if( multi->init(avi_bg_path, video_width, video_height, v4l_device,
                     detect_width, detect_height, desired_capture_fps ) ==0)
@@ -568,9 +683,6 @@ static bool init( int argc, char** argv )
         return false;
     }
 
-    //multi->loadOrTrainCache(!redo_training, model_file);
-
-    geomCalibStart(!redo_geom);
 
     artvert_struct artvert1 = {"Arrebato, 1980", image1, "Feb, 2009", "Iván Zulueta", "Polo", "Madrid, Spain"};
     artvert_struct artvert2 = {"name2", image2, "2008", "simon innings", "Helmut Lang", "Parlance Avenue"};
@@ -584,34 +696,12 @@ static bool init( int argc, char** argv )
     artverts[3] = artvert4;
     artverts[4] = artvert5;
 
-    // copy char model_file before munging with strcat
-    char s[strlen(model_file)];
-    strcpy (s, model_file);
-    strcat(s, ".roi");
-    roi_vec = readROI(s);
 
+    // load geometry
+    loadOrTrainNext();
 
-    strcpy( s, model_file );
-    strcat(s, ".artvertroi");
-    artvert_roi_vec = readROI(s);
-    if ( artvert_roi_vec.empty() )
-    {
-        // use roi_vec
-        artvert_roi_vec.insert( artvert_roi_vec.begin(), roi_vec.begin(), roi_vec.end() );
-    }
-
-    // load model_image for use with diffing, later
-    model_image = cvLoadImage(model_file);
-
-    c1[0].x = roi_vec[0];
-    c1[0].y = roi_vec[1];
-    c1[1].x = roi_vec[2];
-    c1[1].y = roi_vec[3];
-    c1[2].x = roi_vec[4];
-    c1[2].y = roi_vec[5];
-    c1[3].x = roi_vec[6];
-    c1[3].y = roi_vec[7];
-
+    // try to load geom cache + start the run loop
+    geomCalibStart(!redo_geom);
 
     // start detection
     startDetectionThread( 1 /* priority, only if running as root */ );
@@ -619,6 +709,8 @@ static bool init( int argc, char** argv )
     last_frame_caught_time.SetNow();
     frame_timer.SetNow();
 
+
+    printf("init() finished\n");
     return true;
 }
 
@@ -628,6 +720,7 @@ static bool init( int argc, char** argv )
  */
 static void keyboard(unsigned char c, int x, int y)
 {
+    const char* filename;
     switch (c)
     {
     case 'n' :
@@ -680,8 +773,8 @@ static void keyboard(unsigned char c, int x, int y)
             cnt ++;
         cout << "we are on image " << cnt << endl;
         break;
-    case '\\':
-        multi->loadOrTrainCache( /*try to load from cache*/ true, model_file );
+    case '=':
+        next_model_requested = true;
         break;
     default:
         break;
@@ -796,9 +889,11 @@ int main(int argc, char *argv[])
     ftglFont->FaceSize(12);
     ftglFont->CharMap(ft_encoding_unicode);
 
-    cvDestroyAllWindows();
+    //cvDestroyAllWindows();
+    //cvWaitKey(0);
 
     glutKeyboardFunc(keyboard);
+    printf("*** entering glutMainLoop()\n");
     glutMainLoop();
     return 0; /* ANSI C requires main to return int. */
 }
@@ -845,17 +940,15 @@ static bool drawBackground(IplTexture *tex)
 /*! \brief Draw all the points
  *
  */
-static void drawDetectedPoints(void)
+static void drawDetectedPoints(int frame_width, int frame_height)
 {
     if (!multi) return;
 
-    IplImage *im = multi->cams[current_cam]->getLastProcessedFrame();
     planar_object_recognizer &detector(multi->cams[current_cam]->detector);
-    if (!im) return;
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glOrtho(0, im->width-1, im->height-1, 0, -1, 1);
+    glOrtho(0, frame_width-1, frame_height-1, 0, -1, 1);
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -869,7 +962,7 @@ static void drawDetectedPoints(void)
     glBegin(GL_POINTS);
     // draw all detected points
     glColor4f(0,1,0,1);
-    for ( int i=0; i<detector.detected_point_number; ++i)
+    for ( int i=0; detector.isReady() && i<detector.detected_point_number; ++i)
     {
         keypoint& kp = detector.detected_points[i];
         int s = kp.scale;
@@ -895,7 +988,7 @@ static void drawDetectedPoints(void)
     }
     glEnd();
 
-    glutSwapBuffers();
+
 }
 
 
@@ -1068,7 +1161,7 @@ static void geomCalibStart(bool cache)
 static void drawAugmentation()
 {
     // we know that im is not NULL already
-    IplImage *im = multi->model.image;
+//    IplImage *im = multi->model.image;
 
     //for ( int tracked_or_raw=0; tracked_or_raw<2; tracked_or_raw++ )
     {
@@ -1095,10 +1188,10 @@ static void drawAugmentation()
                 matrix_tracker.getInterpolatedPose( world, raw_frame_timestamp );
         }
 
-        // apply a scale factor
+        /*// apply a scale factor
         float scalef = 1.0f;
         for ( int i=0; i<3; i++ )
-            cvmSet(world, i, i, scalef*cvmGet( world, i, i ));
+            cvmSet(world, i, i, scalef*cvmGet( world, i, i ));*/
 
 
         // instead of this:
@@ -1111,7 +1204,8 @@ static void drawAugmentation()
         CamCalibration::Mat3x4Mul( proj, world, proj );
 
         Mat3x4 moveObject, rot, obj2World, movedRT_;
-        moveObject.setTranslate(im->width/2,im->height/2,-120*3/4);
+        moveObject.setTranslate( multi->model.getImageWidth()/2, multi->model.getImageHeight()/2,
+                                -120*3/4);
         // apply rotation
         rot.setRotate(Vec3(1,0,0),2*M_PI*180.0/360.0);
         //rot.setIdentity();
@@ -1267,7 +1361,26 @@ static void drawAugmentation()
         glHint(GL_POLYGON_SMOOTH, GL_NICEST);
         glEnable(GL_POLYGON_SMOOTH);
 
+/*
+#ifndef DEBUG_SHADER
+        // apply the object transformation matrix
+        Mat3x4 w2e(c.getWorldToEyeMat());
+        w2e.mul(moveObject);
+        c.setWorldToEyeMat(w2e);
+        c.setGlModelView();
+#endif
 
+        if (multi->model.map.isReady())
+        {
+            glDisable(GL_LIGHTING);
+#ifdef DEBUG_SHADER
+            multi->model.map.enableShader(current_cam, world);
+#else
+            multi->model.map.enableShader(current_cam, &movedRT);
+#endif
+        }
+
+*/
         glColor4f(1.0, 1.0, 1.0, fade);
 
         glBegin(GL_QUADS);
@@ -1336,24 +1449,7 @@ static void drawAugmentation()
 #endif
         //glEnd();
 
-#ifndef DEBUG_SHADER
-        // apply the object transformation matrix
-        Mat3x4 w2e(c.getWorldToEyeMat());
-        w2e.mul(moveObject);
-        c.setWorldToEyeMat(w2e);
-        c.setGlModelView();
-#endif
-
-        if (multi->model.map.isReady())
-        {
-            glDisable(GL_LIGHTING);
-#ifdef DEBUG_SHADER
-            multi->model.map.enableShader(current_cam, world);
-#else
-            multi->model.map.enableShader(current_cam, &movedRT);
-#endif
-        }
-        cvReleaseMat(&world);
+        /*cvReleaseMat(&world);
         {
             CvScalar c =cvGet2D(multi->model.image, multi->model.image->height/2, multi->model.image->width/2);
             glColor3d(c.val[2], c.val[1], c.val[0]);
@@ -1361,7 +1457,7 @@ static void drawAugmentation()
         if (multi->model.map.isReady())
             multi->model.map.disableShader();
         else
-            glDisable(GL_LIGHTING);
+            glDisable(GL_LIGHTING);*/
 
         if ( avi_play == true  )
         {
@@ -1477,7 +1573,7 @@ static void draw()
     {
         //printf("draw status\n");
 
-        drawDetectedPoints();
+        drawDetectedPoints( raw_frame_texture->getIm()->width, raw_frame_texture->getIm()->height );
 
         char detect_fps_string[256];
         sprintf(detect_fps_string, "draw fps: %4.2f\ndetection fps: %4.2f", draw_fps, detection_fps );
@@ -1550,6 +1646,15 @@ static void* detectionThreadFunc( void* _data )
     {
         PROFILE_THIS_BLOCK("detection_thread");
 
+        if ( next_model_requested )
+        {
+            // no longer draw
+            frame_ok = false;
+            // go with the loading
+            loadOrTrainNext();
+            next_model_requested = false;
+        }
+
         bool frame_retrieved = false;
         bool frame_retrieved_and_ok = multi->cams[0]->detect( frame_retrieved, frame_ok );
         if( frame_retrieved )
@@ -1611,7 +1716,7 @@ static void* detectionThreadFunc( void* _data )
  */
 static void idle()
 {
-    PROFILE_SECTION_PUSH( "idle loop" );
+
 
     // detect the calibration object in every image
     // (this loop could be paralelized)
@@ -1653,8 +1758,6 @@ static void idle()
     }
 
     PROFILE_SECTION_POP();
-
-
 
 
     //doDetection();

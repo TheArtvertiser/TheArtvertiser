@@ -55,11 +55,13 @@ int MultiGrab::init( char *avi_bg_path, int width, int height, int v4l_device, i
     return 1;
 }
 
-bool MultiGrab::loadOrTrainCache( bool cacheTraining, const char* modelfile )
+bool MultiGrab::loadOrTrainCache( bool wants_training, const char* modelfile )
 {
+    cams[0]->detector.clear();
 
+    model.useModelFile( modelfile ) ;
 
-	if (!model.buildCached(cams.size(), cams[0]->cam, cacheTraining, cams[0]->detector)) {
+	if (!model.buildCached(cams.size(), cams[0]->cam, !wants_training, cams[0]->detector)) {
 		cout << "model.buildCached() failed.\n";
 		return false;
 	}
@@ -68,7 +70,7 @@ bool MultiGrab::loadOrTrainCache( bool cacheTraining, const char* modelfile )
 		cams[i]->detector.load(string(modelfile)+".bmp.classifier");
 	}
 
-	return false;
+	return true;
 }
 
 void MultiGrab::allocLightCollector()
@@ -171,7 +173,6 @@ bool MultiGrab::Cam::detect( bool &frame_retrieved, bool &detect_succeeded )
 
     if ( !detector.isReady() )
     {
-        printf("detector not yet ready\n");
         detect_succeeded = false;
         return false;
     }

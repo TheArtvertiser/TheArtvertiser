@@ -107,6 +107,9 @@ public:
     /// stop capture
     void stopCapture();
 
+    /// number of channels returned by the camera. if camera is yet to start, wait max 10s then timeout.
+    int getNumChannelsRaw();
+
 private:
 
     /// overridden from base
@@ -151,7 +154,7 @@ private:
 
     bool new_draw_frame_available, new_detect_frame_available;
 
-    int width, height, nChannels;
+    int width, height, nChannels, nChannelsRaw;
     float desired_framerate;
     FTime framerate_timer;
 
