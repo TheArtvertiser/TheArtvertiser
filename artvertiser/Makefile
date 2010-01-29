@@ -50,7 +50,7 @@ am_artvertiser_OBJECTS = artvertiser-artvertiser.$(OBJEXT) \
 	artvertiser-multithreadcapture.$(OBJEXT)
 artvertiser_OBJECTS = $(am_artvertiser_OBJECTS) 
 artvertiser_DEPENDENCIES = ../garfeild/libgarfeild.a \
-	../starter/libstarter.a FProfiler/libfprofiler.a MatrixTracker/libMatrixTracker.a
+	../starter/libstarter.a FProfiler/libfprofiler.a MatrixTracker/libMatrixTracker.a ofxXmlSettings/libofxXmlSettings.a
 artvertiser_LINK = $(CXXLD) $(artvertiser_CXXFLAGS) $(CXXFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I. -I$(top_builddir)
@@ -189,7 +189,7 @@ top_srcdir = ..
 #openglprogs = 
 openglprogs = artvertiser
 artvertiser_CXXFLAGS = -I/usr/local/include/opencv   -I../garfeild -I../starter
-artvertiser_LDADD = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml FProfiler/libfprofiler.a  ../garfeild/libgarfeild.a ../starter/libstarter.a MatrixTracker/libMatrixTracker.a \
+artvertiser_LDADD = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml FProfiler/libfprofiler.a  ../garfeild/libgarfeild.a ../starter/libstarter.a ofxXmlSettings/libofxXmlSettings.a MatrixTracker/libMatrixTracker.a \
 		 -lGLEW -lGL  -lm
 
 artvertiser_SOURCES = artvertiser.cpp calibmodel.cpp calibmodel.h \

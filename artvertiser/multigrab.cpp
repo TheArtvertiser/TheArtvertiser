@@ -2,10 +2,6 @@
 
 #include "FProfiler/FProfiler.h"
 
-int W;
-int H;
-
-
 
 MultiGrab::~MultiGrab()
 {
@@ -19,7 +15,7 @@ MultiGrab::~MultiGrab()
 
 }
 
-int MultiGrab::init(bool cacheTraining, char *modelfile, char *avi_bg_path, int width, int height, int v4l_device, int detect_width, int detect_height, int desired_capture_fps )
+int MultiGrab::init( char *avi_bg_path, int width, int height, int v4l_device, int detect_width, int detect_height, int desired_capture_fps )
 {
 
 	CvCapture *c;
@@ -56,29 +52,25 @@ int MultiGrab::init(bool cacheTraining, char *modelfile, char *avi_bg_path, int 
 		 return 0;
 	}
 
-	if (!model.buildCached(cams.size(), cams[0]->cam, cacheTraining, cams[0]->detector)) {
+    return 1;
+}
+
+bool MultiGrab::loadOrTrainCache( bool wants_training, const char* modelfile )
+{
+    cams[0]->detector.clear();
+
+    model.useModelFile( modelfile ) ;
+
+	if (!model.buildCached(cams.size(), cams[0]->cam, !wants_training, cams[0]->detector)) {
 		cout << "model.buildCached() failed.\n";
-		return 0;
+		return false;
 	}
 	for (int i=1; i<cams.size(); ++i) {
 		//! TODO mem to mem copy from cams[0]
 		cams[i]->detector.load(string(modelfile)+".bmp.classifier");
 	}
-	W=width;
-	H=height;
 
-	return 1;
-}
-
-void MultiGrab::grabFrames()
-{
-    #ifdef USE_MULTITHREADCAPTURE
-    #else
-	for (vector<Cam *>::iterator it=cams.begin(); it!=cams.end(); ++it)
-	{
-		cvGrabFrame((*it)->cam);
-	}
-	#endif
+	return true;
 }
 
 void MultiGrab::allocLightCollector()
@@ -181,7 +173,6 @@ bool MultiGrab::Cam::detect( bool &frame_retrieved, bool &detect_succeeded )
 
     if ( !detector.isReady() )
     {
-        printf("detector not yet ready\n");
         detect_succeeded = false;
         return false;
     }

@@ -42,6 +42,21 @@ LightMap::~LightMap()
 	if (normals) delete normals;
 }
 
+void LightMap::clear()
+{
+    IplImage* im = map.getIm();
+    if ( im ) cvReleaseImage( &im );
+    map.setImage(0);
+
+  	if (normals) delete normals;
+  	normals = 0;
+
+	if (lightParams)
+		cvReleaseMat(&lightParams);
+	lightParams=0;
+
+}
+
 bool LightMap::init(int nbCam, IplImage *model, float corners[4][2], int nx, int ny)
 {
 	IplImage *im = map.getIm();
@@ -63,7 +78,7 @@ bool LightMap::init(int nbCam, IplImage *model, float corners[4][2], int nx, int
 	/*
 	FILE *IRef= fopen("IRef.txt","w");
 	if (IRef) {
-		for (int i=0; i<reflc.nbTri; i++) 
+		for (int i=0; i<reflc.nbTri; i++)
 			fprintf(IRef, "%.6f	", reflc.avg[i]);
 		fprintf(IRef, "\n");
 		fclose(IRef);
@@ -106,7 +121,7 @@ CvScalar LightMap::readMap(const float normal[3])
 	if (!isReady()) return cvScalarAll(1);
 	float uv[2];
 	normal2uv(normal, uv);
-	
+
 	IplImage *im = map.getIm();
 	assert(im!=0);
 	int iu = cvRound(uv[0]*(double)im->width);
@@ -245,7 +260,7 @@ static bool checkErrors(const char *file, int line, bool exitOnFailure=false)
 	GLenum error;
 	bool r=true;
 	while ((error = glGetError()) != GL_NO_ERROR) {
-		fprintf(stderr, "%s:%d: %s\n", 
+		fprintf(stderr, "%s:%d: %s\n",
 				file, line,
 				(char *) gluErrorString(error));
 		if (exitOnFailure)
@@ -275,11 +290,11 @@ bool LightMap::initGL()
   bool ok=true;
   ret = readFile("myvert.glsl");
   shaderProg = ret.c_str();
- 
+
   if (ARB) g_vertShader = glCreateShaderObjectARB(GL_VERTEX_SHADER);
   else g_vertShader = glCreateShader(GL_VERTEX_SHADER);
   ok = ok && checkErrors(__FILE__,__LINE__);
-  
+
   if (ARB) glShaderSourceARB(g_vertShader, 1, &shaderProg, 0);
   else glShaderSource(g_vertShader, 1, &shaderProg, 0);
   printShaderInfoLog(g_vertShader, "Vertex shader myvert.glsl", ARB);
@@ -287,7 +302,7 @@ bool LightMap::initGL()
 
   if (ARB) glCompileShaderARB(g_vertShader);
   else glCompileShader(g_vertShader);
- 
+
   printShaderInfoLog(g_vertShader, "Vertex shader myvert.glsl", ARB);
   ok = ok && checkErrors(__FILE__,__LINE__);
 
@@ -466,14 +481,14 @@ bool LightMap::addNormalCalib(float normal[3], LightCollector &lc, int cam)
 
 //	if (newT) {
 //		obsMat->resize(obsMat->rows, obsMat->cols+1);
-//	} 
+//	}
 
 	for (int i=0; i<lc.nbTri; ++i) {
 		float *rv = reflc.avg+i*reflc.avgChannels;
 		float *v = lc.avg+i*lc.avgChannels;
 		bool ok=true;
 		for (int c=0; c<reflc.avgChannels; c++)
-			if (!(v[c]>5 && rv[c] >5 && v[c]<250 && rv[c] <250)) 
+			if (!(v[c]>5 && rv[c] >5 && v[c]<250 && rv[c] <250))
 				ok=false;
 		if (ok) {
 			hasObs = true;
@@ -481,7 +496,7 @@ bool LightMap::addNormalCalib(float normal[3], LightCollector &lc, int cam)
 			Observation o;
 			o.camCol = cam*2;
 			o.normalCol = normIdx;
-			
+
 			for (int c=0; c<reflc.avgChannels; c++) {
 				o.camVal[c] = - v[c]/255.0f;
 				o.normalVal[c] = rv[c]/255.0f;
@@ -576,7 +591,7 @@ double LightMap::getObsElem(const vector<Observation>::iterator &it, int i, int 
 void LightMap::computeAtA(CvMat *AtA, int channel)
 {
 	for (vector<Observation>::iterator it = obs.begin();
-			it!=obs.end(); ++it) 
+			it!=obs.end(); ++it)
 	{
 		int idx[3] = {it->camCol, it->camCol+1, it->normalCol};
 		for (unsigned i=0; i<3; i++) {
@@ -669,7 +684,7 @@ bool LightMap::computeLightParams()
 void LightMap::buildMapFromSamples()
 {
 	for (int i=0; i<normals->rows; ++i) {
-		updateLightMap((float *)CV_MAT_ELEM_PTR(*normals, i, 0), 
+		updateLightMap((float *)CV_MAT_ELEM_PTR(*normals, i, 0),
 				&CV_MAT_ELEM(*lightParams, float, i+2*nbCam, 0));
 	}
 }
@@ -705,7 +720,7 @@ bool LightMap::load(const char *lightParamsFN, const char *normalsFN)
 	*/
 
 	buildMapFromSamples();
-	
+
 	return true;
 }
 
