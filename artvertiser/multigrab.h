@@ -21,7 +21,7 @@ public:
           int desired_capture_fps );
     /// load or train the cache using the given modelfile. if wants_training is true, train;
     /// otherwise try to load and if load files, train
-    bool loadOrTrainCache( bool wants_training, const char* modelfile );
+    bool loadOrTrainCache( bool wants_training, const char* modelfile, bool train_on_binoculars );
 
 	void allocLightCollector();
 

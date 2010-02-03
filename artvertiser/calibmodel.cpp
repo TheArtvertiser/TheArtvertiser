@@ -7,11 +7,20 @@ CalibModel::CalibModel()
 	image_width = 0;
 	image_height = 0;
 	win = "The Artvertiser 0.4";
+	train_working_image = 0;
+	interactive_train_running = false;
+
+	cvInitFont(&train_font, CV_FONT_HERSHEY_SIMPLEX, .5, .5, 0, 0, CV_AA);
 }
 
 CalibModel::~CalibModel()
 {
 	if (image) cvReleaseImage(&image);
+	if ( train_working_image )
+    {
+        cvReleaseImage( &train_working_image );
+        cvReleaseImage( &train_shot );
+    }
 }
 
 void CalibModel::useModelFile(const char* file)
@@ -55,7 +64,9 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
 	}
 }
 
-bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_object_recognizer &detector)
+ bool CalibModel::buildCached(int nbcam, CvCapture *capture,
+                             bool cache, planar_object_recognizer &detector,
+                             bool running_on_binoculars )
 {
     detector.clear();
 
@@ -156,7 +167,12 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
             cvReleaseImage( &image );
         image =0;
 		// ask the user the take a shot of the model
-		if (!interactiveSetup(capture))
+		bool result = false;
+		if( running_on_binoculars )
+            result = interactiveTrainBinoculars();
+        else
+            result = interactiveSetup(capture);
+		if (!result)
 		{
 		    printf("interactiveSetup failed\n");
 		    detector.unlock();
@@ -306,9 +322,242 @@ IplImage *myQueryFrame(CvCapture *capture)
 }
 
 
+bool CalibModel::interactiveTrainBinoculars()
+{
+    // setup
+    state = TAKE_SHOT;
+    train_should_proceed = false;
+    // we want the interactive training to run
+    interactive_train_running = true;
+
+    // wait until done
+    int timeout =5*60;
+    // 5 minute time out
+    while ( interactive_train_running && timeout>0 )
+    {
+        printf("waiting for interactiveTrainBinoculars to complete .. %i\n", timeout );
+        timeout-=5;
+        sleep(5);
+    }
+
+    return train_should_proceed;
+}
+
+void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
+                                                  bool button_red,
+                                                  bool button_green,
+                                                  bool button_blue )
+{
+    if ( !interactive_train_running )
+        return;
+
+    // copy to training
+    if ( train_working_image == 0 )
+    {
+        train_working_image = cvCreateImage( cvGetSize( frame ), frame->depth, frame->nChannels );
+        train_shot = cvCreateImage( cvGetSize( frame ), frame->depth, frame->nChannels );
+    }
+
+    // inputs
+    bool R__ = ( button_red&&!button_green&&!button_blue);
+    bool _G_ = (!button_red&& button_green&&!button_blue);
+    bool __B = (!button_red&&!button_green&& button_blue);
+    bool RG_ = ( button_red&& button_green&&!button_blue);
+    bool _GB = (!button_red&& button_green&& button_blue);
+    bool R_B = ( button_red&&!button_green&& button_blue);
+    bool RGB = ( button_red&& button_green&& button_blue);
+
+    // for drawing
+    int four = 4;
+    CvPoint *ptr;
+
+    // update
+    switch( state )
+    {
+    case TAKE_SHOT:
+        if ( _G_ )
+        {
+            // advance
+            cvCopy( train_working_image, train_shot );
+            state = CORNERS;
+            int d = 30;
+            corners[0].x = d;
+            corners[0].y = d;
+            corners[1].x = frame->width-d;
+            corners[1].y = d;
+            corners[2].x = frame->width-d;
+            corners[2].y = frame->height-d;
+            corners[3].x = d;
+            corners[3].y = frame->height-d;
+            // setup index
+            corner_index=0;
+            x = corners[corner_index].x;
+            y = corners[corner_index].y;
+        }
+        else if ( R_B )
+        {
+            // abort
+            interactive_train_running = false;
+        }
+        else
+        {
+            cvCopy( frame, train_working_image );
+            putText(train_working_image, modelfile, cvPoint(3,20), &train_font );
+			putText(train_working_image,"Please take a frontal view", cvPoint(3,40), &train_font);
+			putText(train_working_image,"of a textured planar surface", cvPoint(3,60), &train_font);
+			putText(train_working_image,"and press green", cvPoint(3,80), &train_font);
+			putText(train_working_image,"Press red+blue to abort", cvPoint(3,100), &train_font);
+        }
+        break;
+    case CORNERS:
+        cvCopy( train_shot, train_working_image );
+        putText(train_working_image, modelfile, cvPoint(3,20), &train_font);
+		putText(train_working_image, "Drag yellow corners to match the", cvPoint(3,40), &train_font);
+		putText(train_working_image, "calibration target", cvPoint(3,60), &train_font);
+		putText(train_working_image, "Press red+blue to restart", cvPoint(3,80), &train_font);
+		putText(train_working_image, "Press green when ready", cvPoint(3,100), &train_font);
+
+        if      ( R__ )
+            x += 1;
+        else if ( __B )
+            x -= 1;
+        else if ( RG_ )
+            y += 1;
+        else if ( _GB )
+            y -= 1;
+        else if ( _G_ )
+        {
+            // accept
+            corners[corner_index].x = x;
+            corners[corner_index].y = y;
+            corner_index++;
+            if ( corner_index > 3 )
+            {
+                // next
+                corner_index = 0;
+                for ( int i=0; i<4; i++ )
+                    artvert_corners[i] = corners[i];
+                state = ARTVERT_CORNERS;
+
+                // setup index
+                corner_index=0;
+                x = artvert_corners[corner_index].x;
+                y = artvert_corners[corner_index].y;
+            }
+        }
+        else if ( R_B )
+        {
+            // back
+            corner_index--;
+            if ( corner_index < 0 )
+                state = TAKE_SHOT;
+        }
+
+        ptr = corners;
+        cvPolyLine(train_working_image, &ptr, &four, 1, 1,
+                cvScalar(0,255,0));
+
+        break;
+
+    case ARTVERT_CORNERS:
+        cvCopy( train_shot, train_working_image );
+        putText(train_working_image, modelfile, cvPoint(3,20), &train_font);
+        putText(train_working_image, "Drag red corners to match the", cvPoint(3,20), &train_font);
+        putText(train_working_image, "artvert target area;", cvPoint(3,40), &train_font);
+        putText(train_working_image, "Press red+blue to restart", cvPoint(3,60), &train_font);
+        putText(train_working_image, "Press green when ready", cvPoint(3,80), &train_font);
+
+        if      ( R__ )
+            x += 1;
+        else if ( __B )
+            x -= 1;
+        else if ( RG_ )
+            y += 1;
+        else if ( _GB )
+            y -= 1;
+        else if ( _G_ )
+        {
+            // accept
+            artvert_corners[corner_index].x = x;
+            artvert_corners[corner_index].y = y;
+            corner_index++;
+            if ( corner_index > 3 )
+            {
+                // finished
+                if ( image != 0 )
+                    cvReleaseImage( &image );
+                image = cvCreateImage( cvGetSize( train_shot), train_shot->depth, train_shot->nChannels );
+                cvCopy( train_shot, image );
+                train_should_proceed = true;
+                interactive_train_running = false;
+            }
+        }
+        else if ( R_B )
+        {
+            // back
+            corner_index--;
+            if ( corner_index < 0 )
+                state = CORNERS;
+        }
+
+        ptr = corners;
+        cvPolyLine(train_working_image, &ptr, &four, 1, 1,
+                cvScalar(0,255,0));
+        ptr = artvert_corners;
+        cvPolyLine(train_working_image, &ptr, &four, 1, 1,
+                cvScalar(0,0,255));
+
+        break;
+    }
+
+    train_texture.setImage( train_working_image );
+
+}
+
+void CalibModel::interactiveTrainBinocularsDraw()
+{
+    if ( !interactive_train_running )
+        return;
+
+    IplTexture* tex = &train_texture;
+
+    IplImage *im = tex->getIm();
+    int w = im->width-1;
+    int h = im->height-1;
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    glDisable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
+
+    tex->loadTexture();
+
+    glBegin(GL_QUADS);
+    glColor4f(1,1,1,1);
+
+    glTexCoord2f(tex->u(0), tex->v(0));
+    glVertex2f(-1, 1);
+    glTexCoord2f(tex->u(w), tex->v(0));
+    glVertex2f(1, 1);
+    glTexCoord2f(tex->u(w), tex->v(h));
+    glVertex2f(1, -1);
+    glTexCoord2f(tex->u(0), tex->v(h));
+    glVertex2f(-1, -1);
+    glEnd();
+
+    tex->disableTexture();
+
+}
+
 
 bool CalibModel::interactiveSetup(CvCapture *capture )
 {
+
+
+
 
 	CvFont font, fontbold;
 
@@ -321,7 +570,7 @@ bool CalibModel::interactiveSetup(CvCapture *capture )
 	cvSetMouseCallback(win, onMouseStatic, this);
 
 	bool pause=false;
-	#ifdef USE_MULTITHREADCAPTURE
+
     IplImage *frame_gray, *frame = NULL;
     FTime timestamp;
     MultiThreadCapture* mtc = MultiThreadCaptureManager::getInstance()->getCaptureForCam(capture);
@@ -338,9 +587,7 @@ bool CalibModel::interactiveSetup(CvCapture *capture )
         printf("capture failed\n");
         return false;
     }
-    #else
-	IplImage *frame = myQueryFrame(capture);
-	#endif
+
 	IplImage *shot=0, *text=0;
 
 	state = TAKE_SHOT;
@@ -360,13 +607,9 @@ bool CalibModel::interactiveSetup(CvCapture *capture )
 
 		// clear text or grab the image to display
 		if (!pause || shot==0) {
-            #ifdef USE_MULTITHREADCAPTURE
             bool got = mtc->getLastDetectFrame( &frame_gray, &frame, NULL,/*block until available*/true );
             if ( !got )
                 continue;
-            #else
-			frame = myQueryFrame(capture);
-			#endif
 			if (!text) {
 				text=cvCreateImage(cvGetSize(frame), IPL_DEPTH_8U, 3);
 				int d = 30;

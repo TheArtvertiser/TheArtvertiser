@@ -125,6 +125,8 @@ pthread_t serial_thread;
 void startSerialThread();
 void shutdownSerialThread();
 void* serialThreadFunc( void* );
+// running on binoculars?
+bool running_on_binoculars = false;
 
 
 // we continue tracking for 1 second, then fade for 3
@@ -228,15 +230,15 @@ char *image_path;
 class Artvert
 {
 public:
-	Artvert() { 
-		artvert_image=0; 
-		model_file="model.bmp"; 
-		artvert_image_file="artvert1.png"; 
+	Artvert() {
+		artvert_image=0;
+		model_file="model.bmp";
+		artvert_image_file="artvert1.png";
 		artist = "unknown artist";
 		advert = "unknown advert";
 		name = "unnamed artvert";
 	}
-	~Artvert() 
+	~Artvert()
 	{
 		if ( artvert_image )
 			cvReleaseImage( &artvert_image );
@@ -622,7 +624,7 @@ bool loadOrTrain( int new_index )
 			model_file != artvert_list[current_artvert_index].model_file )
 	{
 		// load
-	    bool trained = multi->loadOrTrainCache( wants_training, model_file.c_str());
+	    bool trained = multi->loadOrTrainCache( wants_training, model_file.c_str(), running_on_binoculars );
     	if ( !trained )
 		{
 			// fail
@@ -630,7 +632,7 @@ bool loadOrTrain( int new_index )
 			new_artvert_switching_in_progress = false;
         	return false;
 		}
-	
+
 
 		// copy char model_file before munging with strcat
 		char s[1024];
@@ -712,6 +714,11 @@ static bool init( int argc, char** argv )
          	artvert_list.push_back( a );
             printf(" -m: adding model image '%s'\n", argv[i+1] );
             i++;
+        }
+        else if ( strcmp(argv[i], "-binoc")==0 )
+        {
+            running_on_binoculars = true;
+            printf(" -binoc: running on binoculars\n");
         }
         else if ( strcmp(argv[i], "-ml" )== 0 )
         {
@@ -1082,9 +1089,9 @@ static void keyboard(unsigned char c, int x, int y)
         }
 
     }
-    
+
 	glutPostRedisplay();
-	
+
 	if ( old_button_state != button_state )
 		button_state_changed = true;
 }
@@ -1733,121 +1740,126 @@ static void draw()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_LIGHTING);
 
-    drawBackground(raw_frame_texture);
-
-    string cnt_str;
-    stringstream cnt_out;
-    cnt_out << cnt;
-    cnt_str = cnt_out.str();
-
-    //IplImage *pre_mask = cvCreateImage(cvSize(WIDTH, HEIGHT), 8, 3);
-
-    if (!multi)
-        return;
-
-    int now = glutGet(GLUT_ELAPSED_TIME);
-    /* elapsed time
-    cout << now/1000.0 << endl;
-    */
-
-
-    // fade
-    double elapsed = frame_timer.Update();
-    if ( frame_ok )
-    {
-        last_frame_caught_time.SetNow();
-        // increase fade
-        if ( fade < (show_status?MAX_FADE_SHOW:MAX_FADE_NORMAL) )
-        {
-            fade += (1.0f/SECONDS_LOST_FADE)*elapsed;
-        }
-        else
-            fade = show_status?MAX_FADE_SHOW:MAX_FADE_NORMAL;
-        //printf("frame_ok: fade %f\n", fade );
-    }
+    if ( multi->model.isInteractiveTrainBinocularsRunning() )
+        multi->model.interactiveTrainBinocularsDraw();
     else
     {
-        FTime now;
-        now.SetNow();
-        double elapsed_since_last_caught = (now-last_frame_caught_time).ToSeconds();
-        if ( elapsed_since_last_caught > SECONDS_LOST_TRACK )
+
+        drawBackground(raw_frame_texture);
+
+        string cnt_str;
+        stringstream cnt_out;
+        cnt_out << cnt;
+        cnt_str = cnt_out.str();
+
+        //IplImage *pre_mask = cvCreateImage(cvSize(WIDTH, HEIGHT), 8, 3);
+
+        if (!multi)
+            return;
+
+        int now = glutGet(GLUT_ELAPSED_TIME);
+        /* elapsed time
+        cout << now/1000.0 << endl;
+        */
+
+
+        // fade
+        double elapsed = frame_timer.Update();
+        if ( frame_ok )
         {
-            if ( fade > 0.0f )
-                fade -= (1.0f/SECONDS_LOST_FADE)*elapsed;
+            last_frame_caught_time.SetNow();
+            // increase fade
+            if ( fade < (show_status?MAX_FADE_SHOW:MAX_FADE_NORMAL) )
+            {
+                fade += (1.0f/SECONDS_LOST_FADE)*elapsed;
+            }
             else
-                fade = 0.0f;
+                fade = show_status?MAX_FADE_SHOW:MAX_FADE_NORMAL;
+            //printf("frame_ok: fade %f\n", fade );
         }
-        //printf("frame_ok: fade %f, elapsed since last caught %f\n", fade, elapsed_since_last_caught );
-    }
-    //printf("frame %s, lost_count %f -> fade pct %4.2f, fade %4.2f\n", frame_ok?"y":"n", frame_lost_count, fade_pct, fade );
-
-    // draw augmentation
-    if ( fade > 0 && augment == 1)
-    {
-        drawAugmentation();
-    }
-
-    // calculate fps
-    draw_fps = (draw_fps*7.0+1.0/elapsed)/8.0f;
-
-    glLoadIdentity();
-    // we need to setup a new projection matrix for the title font.
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    glTranslatef(-.98, 0.9, 0.0);
-    glScalef(.003, .003, .003);
-    ftglFont->FaceSize(32);
-    glColor4f(1.0, 1.0, 1.0, 1);
-    ftglFont->Render("the artvertiser 0.4");
-    glTranslatef(0, -(video_height+30), 0);
-    glColor4f(1.0, 1.0, 1.0, .6);
-    //ftglFont->FaceSize(16);
-    //ftglFont->Render(date(now).c_str());
-    if (frame_ok == 1 and (now/1000)%2== 0)
-    {
-        glTranslatef(video_width-295, video_height+35, 0);
-        glColor4f(0.0, 1.0, 0.0, .8);
-        glBegin(GL_TRIANGLES);
-        glVertex3f(140, 0, 0);
-        glVertex3f(150, 10, 0);
-        glVertex3f(140, 20, 0);
-        glEnd();
-        glTranslatef(70, 5, 0);
-        ftglFont->FaceSize(16);
-        ftglFont->Render("tracking");
-    }
-
-    // reset the ftgl font size for next pass
-    ftglFont->FaceSize(12);
-
-
-    if ( show_status )
-    {
-        //printf("draw status\n");
-
-        drawDetectedPoints( raw_frame_texture->getIm()->width, raw_frame_texture->getIm()->height );
-
-        char detect_fps_string[256];
-        sprintf(detect_fps_string, "draw fps: %4.2f\ndetection fps: %4.2f", draw_fps, detection_fps );
-        drawGlutString( detect_fps_string, 1.0f, 0.2f, 0.2f, 0.7, 0.94 );
-
-        // now status string
-        string draw_string = status_string;
-        if ( multi )
+        else
         {
-            // show detector settings
-            draw_string += "\n" + getSettingsString();
+            FTime now;
+            now.SetNow();
+            double elapsed_since_last_caught = (now-last_frame_caught_time).ToSeconds();
+            if ( elapsed_since_last_caught > SECONDS_LOST_TRACK )
+            {
+                if ( fade > 0.0f )
+                    fade -= (1.0f/SECONDS_LOST_FADE)*elapsed;
+                else
+                    fade = 0.0f;
+            }
+            //printf("frame_ok: fade %f, elapsed since last caught %f\n", fade, elapsed_since_last_caught );
         }
-        drawGlutString( draw_string.c_str(), 1.0f, 0.2f, 0.2f, 0.01f, 0.2f );
+        //printf("frame %s, lost_count %f -> fade pct %4.2f, fade %4.2f\n", frame_ok?"y":"n", frame_lost_count, fade_pct, fade );
+
+        // draw augmentation
+        if ( fade > 0 && augment == 1)
+        {
+            drawAugmentation();
+        }
+
+        // calculate fps
+        draw_fps = (draw_fps*7.0+1.0/elapsed)/8.0f;
+
+        glLoadIdentity();
+        // we need to setup a new projection matrix for the title font.
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        glTranslatef(-.98, 0.9, 0.0);
+        glScalef(.003, .003, .003);
+        ftglFont->FaceSize(32);
+        glColor4f(1.0, 1.0, 1.0, 1);
+        ftglFont->Render("the artvertiser 0.4");
+        glTranslatef(0, -(video_height+30), 0);
+        glColor4f(1.0, 1.0, 1.0, .6);
+        //ftglFont->FaceSize(16);
+        //ftglFont->Render(date(now).c_str());
+        if (frame_ok == 1 and (now/1000)%2== 0)
+        {
+            glTranslatef(video_width-295, video_height+35, 0);
+            glColor4f(0.0, 1.0, 0.0, .8);
+            glBegin(GL_TRIANGLES);
+            glVertex3f(140, 0, 0);
+            glVertex3f(150, 10, 0);
+            glVertex3f(140, 20, 0);
+            glEnd();
+            glTranslatef(70, 5, 0);
+            ftglFont->FaceSize(16);
+            ftglFont->Render("tracking");
+        }
+
+        // reset the ftgl font size for next pass
+        ftglFont->FaceSize(12);
+
+
+        if ( show_status )
+        {
+            //printf("draw status\n");
+
+            drawDetectedPoints( raw_frame_texture->getIm()->width, raw_frame_texture->getIm()->height );
+
+            char detect_fps_string[256];
+            sprintf(detect_fps_string, "draw fps: %4.2f\ndetection fps: %4.2f", draw_fps, detection_fps );
+            drawGlutString( detect_fps_string, 1.0f, 0.2f, 0.2f, 0.7, 0.94 );
+
+            // now status string
+            string draw_string = status_string;
+            if ( multi )
+            {
+                // show detector settings
+                draw_string += "\n" + getSettingsString();
+            }
+            drawGlutString( draw_string.c_str(), 1.0f, 0.2f, 0.2f, 0.01f, 0.2f );
+        }
+
+        drawMenu();
     }
-
-    drawMenu();
-
 
     glutSwapBuffers();
-    cvReleaseImage(&image); // cleanup used image
+    //cvReleaseImage(&image); // cleanup used image
     glFlush();
 }
 
@@ -2034,12 +2046,8 @@ static void* detectionThreadFunc( void* _data )
 static void idle()
 {
 
-
-    // detect the calibration object in every image
-    // (this loop could be paralelized)
-    int nbdet=1;
-
-    if(!raw_frame_texture) raw_frame_texture = new IplTexture;
+    if(!raw_frame_texture)
+        raw_frame_texture = new IplTexture;
 
     PROFILE_SECTION_PUSH("getting last frame");
 
@@ -2076,10 +2084,20 @@ static void idle()
 
     PROFILE_SECTION_POP();
 
-    updateMenu();
 
-    //doDetection();
-
+    if ( multi->model.isInteractiveTrainBinocularsRunning() )
+    {
+        bool button_red = button_state   & BUTTON_RED;
+        bool button_green = button_state & BUTTON_GREEN;
+        bool button_blue = button_state  & BUTTON_BLUE;
+        multi->model.interactiveTrainBinocularsUpdate( raw_frame_texture->getImage(),
+                                                      button_red, button_green, button_blue );
+    }
+    else
+    {
+        updateMenu();
+        //doDetection();
+    }
     glutPostRedisplay();
 
     PROFILE_SECTION_POP();
@@ -2170,7 +2188,7 @@ void updateMenu()
 	// accept?
 	if ( button_state == BUTTON_GREEN )
 	{
-		
+
 		new_artvert_requested_index = menu_index;
 		new_artvert_requested = true;
 
@@ -2178,7 +2196,7 @@ void updateMenu()
 
 	}
 
-	
+
 
 
 
@@ -2203,7 +2221,7 @@ void drawMenu()
 			ftglFont->Render("changing artvert...");
 
 		}
-		
+
 		return;
 	}
 
