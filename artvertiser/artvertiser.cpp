@@ -103,8 +103,8 @@ using namespace std;
 #endif
 #define GL_MIRROR_CLAMP_EXT 0x8742
 
-#define DEFAULT_WIDTH 1024
-#define DEFAULT_HEIGHT 576
+#define DEFAULT_WIDTH 640
+#define DEFAULT_HEIGHT 480
 #define DEFAULT_V4LDEVICE 0
 
 #define NUMARTVERTS 5
@@ -1288,6 +1288,8 @@ static void geomCalibIdle(void)
         }
         geom_calib_nb_homography++;
     }
+
+    printf("geom calib: %.2f%%\n", 100.0f*geom_calib_nb_homography/150.0f );
 
     if (geom_calib_nb_homography>=150)
     {

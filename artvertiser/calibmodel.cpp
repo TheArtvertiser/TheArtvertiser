@@ -66,14 +66,13 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
 	//detector.ransac_stop_support = 50;
 	//detector.non_linear_refine_threshold = 15.0f;
 	//detector.point_detector_tau = 10;
-	detector.views_number = 100;
 
 	// A lower threshold will allow detection in harder conditions, but
 	// might lead to false positives.
 	detector.match_score_threshold=.03f;
 
 	detector.min_view_rate=.1;
-	detector.views_number = 100;
+	detector.views_number = 1000;
 	// damian below
    //detector.min_view_rate = .2;
 
