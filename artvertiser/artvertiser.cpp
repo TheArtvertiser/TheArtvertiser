@@ -1821,19 +1821,18 @@ void* serialThreadFunc( void* data )
     {
         serialport_read_until(fd, buf, '\n');
         printf("read: %s\n",buf);
-	if ( strlen( buf ) >= 3 )
-	{
-		bool button1 = (buf[0]!='0');
-		bool button2 = (buf[1]!='0');
-		bool button3 = (buf[2]!='0');
-		printf("buttons: %s %s %s", button1?"x":"-", button2?"x":"-", button3?"x":"-");
-		menu_down = button1;
-		menu_accept = button2;
-		menu_show = button2;
-		menu_up = button3;
-
-	}
-        usleep(500*1000);
+        if ( strlen( buf ) >= 4 /*includes final \n*/ )
+        {
+            bool button1 = (buf[0]=='1');
+            bool button2 = (buf[1]=='1');
+            bool button3 = (buf[2]=='1');
+            printf("buttons: %s %s %s", button1?"x":"-", button2?"x":"-", button3?"x":"-");
+            menu_down = button1;
+            menu_accept = button2;
+            menu_show = button2;
+            menu_up = button3;
+        }
+        usleep(3*1000);
     }
 
     close(fd);
