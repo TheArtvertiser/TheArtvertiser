@@ -105,7 +105,7 @@ using namespace std;
 
 #define DEFAULT_WIDTH 1024
 #define DEFAULT_HEIGHT 576
-#define DEFAULT_V4LDEVICE 1
+#define DEFAULT_V4LDEVICE 0
 
 #define NUMARTVERTS 5
 
