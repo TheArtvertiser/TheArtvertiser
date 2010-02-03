@@ -1273,6 +1273,7 @@ static void geomCalibStart(bool cache)
 
 static void drawAugmentation()
 {
+
     // we know that im is not NULL already
 //    IplImage *im = multi->model.image;
 
@@ -1421,8 +1422,6 @@ static void drawAugmentation()
         drawBackground(tex);
         */
 
-		serialport_read_until(fd, buf, '\n');
-		printf("read: %s\n",buf);
 
 
 #ifndef DEBUG_SHADER
@@ -1590,6 +1589,8 @@ static void drawAugmentation()
  */
 static void draw()
 {
+	serialport_read_until(fd, buf, '\n');
+	printf("read: %s\n",buf);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_LIGHTING);
