@@ -1,14 +1,31 @@
-<models>
-	<model>
-		<filename>model_00482_1.bmp</filename>
-	</model>
-	<model>
-		<filename>model_00482_4.bmp</filename>
-	</model>
-	<model>
-		<filename>model_00482_3.bmp</filename>
-	</model>
-	<model>
-		<filename>model_00483_1.bmp</filename>
-	</model>
-</models>
+<artverts>
+	<artvert>
+		<model_filename>model_00482_1.bmp</model_filename>
+		<name>artvert for 00482_1</name>
+		<artist>unknown artist</artist>
+		<advert>dunkin donuts</advert>
+		<image_filename>artvert1.png</image_filename>
+	</artvert>
+	<artvert>
+		<model_filename>model_00482_4.bmp</model_filename>
+		<name>artvert for 00482_4</name>
+		<artist>unknown artist</artist>
+		<advert>dunkin donuts</advert>
+		<image_filename>artvert3.png</image_filename>
+
+	</artvert>
+	<artvert>
+		<model_filename>model_00482_3.bmp</model_filename>
+		<name>artvert for 00482_3</name>
+		<artist>unknown artist</artist>
+		<advert>dunkin donuts</advert>
+		<image_filename>artvert2.png</image_filename>
+	</artvert>
+	<artvert>
+		<model_filename>model_00483_1.bmp</model_filename>
+		<name>artvert for 00483_1</name>
+		<artist>unknown artist</artist>
+		<advert>dunkin donuts</advert>
+		<image_filename>artvert4.png</image_filename>
+	</artvert>
+</artverts>
