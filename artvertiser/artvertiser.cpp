@@ -110,6 +110,12 @@ using namespace std;
 #define NUMARTVERTS 5
 
 // buttons via arduino
+// button_state is bitmapped so as to handle multiple button presses at once
+char button_state;
+const char BUTTON_RED   = 0b001;
+const char BUTTON_GREEN = 0b010;
+const char BUTTON_BLUE  = 0b100;
+// serial comms
 int serialport_init(const char* serialport, int baud);
 int serialport_read_until(int fd, char* buf, char until);
 bool serial_thread_should_exit = false;
@@ -1823,14 +1829,15 @@ void* serialThreadFunc( void* data )
         //printf("read: %s\n",buf);
         if ( (read==0) && strlen( buf ) >= 4 /*includes final \n*/ )
         {
-            bool button1 = (buf[0]=='1');
-            bool button2 = (buf[1]=='1');
-            bool button3 = (buf[2]=='1');
+            bool button_red = (buf[0]=='1');
+            bool button_green = (buf[1]=='1');
+            bool button_blue = (buf[2]=='1');
             //printf("buttons: %s %s %s", button1?"x":"-", button2?"x":"-", button3?"x":"-");
-            menu_down = button1;
-            menu_accept = button2;
-            menu_show = button2;
-            menu_up = button3;
+            // bitmapped, to access all 7 press combinations
+            button_state =
+                ( button_green ? BUTTON_GREEN : 0 ) |
+                ( button_blue  ? BUTTON_BLUE : 0 ) |
+                ( button_red   ? BUTTON_RED : 0 );
         }
         usleep(3*1000);
     }
@@ -2040,7 +2047,7 @@ int menu_index = 0;
 
 void updateMenu()
 {
-	if ( menu_show && !menu_is_showing )
+	if ( ( menu_show || button_state == BUTTON_GREEN ) && !menu_is_showing )
 	{
 		menu_is_showing = true;
 		menu_up = false;
@@ -2051,12 +2058,13 @@ void updateMenu()
 			menu_index = artvert_list.size()-1;
 	}
 	menu_show = false;
+
 	// only process rest of buttons if menu is showing
 	if ( !menu_is_showing )
         return;
 
 	// navigation
-	if( menu_up )
+	if( menu_up || button_state == BUTTON_RED )
 	{
 		menu_index++;
 		if ( menu_index >= artvert_list.size() )
@@ -2064,7 +2072,7 @@ void updateMenu()
 		menu_up = false;
 		menu_timer.SetNow();
 	}
-	if ( menu_down )
+	if ( menu_down || button_state == BUTTON_BLUE )
 	{
 		menu_index--;
 		if ( menu_index < 0 )
@@ -2074,7 +2082,7 @@ void updateMenu()
 	}
 
 	// accept?
-	if ( menu_accept )
+	if ( menu_accept || button_state == BUTTON_GREEN )
 	{
 
 	    loadOrTrain( menu_index );
@@ -2084,6 +2092,8 @@ void updateMenu()
 	    menu_show = false;
 
 	}
+
+	button_state = 0;
 
 
 	// update timer
