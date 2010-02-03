@@ -111,7 +111,8 @@ using namespace std;
 
 // buttons via arduino
 // button_state is bitmapped so as to handle multiple button presses at once
-char button_state;
+char button_state = 0;
+bool button_state_changed = false;
 const char BUTTON_RED   = 0b001;
 const char BUTTON_GREEN = 0b010;
 const char BUTTON_BLUE  = 0b100;
@@ -148,7 +149,7 @@ CvCapture *capture = 0;
 CvCapture *avi_capture = 0;
 IplImage *avi_image = 0;
 IplImage *avi_frame = 0;
-IplImage *model_image = 0;
+//IplImage *model_image = 0;
 IplImage *this_frame = 0;
 IplImage *last_frame  = 0;
 IplImage *diff= 0;
@@ -200,6 +201,8 @@ bool label = false;
 
 bool track_kalman = false;
 bool delay_video = true;
+// how many frames to delay the video
+static const int VIDEO_DELAY_FRAMES=7;
 
 double a_proj[3][4];
 double old_a_proj[3][4];
@@ -213,7 +216,7 @@ int nb_light_measures=0;
 int geom_calib_nb_homography;
 int current_cam = 0;
 int avi_init = 0;
-int augment = 0;
+int augment = 1;
 int cnt=0;
 
 vector<int> roi_vec;
@@ -241,7 +244,6 @@ public:
 
 	IplImage* getArtvertImage()
 	{
-		printf("get artvert image called\n");
 		if ( !artvert_image )
 		{
 			printf("loading artvert image '%s'\n", artvert_image_file.c_str() );
@@ -265,7 +267,8 @@ private:
 };
 
 vector< Artvert > artvert_list;
-int current_artvert_index=0;
+bool new_artvert_switching_in_progress = false;
+int current_artvert_index=-1;
 bool new_artvert_requested = false;
 int new_artvert_requested_index = 0;
 vector< bool > model_file_needs_training;
@@ -305,9 +308,6 @@ string status_string = "";
 bool menu_show = false;
 FTime menu_timer;
 bool menu_is_showing = false;
-bool menu_up = false;
-bool menu_down = false;
-bool menu_accept = false;
 void updateMenu();
 void drawMenu();
 
@@ -611,43 +611,60 @@ bool loadOrTrain( int new_index )
     {
         fprintf(stderr,"loadOrTrain: invalid index %i (artvert_list has %i members)\n", new_index, artvert_list.size() );
         return false;
-
     }
+
+	// switching model..
+	new_artvert_switching_in_progress = true;
     bool wants_training = model_file_needs_training[new_index];
     string model_file = artvert_list[new_index].model_file;
+	// do we need to switch, or can we use the same model file?
+	if ( ( current_artvert_index < 0 || current_artvert_index >= artvert_list.size() ) ||
+			model_file != artvert_list[current_artvert_index].model_file )
+	{
+		// load
+	    bool trained = multi->loadOrTrainCache( wants_training, model_file.c_str());
+    	if ( !trained )
+		{
+			// fail
+			current_artvert_index = -1;
+			new_artvert_switching_in_progress = false;
+        	return false;
+		}
+	
 
-    bool trained = multi->loadOrTrainCache( wants_training, model_file.c_str());
-    if ( !trained )
-        return false;
+		// copy char model_file before munging with strcat
+		char s[1024];
+		strcpy (s, model_file.c_str());
+		strcat(s, ".roi");
+		roi_vec = readROI(s);
 
-    // copy char model_file before munging with strcat
-    char s[1024];
-    strcpy (s, model_file.c_str());
-    strcat(s, ".roi");
-    roi_vec = readROI(s);
+		strcpy( s, model_file.c_str() );
+		strcat(s, ".artvertroi");
+		artvert_roi_vec = readROI(s);
+		if ( artvert_roi_vec.empty() )
+		{
+			// use roi_vec
+			artvert_roi_vec.insert( artvert_roi_vec.begin(), roi_vec.begin(), roi_vec.end() );
+		}
 
-    strcpy( s, model_file.c_str() );
-    strcat(s, ".artvertroi");
-    artvert_roi_vec = readROI(s);
-    if ( artvert_roi_vec.empty() )
-    {
-        // use roi_vec
-        artvert_roi_vec.insert( artvert_roi_vec.begin(), roi_vec.begin(), roi_vec.end() );
-    }
+		// load model_image for use with diffing, later
+		// model_image = cvLoadImage(model_file.c_str());
 
-    // load model_image for use with diffing, later
-    model_image = cvLoadImage(model_file.c_str());
+		c1[0].x = roi_vec[0];
+		c1[0].y = roi_vec[1];
+		c1[1].x = roi_vec[2];
+		c1[1].y = roi_vec[3];
+		c1[2].x = roi_vec[4];
+		c1[2].y = roi_vec[5];
+		c1[3].x = roi_vec[6];
+		c1[3].y = roi_vec[7];
+	}
 
-    c1[0].x = roi_vec[0];
-    c1[0].y = roi_vec[1];
-    c1[1].x = roi_vec[2];
-    c1[1].y = roi_vec[3];
-    c1[2].x = roi_vec[4];
-    c1[2].y = roi_vec[5];
-    c1[3].x = roi_vec[6];
-    c1[3].y = roi_vec[7];
-
+	// update current index
 	current_artvert_index = new_index;
+
+	// no longer switching
+	new_artvert_switching_in_progress = false;
 
     return true;
 
@@ -918,6 +935,7 @@ static bool init( int argc, char** argv )
  */
 static void keyboard(unsigned char c, int x, int y)
 {
+	char old_button_state = button_state;
     const char* filename;
     switch (c)
     {
@@ -971,18 +989,15 @@ static void keyboard(unsigned char c, int x, int y)
             cnt ++;
         cout << "we are on image " << cnt << endl;
         break;
-	case 'm':
-		menu_show = true;
+	case '[':
+		button_state |= BUTTON_RED;
 		break;
-    case '/':
-        menu_down = true;
-        break;
-    case '?':
-        menu_up = true;
-        break;
-    case '=':
-        menu_accept = true;
-        break;
+	case ']':
+		button_state |= BUTTON_GREEN;
+		break;
+	case '\\':
+		button_state |= BUTTON_BLUE;
+		break;
 
     default:
         break;
@@ -1067,9 +1082,33 @@ static void keyboard(unsigned char c, int x, int y)
         }
 
     }
-    glutPostRedisplay();
+    
+	glutPostRedisplay();
+	
+	if ( old_button_state != button_state )
+		button_state_changed = true;
 }
 
+static void keyboardReleased(unsigned char c, int x, int y)
+{
+	char old_button_state = button_state;
+	switch ( c )
+	{
+	case '[':
+		button_state &= (BUTTON_GREEN | BUTTON_BLUE);
+		break;
+	case ']':
+		button_state &= (BUTTON_RED | BUTTON_BLUE);
+		break;
+	case '\\':
+		button_state &= (BUTTON_GREEN | BUTTON_RED);
+		break;
+	default:
+		break;
+	}
+	if ( old_button_state != button_state )
+		button_state_changed = true;
+}
 static void emptyWindow()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1101,6 +1140,7 @@ int main(int argc, char *argv[])
     //cvWaitKey(0);
 
     glutKeyboardFunc(keyboard);
+	glutKeyboardUpFunc(keyboardReleased);
     printf("*** entering glutMainLoop()\n");
     glutMainLoop();
     return 0; /* ANSI C requires main to return int. */
@@ -1559,12 +1599,16 @@ static void drawAugmentation()
         }
         else
         {
-            glBindTexture(GL_TEXTURE_2D, imageID);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            IplImage* image = artvert_list.at(current_artvert_index).getArtvertImage();
-            GLenum format = IsBGR(image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->width, image->height, 0, format, GL_UNSIGNED_BYTE, image->imageData);
+			if ( current_artvert_index >= 0 &&
+				   	current_artvert_index < artvert_list.size() )
+			{
+				glBindTexture(GL_TEXTURE_2D, imageID);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+				IplImage* image = artvert_list.at(current_artvert_index).getArtvertImage();
+				GLenum format = IsBGR(image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->width, image->height, 0, format, GL_UNSIGNED_BYTE, image->imageData);
+			}
         }
 
         glEnable(GL_TEXTURE_2D);
@@ -1853,10 +1897,16 @@ void* serialThreadFunc( void* data )
             bool button_blue = (buf[2]=='1');
             // printf("buttons: %s %s %s", button_red?"red":"   ", button_green?"green":"     ", button_blue?"blue":"    ");
             // bitmapped, to access all 7 press combinations
-            button_state =
+            char new_button_state =
                 ( button_green ? BUTTON_GREEN : 0 ) |
                 ( button_blue  ? BUTTON_BLUE : 0 ) |
                 ( button_red   ? BUTTON_RED : 0 );
+			// deal with debounce
+			if ( new_button_state != button_state )
+			{
+				button_state_changed = true;
+				button_state = new_button_state;
+			}
         }
         usleep(3*1000);
     }
@@ -1999,7 +2049,7 @@ static void idle()
         multi->cams[current_cam]->getLastDrawFrame( &captured_frame, &raw_frame_timestamp );
 
         static list< pair<IplImage*, FTime> > frameRingBuffer;
-        while ( frameRingBuffer.size()<10 )
+        while ( frameRingBuffer.size()<VIDEO_DELAY_FRAMES )
         {
             IplImage* first_frame =  cvCreateImage( cvGetSize( captured_frame ), captured_frame->depth, captured_frame->nChannels );
             cvCopy( captured_frame, first_frame );
@@ -2066,70 +2116,96 @@ int menu_index = 0;
 
 void updateMenu()
 {
-	if ( ( menu_show || button_state == BUTTON_GREEN ) && !menu_is_showing )
+	// update timer
+	if ( menu_is_showing )
+	{
+		FTime now;
+		now.SetNow();
+		if ( (now-menu_timer).ToSeconds() > MENU_HIDE_TIME )
+		{
+			menu_is_showing = false;
+		}
+	}
+
+	if ( !button_state_changed )
+		return;
+
+	printf("new button state: %s %s %s\n", button_state&BUTTON_RED?"red":"   ",
+			button_state&BUTTON_GREEN?"green":"     ",
+			button_state&BUTTON_BLUE?"blue":"    ");
+
+	// clear changed flag
+	button_state_changed = false;
+
+	if ( ( button_state == BUTTON_GREEN ) && !menu_is_showing )
 	{
 		menu_is_showing = true;
-		menu_up = false;
-		menu_down = false;
-		menu_accept = false;
 		menu_timer.SetNow();
 		if ( menu_index >= artvert_list.size() )
 			menu_index = artvert_list.size()-1;
+		// done
+		return;
 	}
-	menu_show = false;
 
 	// only process rest of buttons if menu is showing
 	if ( !menu_is_showing )
         return;
 
 	// navigation
-	if( menu_up || button_state == BUTTON_RED )
+	if( button_state == BUTTON_RED )
 	{
 		menu_index++;
 		if ( menu_index >= artvert_list.size() )
 			menu_index = 0;
-		menu_up = false;
 		menu_timer.SetNow();
 	}
-	if ( menu_down || button_state == BUTTON_BLUE )
+	if ( button_state == BUTTON_BLUE )
 	{
 		menu_index--;
 		if ( menu_index < 0 )
 			menu_index = artvert_list.size()-1;
-		menu_down = false;
 		menu_timer.SetNow();
 	}
 
 	// accept?
-	if ( menu_accept || button_state == BUTTON_GREEN )
+	if ( button_state == BUTTON_GREEN )
 	{
 		
 		new_artvert_requested_index = menu_index;
 		new_artvert_requested = true;
-	    menu_accept = false;
 
 	    menu_is_showing = false;
-	    menu_show = false;
 
 	}
 
-	button_state = 0;
+	
 
 
-	// update timer
-	FTime now;
-	now.SetNow();
-	if ( (now-menu_timer).ToSeconds() > MENU_HIDE_TIME )
-	{
-		menu_is_showing = false;
-	}
 
 }
 
 void drawMenu()
 {
 	if ( !menu_is_showing )
+	{
+		// draw switching text?
+		if ( new_artvert_switching_in_progress )
+		{
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+			glTranslatef(-.8, 0.65, 0.0);
+			glScalef(.003, .003, .003);
+			ftglFont->FaceSize(24);
+			glColor4f(1.0, 1.0, 1.0, 1);
+
+			ftglFont->Render("changing artvert...");
+
+		}
+		
 		return;
+	}
 
 	// draw menu header
 
@@ -2138,20 +2214,21 @@ void drawMenu()
     glLoadIdentity();
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    glTranslatef(-.8, 0.5, 0.0);
+	glEnable(GL_BLEND);
+    glTranslatef(-.8, 0.65, 0.0);
     glScalef(.003, .003, .003);
-    ftglFont->FaceSize(16);
+    ftglFont->FaceSize(24);
     glColor4f(1.0, 1.0, 1.0, 1);
 
     ftglFont->Render("Select artvert:");
-    glTranslatef( 0, -20, 0 );
+    glTranslatef( 0, -26, 0 );
 
 	for ( int i=0; i<artvert_list.size(); i++ )
 	{
 		string advert = artvert_list[i].advert;
 		string name = artvert_list[i].name;
 		string artist = artvert_list[i].artist;
-		string line = string("  ") + advert + ":" + name;
+		string line = string("   ") + advert + " : '" + name + "' by " + artist;
 
         if ( i == menu_index )
         {
@@ -2162,7 +2239,7 @@ void drawMenu()
             glColor4f( 0.5f, 0.5f, 0.5f, 1 );
         }
         ftglFont->Render(line.c_str());
-        glTranslatef(0, -20, 0 );
+        glTranslatef(0, -26, 0 );
 
     }
 

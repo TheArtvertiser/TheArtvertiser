@@ -32,7 +32,16 @@
 			<artist>julian</artist>
 		</artvert>
 	</advert>
-	<!--	
+	<advert>
+		<model_filename>models/ships2.bmp</model_filename>
+		<advert>ships cache 2</advert>
+		<artvert>
+			<name>electropalm</name>
+			<artist>julian</artist>
+			<image_filename>artverts/electropalm.png</image_filename>
+		</artvert>
+	</advert>
+<!--	
 	<advert>
 		<model_filename>model_00482_3.bmp</model_filename>
 		<advert>dunkin donuts</advert>
