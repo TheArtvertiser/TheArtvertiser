@@ -167,6 +167,7 @@ IplImage *image2 = cvLoadImage("artvert2.png");
 IplImage *image3 = cvLoadImage("artvert3.png");
 IplImage *image4 = cvLoadImage("artvert4.png");
 IplImage *image5 = cvLoadImage("artvert5.png");
+IplImage *fallback_artvert_image = cvLoadImage("artvert1.png");
 
 // matrix tracker
 MatrixTracker matrix_tracker;
@@ -220,18 +221,53 @@ CvPoint2D32f *c1 = new CvPoint2D32f[4];
 vector<int> artvert_roi_vec;
 
 char *image_path;
-typedef struct _Artvert
+
+class Artvert
 {
+public:
+	Artvert() { 
+		artvert_image=0; 
+		model_file="model.bmp"; 
+		artvert_image_file="artvert1.png"; 
+		artist = "unknown artist";
+		advert = "unknown advert";
+		name = "unnamed artvert";
+	}
+	~Artvert() 
+	{
+		if ( artvert_image )
+			cvReleaseImage( &artvert_image );
+	}
+
+	IplImage* getArtvertImage()
+	{
+		printf("get artvert image called\n");
+		if ( !artvert_image )
+		{
+			printf("loading artvert image '%s'\n", artvert_image_file.c_str() );
+			artvert_image = cvLoadImage( artvert_image_file.c_str() );
+		}
+		if ( !artvert_image )
+		{
+			fprintf(stderr, "couldn't load artvert image '%s'\n", artvert_image_file.c_str() );
+			artvert_image = fallback_artvert_image;
+		}
+		return artvert_image;
+	}
+
 	string model_file;
 	string artvert_image_file;
 	string artist;
 	string advert;
 	string name;
-} Artvert;
+private:
+	IplImage* artvert_image;
+};
 
 vector< Artvert > artvert_list;
-int which_artvert=0;
-bool next_artvert_requested = false;
+int current_artvert_index=0;
+bool new_artvert_requested = false;
+int new_artvert_requested_index = 0;
 vector< bool > model_file_needs_training;
 #include "ofxXmlSettings/ofxXmlSettings.h"
 
@@ -611,25 +647,10 @@ bool loadOrTrain( int new_index )
     c1[3].x = roi_vec[6];
     c1[3].y = roi_vec[7];
 
+	current_artvert_index = new_index;
+
     return true;
 
-}
-
-
-bool loadOrTrainNext()
-{
-    // get next filename
-    string filename = artvert_list.at(which_artvert).model_file;
-    printf("next model requested: loading model %i:%s\n", which_artvert, filename.c_str() );
-    // load or train
-    bool success = loadOrTrain( which_artvert /*model_file_needs_training.at(which_artvert ), filename.c_str()*/ );
-    // store if we need to train again
-    model_file_needs_training[which_artvert ] = !success;
-
-    // for next time
-    which_artvert  = (which_artvert +1)%artvert_list.size();
-
-    return success;
 }
 
 
@@ -669,10 +690,7 @@ static bool init( int argc, char** argv )
                 usage(argv[0]);
 			Artvert a;
 			a.model_file = argv[i+1];
-			a.artist = "unknown artist";
-			a.name = "cmdline";
-			a.advert = "unknown advert";
-			a.artvert_image_file = "artvert1.png";
+			a.advert = "cmdline "+a.model_file;
 			// store
          	artvert_list.push_back( a );
             printf(" -m: adding model image '%s'\n", argv[i+1] );
@@ -783,21 +801,27 @@ static bool init( int argc, char** argv )
         if ( data.getNumTags( "artverts" ) == 1 )
         {
             data.pushTag( "artverts" );
-            int num_filenames = data.getNumTags( "artvert" );
-            printf("   -ml: opened %s, %i artverts\n", model_file_list_file, num_filenames );
+            int num_filenames = data.getNumTags( "advert" );
+            printf("   -ml: opened %s, %i adverts\n", model_file_list_file, num_filenames );
             for ( int i=0; i<num_filenames; i++ )
             {
-                data.pushTag("artvert", i);
+                data.pushTag("advert", i);
 				Artvert a;
                 a.model_file = data.getValue( "model_filename", "model.bmp" );
-				a.name = data.getValue( "name", "unnamed" );
-				a.artist = data.getValue( "artist", "unknown artist" );
 				a.advert = data.getValue( "advert", "unknown advert" );
-				a.artvert_image_file = data.getValue( "image_filename", "artvert1.png" );
-                printf("   -ml: got artvert, model file '%s'\n", a.model_file.c_str() );
-                printf("     -> %s:%s:%s:%s\n", a.name.c_str(), a.artist.c_str(),
-                       a.advert.c_str(), a.artvert_image_file.c_str() );
-                artvert_list.push_back( a );
+				int num_artverts = data.getNumTags( "artvert" );
+            	printf("   -ml: got advert, model file '%s', advert '%s', %i artverts\n", a.model_file.c_str(), a.advert.c_str(), num_artverts );
+				for ( int j=0; j<num_artverts; j++ )
+				{
+					data.pushTag("artvert", j );
+					a.name = data.getValue( "name", "unnamed" );
+					a.artist = data.getValue( "artist", "unknown artist" );
+					a.artvert_image_file = data.getValue( "image_filename", "artvert1.png" );
+                	printf("     %i: %s:%s:%s\n", j, a.name.c_str(), a.artist.c_str(),
+                    	   a.artvert_image_file.c_str() );
+	                artvert_list.push_back( a );
+					data.popTag();
+				}
                 data.popTag();
             }
             data.popTag();
@@ -813,11 +837,6 @@ static bool init( int argc, char** argv )
     {
         // add default
 		Artvert a;
-		a.model_file = "model.bmp";
-		a.name = "unnamed";
-		a.artist = "unknown artist";
-		a.advert = "unknown advert";
-		a.artvert_image_file = "artvert1.png";
         artvert_list.push_back( a );
     }
 
@@ -875,7 +894,7 @@ static bool init( int argc, char** argv )
 
 
     // load geometry
-    loadOrTrainNext();
+    loadOrTrain(0);
 
     // try to load geom cache + start the run loop
     geomCalibStart(!redo_geom);
@@ -1543,9 +1562,9 @@ static void drawAugmentation()
             glBindTexture(GL_TEXTURE_2D, imageID);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            IplImage image = *artverts[cnt].image;
-            GLenum format = IsBGR(image.channelSeq) ? GL_BGR_EXT : GL_RGBA;
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, format, GL_UNSIGNED_BYTE, image.imageData);
+            IplImage* image = artvert_list.at(current_artvert_index).getArtvertImage();
+            GLenum format = IsBGR(image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->width, image->height, 0, format, GL_UNSIGNED_BYTE, image->imageData);
         }
 
         glEnable(GL_TEXTURE_2D);
@@ -1826,13 +1845,13 @@ void* serialThreadFunc( void* data )
     while ( !serial_thread_should_exit )
     {
         int read = serialport_read_until(fd, buf, '\n');
-        //printf("read: %s\n",buf);
+        // printf("read: %s\n",buf);
         if ( (read==0) && strlen( buf ) >= 4 /*includes final \n*/ )
         {
             bool button_red = (buf[0]=='1');
             bool button_green = (buf[1]=='1');
             bool button_blue = (buf[2]=='1');
-            //printf("buttons: %s %s %s", button1?"x":"-", button2?"x":"-", button3?"x":"-");
+            // printf("buttons: %s %s %s", button_red?"red":"   ", button_green?"green":"     ", button_blue?"blue":"    ");
             // bitmapped, to access all 7 press combinations
             button_state =
                 ( button_green ? BUTTON_GREEN : 0 ) |
@@ -1894,13 +1913,13 @@ static void* detectionThreadFunc( void* _data )
     {
         PROFILE_THIS_BLOCK("detection_thread");
 
-        if ( next_artvert_requested )
+        if ( new_artvert_requested )
         {
             // no longer draw
             frame_ok = false;
             // go with the loading
-            loadOrTrainNext();
-            next_artvert_requested = false;
+            loadOrTrain(new_artvert_requested_index);
+            new_artvert_requested = false;
         }
 
         bool frame_retrieved = false;
@@ -2084,8 +2103,9 @@ void updateMenu()
 	// accept?
 	if ( menu_accept || button_state == BUTTON_GREEN )
 	{
-
-	    loadOrTrain( menu_index );
+		
+		new_artvert_requested_index = menu_index;
+		new_artvert_requested = true;
 	    menu_accept = false;
 
 	    menu_is_showing = false;

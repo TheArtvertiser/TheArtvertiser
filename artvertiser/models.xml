@@ -1,31 +1,56 @@
 <artverts>
-	<artvert>
+	<!--	<advert>
 		<model_filename>model_00482_1.bmp</model_filename>
-		<name>artvert for 00482_1</name>
-		<artist>unknown artist</artist>
 		<advert>dunkin donuts</advert>
-		<image_filename>artvert1.png</image_filename>
-	</artvert>
-	<artvert>
+		<artvert>
+			<name>artvert for 00482_1</name>
+			<artist>unknown artist</artist>
+			<image_filename>artvert1.png</image_filename>
+		</artvert>
+	</advert>
+	<advert>
 		<model_filename>model_00482_4.bmp</model_filename>
-		<name>artvert for 00482_4</name>
-		<artist>unknown artist</artist>
 		<advert>dunkin donuts</advert>
-		<image_filename>artvert3.png</image_filename>
-
-	</artvert>
-	<artvert>
+		<artvert>
+			<name>artvert for 00482_4</name>
+			<image_filename>artvert3.png</image_filename>
+			<artist>unknown artist</artist>
+		</artvert>
+	</advert>
+	-->
+	<advert>
+		<model_filename>models/ships.bmp</model_filename>
+		<advert>ships</advert>
+		<artvert>
+			<name>your art here</name>
+			<image_filename>artverts/your_art_here.png</image_filename>
+			<artist>julian</artist>
+		</artvert>
+		<artvert>
+			<name>spider</name>
+			<image_filename>artverts/spider.png</image_filename>
+			<artist>julian</artist>
+		</artvert>
+	</advert>
+	<!--	
+	<advert>
 		<model_filename>model_00482_3.bmp</model_filename>
-		<name>artvert for 00482_3</name>
-		<artist>unknown artist</artist>
 		<advert>dunkin donuts</advert>
-		<image_filename>artvert2.png</image_filename>
-	</artvert>
-	<artvert>
+		<artvert>
+			<name>artvert for 00482_3</name>
+			<image_filename>artvert2.png</image_filename>
+			<artist>unknown artist</artist>
+		</artvert>
+	</advert>
+	<advert>
 		<model_filename>model_00483_1.bmp</model_filename>
-		<name>artvert for 00483_1</name>
-		<artist>unknown artist</artist>
 		<advert>dunkin donuts</advert>
-		<image_filename>artvert4.png</image_filename>
-	</artvert>
+		<artvert>
+			<name>artvert for 00483_1</name>
+			<image_filename>artvert4.png</image_filename>
+			<artist>unknown artist</artist>
+		</artvert>
+	</advert>
+	-->
 </artverts>
+
