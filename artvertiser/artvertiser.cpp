@@ -214,9 +214,18 @@ CvPoint2D32f *c1 = new CvPoint2D32f[4];
 vector<int> artvert_roi_vec;
 
 char *image_path;
-vector< string > model_file_list;
-int which_model_file=0;
-bool next_model_requested = false;
+typedef struct _Artvert
+{
+	string model_file;
+	string artvert_image_file;
+	string artist;
+	string advert;
+	string name;
+} Artvert;
+
+vector< Artvert > artvert_list;
+int which_artvert=0;
+bool next_artvert_requested = false;
 vector< bool > model_file_needs_training;
 #include "ofxXmlSettings/ofxXmlSettings.h"
 
@@ -247,6 +256,18 @@ static FTFont *ftglFont;
 bool show_status = false;
 bool show_profile_results = false;
 string status_string = "";
+
+// menu
+// hide after 5s
+#define MENU_HIDE_TIME 5.0f
+bool menu_show = false;
+FTime menu_timer;
+bool menu_is_showing = false;
+bool menu_up = false;
+bool menu_down = false;
+bool menu_accept = false;
+void updateMenu();
+void drawMenu();
 
 /* use this to read paths from the file system
 
@@ -541,19 +562,29 @@ int serialport_read_until(int fd, char* buf, char until)
 }
 
 
-bool loadOrTrain( bool wants_training, const char* model_file )
+bool loadOrTrain( int new_index )
 {
-    bool trained = multi->loadOrTrainCache( wants_training, model_file);
+    // fetch data
+    if ( new_index < 0 || new_index >= artvert_list.size() )
+    {
+        fprintf(stderr,"loadOrTrain: invalid index %i (artvert_list has %i members)\n", new_index, artvert_list.size() );
+        return false;
+
+    }
+    bool wants_training = model_file_needs_training[new_index];
+    string model_file = artvert_list[new_index].model_file;
+
+    bool trained = multi->loadOrTrainCache( wants_training, model_file.c_str());
     if ( !trained )
         return false;
 
     // copy char model_file before munging with strcat
-    char s[strlen(model_file)];
-    strcpy (s, model_file);
+    char s[1024];
+    strcpy (s, model_file.c_str());
     strcat(s, ".roi");
     roi_vec = readROI(s);
 
-    strcpy( s, model_file );
+    strcpy( s, model_file.c_str() );
     strcat(s, ".artvertroi");
     artvert_roi_vec = readROI(s);
     if ( artvert_roi_vec.empty() )
@@ -563,7 +594,7 @@ bool loadOrTrain( bool wants_training, const char* model_file )
     }
 
     // load model_image for use with diffing, later
-    model_image = cvLoadImage(model_file);
+    model_image = cvLoadImage(model_file.c_str());
 
     c1[0].x = roi_vec[0];
     c1[0].y = roi_vec[1];
@@ -582,15 +613,15 @@ bool loadOrTrain( bool wants_training, const char* model_file )
 bool loadOrTrainNext()
 {
     // get next filename
-    string filename = model_file_list.at(which_model_file);
-    printf("next model requested: loading model %i:%s\n", which_model_file, filename.c_str() );
+    string filename = artvert_list.at(which_artvert).model_file;
+    printf("next model requested: loading model %i:%s\n", which_artvert, filename.c_str() );
     // load or train
-    bool success = loadOrTrain( model_file_needs_training.at(which_model_file), filename.c_str() );
+    bool success = loadOrTrain( which_artvert /*model_file_needs_training.at(which_artvert ), filename.c_str()*/ );
     // store if we need to train again
-    model_file_needs_training[which_model_file] = !success;
+    model_file_needs_training[which_artvert ] = !success;
 
     // for next time
-    which_model_file = (which_model_file+1)%model_file_list.size();
+    which_artvert  = (which_artvert +1)%artvert_list.size();
 
     return success;
 }
@@ -630,7 +661,14 @@ static bool init( int argc, char** argv )
         {
             if (i==argc-1)
                 usage(argv[0]);
-            model_file_list.push_back( argv[i+1] );
+			Artvert a;
+			a.model_file = argv[i+1];
+			a.artist = "unknown artist";
+			a.name = "cmdline";
+			a.advert = "unknown advert";
+			a.artvert_image_file = "artvert1.png";
+			// store
+         	artvert_list.push_back( a );
             printf(" -m: adding model image '%s'\n", argv[i+1] );
             i++;
         }
@@ -736,37 +774,50 @@ static bool init( int argc, char** argv )
         ofxXmlSettings data;
         data.loadFile( model_file_list_file );
 
-        if ( data.getNumTags( "models" ) == 1 )
+        if ( data.getNumTags( "artverts" ) == 1 )
         {
-            data.pushTag( "models" );
-            int num_filenames = data.getNumTags( "model" );
-            printf("   -ml: opened %s, %i models\n", model_file_list_file, num_filenames );
+            data.pushTag( "artverts" );
+            int num_filenames = data.getNumTags( "artvert" );
+            printf("   -ml: opened %s, %i artverts\n", model_file_list_file, num_filenames );
             for ( int i=0; i<num_filenames; i++ )
             {
-                data.pushTag("model", i);
-                string filename = data.getValue("filename", "" );
-                printf("   -ml: got model image '%s'\n", filename.c_str() );
-                model_file_list.push_back( filename );
+                data.pushTag("artvert", i);
+				Artvert a;
+                a.model_file = data.getValue( "model_filename", "model.bmp" );
+				a.name = data.getValue( "name", "unnamed" );
+				a.artist = data.getValue( "artist", "unknown artist" );
+				a.advert = data.getValue( "advert", "unknown advert" );
+				a.artvert_image_file = data.getValue( "image_filename", "artvert1.png" );
+                printf("   -ml: got artvert, model file '%s'\n", a.model_file.c_str() );
+                printf("     -> %s:%s:%s:%s\n", a.name.c_str(), a.artist.c_str(),
+                       a.advert.c_str(), a.artvert_image_file.c_str() );
+                artvert_list.push_back( a );
                 data.popTag();
             }
             data.popTag();
         }
         else
         {
-            printf("   -ml: error reading '%s'\n", model_file_list_file );
+            printf("   -ml: error reading '%s': couldn't find 'artverts' tag\n", model_file_list_file );
         }
     }
 
     // check if model file list is empty
-    if ( model_file_list.empty() )
+    if ( artvert_list.empty() )
     {
         // add default
-        model_file_list.push_back("model.bmp");
+		Artvert a;
+		a.model_file = "model.bmp";
+		a.name = "unnamed";
+		a.artist = "unknown artist";
+		a.advert = "unknown advert";
+		a.artvert_image_file = "artvert1.png";
+        artvert_list.push_back( a );
     }
 
     // set up training flags
-    for ( int i=0; i<model_file_list.size(); i++ )
-        model_file_needs_training.push_back( redo_training );
+    for ( int i=0; i<artvert_list.size(); i++ )
+    	model_file_needs_training.push_back( redo_training );
 
     // check for video size arg if necessary
     if ( video_source_is_avi )
@@ -895,9 +946,19 @@ static void keyboard(unsigned char c, int x, int y)
             cnt ++;
         cout << "we are on image " << cnt << endl;
         break;
-    case '=':
-        next_model_requested = true;
+	case 'm':
+		menu_show = true;
+		break;
+    case '/':
+        menu_down = true;
         break;
+    case '?':
+        menu_up = true;
+        break;
+    case '=':
+        menu_accept = true;
+        break;
+
     default:
         break;
     }
@@ -1711,6 +1772,8 @@ static void draw()
         drawGlutString( draw_string.c_str(), 1.0f, 0.2f, 0.2f, 0.01f, 0.2f );
     }
 
+    drawMenu();
+
 
     glutSwapBuffers();
     cvReleaseImage(&image); // cleanup used image
@@ -1762,7 +1825,11 @@ void* serialThreadFunc( void* data )
 		bool button2 = (buf[1]!='0');
 		bool button3 = (buf[2]!='0');
 		printf("buttons: %s %s %s", button1?"x":"-", button2?"x":"-", button3?"x":"-");
-		
+		menu_down = button1;
+		menu_accept = button2;
+		menu_show = button2;
+		menu_up = button3;
+
 	}
         usleep(500*1000);
     }
@@ -1819,13 +1886,13 @@ static void* detectionThreadFunc( void* _data )
     {
         PROFILE_THIS_BLOCK("detection_thread");
 
-        if ( next_model_requested )
+        if ( next_artvert_requested )
         {
             // no longer draw
             frame_ok = false;
             // go with the loading
             loadOrTrainNext();
-            next_model_requested = false;
+            next_artvert_requested = false;
         }
 
         bool frame_retrieved = false;
@@ -1932,6 +1999,7 @@ static void idle()
 
     PROFILE_SECTION_POP();
 
+    updateMenu();
 
     //doDetection();
 
@@ -1954,5 +2022,123 @@ static void start()
     glutIdleFunc(idle);
     glutDisplayFunc(draw);
 }
+
+
+
+/*
+// menu
+bool menu_show = false;
+FTime menu_timer;
+bool menu_is_showing = false;
+bool menu_up = false;
+bool menu_down = false;
+void updateMenu();
+void drawMenu();
+*/
+int menu_index = 0;
+
+void updateMenu()
+{
+	if ( menu_show && !menu_is_showing )
+	{
+		menu_is_showing = true;
+		menu_up = false;
+		menu_down = false;
+		menu_accept = false;
+		menu_timer.SetNow();
+		if ( menu_index >= artvert_list.size() )
+			menu_index = artvert_list.size()-1;
+	}
+	menu_show = false;
+	// only process rest of buttons if menu is showing
+	if ( !menu_is_showing )
+        return;
+
+	// navigation
+	if( menu_up )
+	{
+		menu_index++;
+		if ( menu_index >= artvert_list.size() )
+			menu_index = 0;
+		menu_up = false;
+		menu_timer.SetNow();
+	}
+	if ( menu_down )
+	{
+		menu_index--;
+		if ( menu_index < 0 )
+			menu_index = artvert_list.size()-1;
+		menu_down = false;
+		menu_timer.SetNow();
+	}
+
+	// accept?
+	if ( menu_accept )
+	{
+
+	    loadOrTrain( menu_index );
+	    menu_accept = false;
+
+	    menu_is_showing = false;
+	    menu_show = false;
+
+	}
+
+
+	// update timer
+	FTime now;
+	now.SetNow();
+	if ( (now-menu_timer).ToSeconds() > MENU_HIDE_TIME )
+	{
+		menu_is_showing = false;
+	}
+
+}
+
+void drawMenu()
+{
+	if ( !menu_is_showing )
+		return;
+
+	// draw menu header
+
+	// draw loop
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glTranslatef(-.8, 0.5, 0.0);
+    glScalef(.003, .003, .003);
+    ftglFont->FaceSize(16);
+    glColor4f(1.0, 1.0, 1.0, 1);
+
+    ftglFont->Render("Select artvert:");
+    glTranslatef( 0, -20, 0 );
+
+	for ( int i=0; i<artvert_list.size(); i++ )
+	{
+		string advert = artvert_list[i].advert;
+		string name = artvert_list[i].name;
+		string artist = artvert_list[i].artist;
+		string line = string("  ") + advert + ":" + name;
+
+        if ( i == menu_index )
+        {
+            glColor4f( 1,1,1,1 );
+        }
+        else
+        {
+            glColor4f( 0.5f, 0.5f, 0.5f, 1 );
+        }
+        ftglFont->Render(line.c_str());
+        glTranslatef(0, -20, 0 );
+
+    }
+
+
+}
+
+
+
 //EOF
 
