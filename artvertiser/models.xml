@@ -19,26 +19,23 @@
 	</advert>
 	-->
 	<advert>
-		<model_filename>models/ships.bmp</model_filename>
-		<advert>ships</advert>
+		<model_filename>models/posters4.bmp</model_filename>
+		<advert>kunst beer</advert>
 		<artvert>
 			<name>your art here</name>
 			<image_filename>artverts/your_art_here.png</image_filename>
-			<artist>julian</artist>
+			<artist>us</artist>
 		</artvert>
 		<artvert>
 			<name>spider</name>
 			<image_filename>artverts/spider.png</image_filename>
 			<artist>julian</artist>
 		</artvert>
-	</advert>
-	<advert>
-		<model_filename>models/ships2.bmp</model_filename>
-		<advert>ships cache 2</advert>
 		<artvert>
-			<name>electropalm</name>
-			<artist>julian</artist>
-			<image_filename>artverts/electropalm.png</image_filename>
+			<name>moviething</name>
+			<image_filename>artverts/moviething.mp4</image_filename>
+			<is_avi>1</is_avi>
+			<artist>damian</artist>
 		</artvert>
 	</advert>
 <!--	

@@ -1118,15 +1118,21 @@ int main(int argc, char *argv[])
 {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
-    glutInitWindowSize(video_width,video_height); // hard set the init window size
+    //glutInitWindowSize(video_width,video_height); // hard set the init window size
     //glutInitWindowSize(800,450); // hard set the init window size
 
 
     glutDisplayFunc(emptyWindow);
     glutReshapeFunc(reshape);
-    glutCreateWindow("The Artvertiser 0.4");
+    //glutCreateWindow("The Artvertiser 0.4");
     glutMouseFunc(mouse);
     glutEntryFunc(entry);
+
+    /* use this to explicitly set the window size for glut Game Mode
+    glutGameModeString("1024x768:16@60");
+    */
+    glutEnterGameMode();
+    glutSetCursor(GLUT_CURSOR_NONE);
 
     if (!init(argc,argv)) return -1;
 
@@ -1143,6 +1149,7 @@ int main(int argc, char *argv[])
 	glutKeyboardUpFunc(keyboardReleased);
     printf("*** entering glutMainLoop()\n");
     glutMainLoop();
+    glutLeaveGameMode();
     return 0; /* ANSI C requires main to return int. */
 }
 
