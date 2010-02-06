@@ -55,13 +55,13 @@ int MultiGrab::init( char *avi_bg_path, int width, int height, int v4l_device, i
     return 1;
 }
 
-bool MultiGrab::loadOrTrainCache( bool wants_training, const char* modelfile )
+bool MultiGrab::loadOrTrainCache( bool wants_training, const char* modelfile, bool running_on_binoculars )
 {
     cams[0]->detector.clear();
 
     model.useModelFile( modelfile ) ;
 
-	if (!model.buildCached(cams.size(), cams[0]->cam, !wants_training, cams[0]->detector)) {
+	if (!model.buildCached(cams.size(), cams[0]->cam, !wants_training, cams[0]->detector, running_on_binoculars )) {
 		cout << "model.buildCached() failed.\n";
 		return false;
 	}

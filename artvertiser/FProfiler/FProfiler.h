@@ -87,7 +87,7 @@
 #define PROFILE_SECTION_POP() ;
 #define PROFILE_THIS_FUNCTION() ;
 #define PROFILE_THIS_BLOCK( label );
-#warning Profiling with FProfiler disabled
+//#warning Profiling with FProfiler disabled
 #endif
 
 

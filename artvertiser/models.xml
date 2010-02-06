@@ -19,7 +19,7 @@
 	</advert>
 	-->
 	<advert>
-		<model_filename>models/posters4.bmp</model_filename>
+		<model_filename>models/posters1.bmp</model_filename>
 		<advert>kunst beer</advert>
 		<artvert>
 			<name>your art here</name>
@@ -27,15 +27,101 @@
 			<artist>us</artist>
 		</artvert>
 		<artvert>
-			<name>spider</name>
+			<name>USB Bomb</name>
+			<image_filename>artverts/usb_bomb.png</image_filename>
+			<artist>us</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/posters4.bmp</model_filename>
+		<advert>Sport Hilfe</advert>
+		<artvert>
+			<name>Paradise Berlin</name>
+			<image_filename>artverts/posters4.png</image_filename>
+			<artist>us</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/posters7.bmp</model_filename>
+		<advert>Rathaus Passagen</advert>
+		<artvert>
+			<name>Rathaus Passagen</name>
 			<image_filename>artverts/spider.png</image_filename>
-			<artist>julian</artist>
+			<artist>us</artist>
+		</artvert>
+	</advert>
+
+	<advert>
+		<model_filename>models/posters8.bmp</model_filename>
+		<advert>Motor Welt</advert>
+		<artvert>
+			<name>You're not here</name>
+			<image_filename>artverts/mountains.jpg</image_filename>
+			<artist>us</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/posters9.bmp</model_filename>
+		<advert>94.3 RS2</advert>
+		<artvert>
+			<name>obey</name>
+			<image_filename>artverts/obey.png</image_filename>
+			<artist>obey</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/ships.bmp</model_filename>
+		<advert>Sparkasse</advert>
+		<artvert>
+			<name>A Tradition of The Best Advice</name>
+			<movie_filename>artverts/advice_flat.mp4</movie_filename>
+			<artist>Jason Reizner</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/posters11.bmp</model_filename>
+		<advert>Pixar</advert>
+		<artvert>
+			<name>Enlightenment</name>
+			<image_filename>artverts/Enlightenment.jpg</image_filename>
+			<artist>Bjorn Erik Haugen</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/posters12.bmp</model_filename>
+		<advert>Avene/Apotheke</advert>
+		<artvert>
+			<name>Temple of Health</name>
+			<image_filename>artverts/01_The_temple_of_health.jpg</image_filename>
+			<artist>Ivana Kohlhammer</artist>
 		</artvert>
 		<artvert>
-			<name>moviething</name>
-			<image_filename>artverts/moviething.mp4</image_filename>
-			<is_avi>1</is_avi>
-			<artist>damian</artist>
+			<name>Untitled</name>
+			<image_filename>artverts/woman_art_Torres.jpg</image_filename>
+			<artist>Gerardo Torres</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/posters13.bmp</model_filename>
+		<advert>La Roche</advert>
+		<artvert>
+			<name>Hair Helmuts are Super Cool</name>
+			<image_filename>artverts/laroche-ad-hairJustinYoung1500x980.jpg</image_filename>
+			<artist>Justin Young</artist>
+		</artvert>
+		<artvert>
+			<name>Untitled</name>
+			<image_filename>artverts/laroche-ad-pattern-JustinYoung850x555.jpg</image_filename>
+			<artist>Justin Young</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/posters15.bmp</model_filename>
+		<advert>Ulla</advert>
+		<artvert>
+			<name>Publicity Against Consumption</name>
+			<movie_filename>artverts/publicity_against_consumption.mov</movie_filename>
+			<artist>Animazon</artist>
 		</artvert>
 	</advert>
 <!--	

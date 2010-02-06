@@ -18,7 +18,7 @@ public:
 
 	void useModelFile( const char *modelfile );
 
-	bool buildCached(int nbcam, CvCapture *capture, bool cache, planar_object_recognizer &detector);
+	bool buildCached(int nbcam, CvCapture *capture, bool cache, planar_object_recognizer &detector, bool dont_try_to_train );
 
     int getImageWidth() { return image_width; }
     int getImageHeight() { return image_height; }

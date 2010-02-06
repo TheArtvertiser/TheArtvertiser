@@ -55,7 +55,7 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
 	}
 }
 
-bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_object_recognizer &detector)
+bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_object_recognizer &detector, bool dont_try_to_train )
 {
     detector.clear();
 
@@ -156,6 +156,13 @@ bool CalibModel::buildCached(int nbcam, CvCapture *capture, bool cache, planar_o
             cvReleaseImage( &image );
         image =0;
 		// ask the user the take a shot of the model
+		if ( !cache && dont_try_to_train )
+		{
+			printf("CalibModel: would normally try to train now but we were told not to\n");
+			detector.clear();
+			detector.unlock();
+			return false; 
+		}
 		if (!interactiveSetup(capture))
 		{
 		    printf("interactiveSetup failed\n");
