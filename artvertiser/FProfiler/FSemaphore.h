@@ -16,20 +16,53 @@
 #include <sys/errno.h>
 #include <assert.h>
 
+#ifdef __APPLE__
+#warning compiling under OSX
+#include <boost/thread/barrier.hpp>
+#endif
+
 class FBarrier
 {
 public:
     /// count is the number of threads to wait for.
-    FBarrier( int count ) { int res = pthread_barrier_init( &barrier, 0, count ); assert(res==0 && "error creating barrier"); }
-    ~FBarrier() { int res = pthread_barrier_destroy( &barrier ); if ( res==EBUSY ) assert(false && "cannot destroy barrier when it is in use" ); }
+    FBarrier( int count )
+    #ifdef __APPLE__
+    : barrier( count ) {};
+    #else
+    {
+        int res = pthread_barrier_init( &barrier, 0, count );
+        assert(res==0 && "error creating barrier");
+    }
+    #endif
+    ~FBarrier()
+    {
+        #ifdef __APPLE__
+        #else
+        int res = pthread_barrier_destroy( &barrier );
+        if ( res==EBUSY )
+            assert(false && "cannot destroy barrier when it is in use" );
+        #endif
+    }
+
 
     /// wait for everyone to arrive at the barrier. return once they have. returns true if wait returns
     /// the PTHREAD_BARRIER_SERIAL_THREAD return value.
-    bool Wait() { int ret = pthread_barrier_wait( &barrier ); return ret == PTHREAD_BARRIER_SERIAL_THREAD; }
+    bool Wait() {
+        #ifdef __APPLE__
+        return barrier.wait();
+        #else
+        int ret = pthread_barrier_wait( &barrier );
+        return ret == PTHREAD_BARRIER_SERIAL_THREAD;
+        #endif
+        }
 
 private:
 
+#ifdef __APPLE__
+	boost::barrier barrier;
+#else
     pthread_barrier_t barrier;
+#endif
 
 };
 
@@ -40,7 +73,7 @@ public:
 	~FSemaphore() { sem_destroy( &sem ); }
 
 	/// wait for the semaphore to become available and then grab
-	void Wait() { if ( debug ) printf("%x about to Wait\n", (unsigned int)&sem ); sem_wait( &sem ); if( debug ) printf("%x Wait\n", (unsigned int)&sem ); }
+	void Wait() {  sem_wait( &sem ); }
 
 	/// try once; if available, grab and return true, else return false
 	bool TryWait() {
@@ -51,13 +84,12 @@ public:
 				  (err==EDEADLK?"EDEADLK":(err==EINTR?"EINTR":(err==EINVAL?"EINVAL":"UNKNOWN"))));
 		return ( err == 0 );
 #else*/
-		if ( debug ) printf( "%x Trywait\n", (unsigned int)&sem );
 		return 0==sem_trywait( &sem );
 		//#endif
 	}
 
 	/// signal the semaphore that we've finished
-	void Signal() { if (debug) printf("%x Signal\n", (unsigned int)&sem); sem_post( &sem );  }
+	void Signal() { sem_post( &sem );  }
 
 private:
 	sem_t sem;

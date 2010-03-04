@@ -18,12 +18,18 @@
 
 */
 
+#ifdef __APPLE__
+#define OSX
+#endif
+
 #ifdef OSX
 #include <mach/mach_time.h>
 #else
 #include <time.h>
 #endif
 #include <stdio.h>
+
+#include <assert.h>
 
 class FTime
 {

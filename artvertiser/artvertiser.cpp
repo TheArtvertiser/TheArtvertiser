@@ -113,9 +113,9 @@ using namespace std;
 // button_state is bitmapped so as to handle multiple button presses at once
 char button_state = 0;
 bool button_state_changed = false;
-const char BUTTON_RED   = 0b001;
-const char BUTTON_GREEN = 0b010;
-const char BUTTON_BLUE  = 0b100;
+const char BUTTON_RED   = 0x01;
+const char BUTTON_GREEN = 0x02;
+const char BUTTON_BLUE  = 0x04;
 // serial comms
 int serialport_init(const char* serialport, int baud);
 int serialport_read_until(int fd, char* buf, char until);

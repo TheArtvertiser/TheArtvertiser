@@ -143,7 +143,7 @@ void FProfiler::Display( FProfiler::SORT_BY sort )
 		  i != contexts.end();
 		  ++i )
 	{
-		printf("Thread %x\n", (unsigned int)&((*i)->thread_context) );
+		printf("Thread %x\n", (unsigned long)&((*i)->thread_context) );
 		(*i)->toplevel->Display("| ", sort );
 	}
 	lock.Signal();

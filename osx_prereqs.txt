@@ -1,0 +1,12 @@
+prerequisites for OSX build of Artvertiser:
+
+- boost with threads lib compiled:
+  extract boost & cd into boost dir then
+  $ ./bootstrap.sh --with-libraries=thread
+  $ sudo ./bjam install
+  
+- freetype in /usr (NOT /usr/local)
+
+- ftgl 
+  (will throw errors about unable to build demo, just ignore and continue)
+
