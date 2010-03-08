@@ -10,3 +10,4 @@ prerequisites for OSX build of Artvertiser:
 - ftgl 
   (will throw errors about unable to build demo, just ignore and continue)
 
+- modify makefiles to use -framework OpenGL and -framework GLUT

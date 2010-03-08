@@ -1191,14 +1191,19 @@ int main(int argc, char *argv[])
 
 
     glutDisplayFunc(emptyWindow);
-    //glutReshapeFunc(reshape);
-    //glutCreateWindow("The Artvertiser 0.4");
+
+#ifdef __APPLE__
+    glutReshapeFunc(reshape);
+    glutCreateWindow("The Artvertiser 0.4");
+#endif
     glutMouseFunc(mouse);
     glutEntryFunc(entry);
 
+#ifndef __APPLE__
     glutGameModeString("1024x768:16@60");
     glutEnterGameMode();
     glutSetCursor(GLUT_CURSOR_NONE);
+#endif
 
     if (!init(argc,argv)) return -1;
 
@@ -1213,7 +1218,6 @@ int main(int argc, char *argv[])
 
     glutKeyboardFunc(keyboard);
 	glutKeyboardUpFunc(keyboardReleased);
-    printf("*** entering glutMainLoop()\n");
     glutMainLoop();
     glutLeaveGameMode();
     return 0; /* ANSI C requires main to return int. */

@@ -117,6 +117,8 @@ MKDIR_P = /bin/mkdir -p
 OBJEXT = o
 OPENCV_CFLAGS = -I/usr/local/include/opencv  
 OPENCV_LIBS = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml  
+#OPENCV_FLAGS = -I/System/Library/Frameworks/OpenCV.framework/Headers
+#OPENCV_LIBS = -framework OpenCV
 PACKAGE = bazar
 PACKAGE_BUGREPORT = julien.pilet@epfl.ch
 PACKAGE_NAME = bazar
@@ -191,8 +193,8 @@ top_builddir = ..
 top_srcdir = ..
 #openglprogs = 
 openglprogs = artvertiser
-artvertiser_CXXFLAGS = -I/usr/local/include/opencv   -I../garfeild -I../starter
-artvertiser_LDADD = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml FProfiler/libfprofiler.a  ../garfeild/libgarfeild.a ../starter/libstarter.a ofxXmlSettings/libofxXmlSettings.a MatrixTracker/libMatrixTracker.a \
+artvertiser_CXXFLAGS = $(OPENCV_CFLAGS) -I../garfeild -I../starter
+artvertiser_LDADD = -L/usr/local/lib $(OPENCV_LIBS)  -lml FProfiler/libfprofiler.a  ../garfeild/libgarfeild.a ../starter/libstarter.a ofxXmlSettings/libofxXmlSettings.a MatrixTracker/libMatrixTracker.a \
 		 -lGLEW -framework OpenGL -lm -lboost_thread
 
 artvertiser_SOURCES = artvertiser.cpp calibmodel.cpp calibmodel.h \

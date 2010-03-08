@@ -219,7 +219,7 @@ target_alias =
 top_build_prefix = 
 top_builddir = .
 top_srcdir = .
-SUBDIRS = starter garfeild doc artvertiser artvertiser/FProfiler artvertiser/ofxVectorMath
+SUBDIRS = starter garfeild doc artvertiser artvertiser/FProfiler 
 EXTRA_DIST = autogen.sh
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive

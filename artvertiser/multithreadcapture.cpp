@@ -197,8 +197,9 @@ void MultiThreadCapture::ThreadedFunction()
             PROFILE_SECTION_POP();
 
             // tell the process thread
-            //printf("signalling process_thread_semaphore\n");
             process_thread_semaphore.Signal();
+
+			// sleep for a little
         }
 
     }
@@ -218,7 +219,7 @@ void MultiThreadCapture::ThreadedFunction()
     /*struct timespec sleeptime;
     sleeptime.tv_sec = 0;
     sleeptime.tv_nsec = (unsigned int)(max(0.0, seconds_to_sleep*1e9));*/
-    unsigned int sleeptime = max(0.0, seconds_to_sleep*1e6);
+    unsigned int sleeptime = max(100.0, seconds_to_sleep*1e6);
     usleep( sleeptime );
     // update the timer
     elapsed = framerate_timer.Update();
@@ -264,7 +265,6 @@ void MultiThreadCapture::processThreadedFunction( )
     while ( true )
     {
         process_thread_semaphore.Wait();
-        //printf("process_thread_semaphore got the go ahead\n");
 
         if ( process_thread_should_exit)
             break;
@@ -274,8 +274,6 @@ void MultiThreadCapture::processThreadedFunction( )
         // so just wait for the new frame semaphore
         if ( !capture_frame_lock.TryWait() )
         {
-
-            //printf("capture frame lock not available: starting again\n");
             continue;
         }
 
@@ -434,7 +432,9 @@ bool MultiThreadCapture::getCopyOfLastFrame( IplImage** last_frame_copy, FTime* 
     if ( !new_draw_frame_available )
     {
         if ( !block_until_available )
+		{
             return false;
+		}
         else
         {
             //printf("blocking until new frame available\n");

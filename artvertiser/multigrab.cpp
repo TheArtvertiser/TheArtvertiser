@@ -44,8 +44,13 @@ int MultiGrab::init( char *avi_bg_path, int width, int height, int v4l_device, i
 			cams.push_back(new Cam(c));
 		}
 		*/
-		cout << "MultiGrab::init creating camera capture at " << width << "x" << height << " detect at " << detect_width << "x" << detect_height << endl;
+		cout << "MultiGrab::init creating camera with device "<<v4l_device<<", capture at " << width << "x" << height << " detect at " << detect_width << "x" << detect_height << endl;
 		CvCapture *c = cvCaptureFromCAM(v4l_device/*, width, height*/ );
+		if ( c == 0 )
+		{
+			cerr << "cvCaptureFromCam returned null" <<endl;
+			return 0;
+		}
 		cams.push_back(new Cam(c, width, height, detect_width, detect_height, desired_capture_fps ));
 	}
 	if (cams.size()==0) {
@@ -102,14 +107,24 @@ void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_w
     detect_width = _detect_width;
     detect_height = _detect_height;
 
+	printf("cvGetCaptureProperty gives: %i %i\n", (int)cvGetCaptureProperty(cam, CV_CAP_PROP_FRAME_WIDTH),
+			(int)cvGetCaptureProperty(cam, CV_CAP_PROP_FRAME_HEIGHT ) );
+
+	printf("calling cvQueryFrame...\n");
+	IplImage* test_image = cvQueryFrame( cam );
+	printf("test_image was %x\n", test_image );
+	if ( test_image != 0 )
+	{
+		printf(" width %i, height %i, depth %i, channels %i\n", test_image->width, test_image->height, test_image->depth, test_image->nChannels );
+	}
 
    // now mtc
     mtc = new MultiThreadCapture( cam );
     mtc->setupResolution( detect_width, detect_height, /*grayscale*/ 1, desired_capture_fps );
     mtc->startCapture();
     IplImage* f = NULL;
-    int timeout = 5000;
-    printf("MultiGrab::Cam::setCam waiting for camera to become ready... (5s timeout)\n");
+    int timeout = 20*1000;
+    printf("MultiGrab::Cam::setCam waiting for camera to become ready... (20s timeout)\n");
     bool got = false;
     while ( timeout >= 0 && !got )
     {

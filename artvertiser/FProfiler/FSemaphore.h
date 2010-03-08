@@ -17,7 +17,7 @@
 #include <assert.h>
 
 #ifdef __APPLE__
-#warning compiling under OSX
+//#warning compiling under OSX
 #include <boost/thread/barrier.hpp>
 #endif
 
@@ -69,11 +69,37 @@ private:
 class FSemaphore
 {
 public:
-	FSemaphore( int init = 1,bool _debug = false) { debug = _debug; sem_init( &sem, 0, init ); }
-	~FSemaphore() { sem_destroy( &sem ); }
+	FSemaphore( int init = 1,bool _debug = false) { debug = _debug; 
+#ifdef __APPLE__
+		char buf[64];
+		sprintf( buf, "sem%x", (unsigned long)this );
+		sem = sem_open( buf, O_CREAT, 0666, init );
+		if( sem == SEM_FAILED )
+		{
+			fprintf(stderr, "semaphore creation failed: errno is %i\n", errno );
+			assert(false);
+		}
+#else
+		sem = (sem_t*)malloc( sizeof( sem_t ) );
+		int res = sem_init( sem, 0, init ); 
+		if ( res == -1 )
+		{
+			fprintf(stderr, "semaphore creation falide: erron is %i\n", errno );
+			assert(false);
+		}
+#endif	
+	}
+	~FSemaphore() { 
+#ifdef __APPLE__
+		sem_close( sem );
+#else
+		sem_destroy( sem ); 
+		free( sem );
+#endif
+	}
 
 	/// wait for the semaphore to become available and then grab
-	void Wait() {  sem_wait( &sem ); }
+	void Wait() { sem_wait( sem ); }
 
 	/// try once; if available, grab and return true, else return false
 	bool TryWait() {
@@ -84,17 +110,18 @@ public:
 				  (err==EDEADLK?"EDEADLK":(err==EINTR?"EINTR":(err==EINVAL?"EINVAL":"UNKNOWN"))));
 		return ( err == 0 );
 #else*/
-		return 0==sem_trywait( &sem );
+		return 0==sem_trywait( sem );
 		//#endif
 	}
 
 	/// signal the semaphore that we've finished
-	void Signal() { sem_post( &sem );  }
+	void Signal() { sem_post( sem );  }
 
 private:
-	sem_t sem;
+	sem_t* sem;
 	bool debug;
 };
 
 
 #endif
+
