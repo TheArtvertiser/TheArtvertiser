@@ -54,6 +54,7 @@ detected_points(0), detected_point_views(0)
 
 void planar_object_recognizer::clear()
 {
+	printf("about to clear plana_object_recognizer...\n");
     lock();
 
     ready = false;
@@ -110,6 +111,7 @@ void planar_object_recognizer::clear()
     put_ui_settings();
 
     unlock();
+	printf("plana_object_recognizer cleared\n");
 }
 
 void planar_object_recognizer::default_settings(void)
@@ -422,7 +424,9 @@ void planar_object_recognizer::learn(int max_point_number_on_model, int patch_si
   point_detector->set_radius(yape_radius);
   point_detector->set_use_bins(use_bins_for_model_points);
 
+  printf("about to detect_most_stable_points...\n");
   detect_most_stable_model_points(max_point_number_on_model, patch_size, views_number, min_view_rate, LearnProgress);
+  printf("done detect_most_stable_points\n");
 
   save_image_of_model_points(patch_size);
 

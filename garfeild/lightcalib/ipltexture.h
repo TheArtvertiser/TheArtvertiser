@@ -12,6 +12,9 @@
 #endif
 #endif
 
+#ifdef __APPLE__ 
+#undef HAVE_GLEW
+#endif
 #ifdef HAVE_GLEW
 #include <GL/glew.h>
 #ifndef HAVE_GL

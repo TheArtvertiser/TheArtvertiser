@@ -75,6 +75,9 @@
 
 #include <calib/camera.h>
 
+#ifdef __APPLE__
+#define HAVE_APPLE_OPENGL_FRAMEWORK
+#endif
 #ifdef HAVE_APPLE_OPENGL_FRAMEWORK
 #include <GLUT/glut.h>
 #else
@@ -113,9 +116,9 @@ using namespace std;
 // button_state is bitmapped so as to handle multiple button presses at once
 char button_state = 0;
 bool button_state_changed = false;
-const char BUTTON_RED   = 0b001;
-const char BUTTON_GREEN = 0b010;
-const char BUTTON_BLUE  = 0b100;
+const char BUTTON_RED   = 0x01;
+const char BUTTON_GREEN = 0x02;
+const char BUTTON_BLUE  = 0x04;
 // serial comms
 int serialport_init(const char* serialport, int baud);
 int serialport_read_until(int fd, char* buf, char until);
@@ -230,33 +233,72 @@ char *image_path;
 class Artvert
 {
 public:
-	Artvert() {
-		artvert_image=0;
-		model_file="model.bmp";
-		artvert_image_file="artvert1.png";
+	Artvert() { 
+		artvert_image=0; 
+		model_file="model.bmp"; 
+		artvert_image_file="artvert1.png"; 
+		artvert_is_movie= false;
 		artist = "unknown artist";
 		advert = "unknown advert";
 		name = "unnamed artvert";
+		avi_capture = NULL;
+		avi_image = NULL;
+		avi_play_init = false;
 	}
 	~Artvert()
 	{
 		if ( artvert_image )
 			cvReleaseImage( &artvert_image );
+		if ( avi_capture )
+			cvReleaseCapture( &avi_capture );
+		if ( avi_image )
+			cvReleaseImage( &avi_image );
 	}
 
 	IplImage* getArtvertImage()
 	{
-		if ( !artvert_image )
+		if ( artvert_is_movie )
 		{
-			printf("loading artvert image '%s'\n", artvert_image_file.c_str() );
-			artvert_image = cvLoadImage( artvert_image_file.c_str() );
+
+			if ( !avi_capture )
+			{
+				avi_capture = cvCaptureFromAVI( artvert_movie_file.c_str() );
+				avi_play_init = false;
+			}	
+	
+			IplImage *avi_frame = 0;
+		    	avi_frame = cvQueryFrame( avi_capture );
+			if ( avi_frame == 0 )
+				return fallback_artvert_image;
+			if ( avi_image == 0 )
+				avi_image = cvCreateImage( cvGetSize(avi_frame), avi_frame->depth, avi_frame->nChannels );
+			cvCopy( avi_frame, avi_image );
+		    	avi_image->origin = avi_frame->origin;
+		    	GLenum format = IsBGR(avi_image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
+
+		    if (!avi_play_init)
+		    {
+			glGenTextures(1, &imageID);
+			glBindTexture(GL_TEXTURE_2D, imageID);
+			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+			avi_play_init=true;
+		    }
+			return avi_image;
 		}
-		if ( !artvert_image )
+		else
 		{
-			fprintf(stderr, "couldn't load artvert image '%s'\n", artvert_image_file.c_str() );
-			artvert_image = fallback_artvert_image;
+			if ( !artvert_image )
+			{
+				printf("loading artvert image '%s'\n", artvert_image_file.c_str() );
+				artvert_image = cvLoadImage( artvert_image_file.c_str() );
+			}
+			if ( !artvert_image )
+			{
+				fprintf(stderr, "couldn't load artvert image '%s'\n", artvert_image_file.c_str() );
+				artvert_image = fallback_artvert_image;
+			}
+			return artvert_image;
 		}
-		return artvert_image;
 	}
 
 	string model_file;
@@ -264,7 +306,14 @@ public:
 	string artist;
 	string advert;
 	string name;
+	bool artvert_is_movie;
+	string artvert_movie_file;
 private:
+	CvCapture* avi_capture;
+	IplImage* avi_image;
+	bool avi_play_init;
+	GLuint imageID;
+
 	IplImage* artvert_image;
 };
 
@@ -591,15 +640,20 @@ int serialport_read_until(int fd, char* buf, char until)
 {
 	char b[1];
 	int i=0;
+	// 1000ms timeout
+	int timeout = 1000*1000;
 	do {
 		int n = read(fd, b, 1);  // read a char at a time
-		if( n==-1) return -1;    // couldn't read
-		if( n==0 ) {
+		if( n==0||n==-1 ) {
+			timeout -= 100;
 			usleep( 100 ); // wait 100 usec try again
 			continue;
 		}
 		buf[i] = b[0]; i++;
-	} while( b[0] != until );
+	} while( b[0] != until && timeout > 0 );
+
+	if ( timeout<=0 )
+		fprintf(stderr, "serialport_read_until timed out\n");
 
 	buf[i] = 0;  // null terminate the string
 	return 0;
@@ -611,7 +665,8 @@ bool loadOrTrain( int new_index )
     // fetch data
     if ( new_index < 0 || new_index >= artvert_list.size() )
     {
-        fprintf(stderr,"loadOrTrain: invalid index %i (artvert_list has %i members)\n", new_index, artvert_list.size() );
+        fprintf(stderr,"loadOrTrain: invalid index %i (artvert_list has %i members)\n", new_index, (int)artvert_list.size() );
+
         return false;
     }
 
@@ -840,9 +895,20 @@ static bool init( int argc, char** argv )
 					data.pushTag("artvert", j );
 					a.name = data.getValue( "name", "unnamed" );
 					a.artist = data.getValue( "artist", "unknown artist" );
-					a.artvert_image_file = data.getValue( "image_filename", "artvert1.png" );
+					if ( data.getNumTags("movie_filename") != 0 )
+					{
+						// load a movie
+						a.artvert_is_movie = true;
+						a.artvert_movie_file = data.getValue("movie_filename", "artvertmovie1.mp4" );
+					}
+					else
+					{
+						// load an image
+						a.artvert_image_file = data.getValue( "image_filename", "artvert1.png" );
+					}
                 	printf("     %i: %s:%s:%s\n", j, a.name.c_str(), a.artist.c_str(),
-                    	   a.artvert_image_file.c_str() );
+                    	   a.artvert_is_movie?(a.artvert_movie_file+"( movie)").c_str() : a.artvert_image_file.c_str() );
+
 	                artvert_list.push_back( a );
 					data.popTag();
 				}
@@ -1125,15 +1191,24 @@ int main(int argc, char *argv[])
 {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
-    glutInitWindowSize(video_width,video_height); // hard set the init window size
+    //glutInitWindowSize(video_width,video_height); // hard set the init window size
     //glutInitWindowSize(800,450); // hard set the init window size
 
 
     glutDisplayFunc(emptyWindow);
+
+#ifdef __APPLE__
     glutReshapeFunc(reshape);
     glutCreateWindow("The Artvertiser 0.4");
+#endif
     glutMouseFunc(mouse);
     glutEntryFunc(entry);
+
+#ifndef __APPLE__
+    glutGameModeString("1024x768:16@60");
+    glutEnterGameMode();
+    glutSetCursor(GLUT_CURSOR_NONE);
+#endif
 
     if (!init(argc,argv)) return -1;
 
@@ -1148,8 +1223,8 @@ int main(int argc, char *argv[])
 
     glutKeyboardFunc(keyboard);
 	glutKeyboardUpFunc(keyboardReleased);
-    printf("*** entering glutMainLoop()\n");
     glutMainLoop();
+    glutLeaveGameMode();
     return 0; /* ANSI C requires main to return int. */
 }
 
@@ -1893,6 +1968,7 @@ void* serialThreadFunc( void* data )
     char serialport[256];
     int baudrate = B9600;  // default
     char buf[256];
+	char buf2[256];
     int rc,n;
 
     fd = serialport_init( "/dev/ttyUSB0", 9600 );
@@ -1901,7 +1977,7 @@ void* serialThreadFunc( void* data )
     while ( !serial_thread_should_exit )
     {
         int read = serialport_read_until(fd, buf, '\n');
-        // printf("read: %s\n",buf);
+        //printf("read: %s then %s\n",buf2, buf);
         if ( (read==0) && strlen( buf ) >= 4 /*includes final \n*/ )
         {
             bool button_red = (buf[0]=='1');
@@ -1916,6 +1992,8 @@ void* serialThreadFunc( void* data )
 			// deal with debounce
 			if ( new_button_state != button_state )
 			{
+				printf(	"serialport read %s -> 0x%x (old was 0x%x)\n",
+					buf, new_button_state, button_state );
 				button_state_changed = true;
 				button_state = new_button_state;
 			}
@@ -2148,7 +2226,8 @@ void updateMenu()
 	if ( !button_state_changed )
 		return;
 
-	printf("new button state: %s %s %s\n", button_state&BUTTON_RED?"red":"   ",
+	printf("menu sees new button state: %s %s %s\n", 
+			button_state&BUTTON_RED?"red":"   ",
 			button_state&BUTTON_GREEN?"green":"     ",
 			button_state&BUTTON_BLUE?"blue":"    ");
 
@@ -2170,14 +2249,14 @@ void updateMenu()
         return;
 
 	// navigation
-	if( button_state == BUTTON_RED )
+	if( button_state == BUTTON_BLUE )
 	{
 		menu_index++;
 		if ( menu_index >= artvert_list.size() )
 			menu_index = 0;
 		menu_timer.SetNow();
 	}
-	if ( button_state == BUTTON_BLUE )
+	if ( button_state == BUTTON_RED )
 	{
 		menu_index--;
 		if ( menu_index < 0 )
@@ -2216,9 +2295,10 @@ void drawMenu()
 			glTranslatef(-.8, 0.65, 0.0);
 			glScalef(.003, .003, .003);
 			ftglFont->FaceSize(24);
-			glColor4f(1.0, 1.0, 1.0, 1);
+			glColor4f(0.0, 1.0, 0.0, 1);
 
 			ftglFont->Render("changing artvert...");
+			
 
 		}
 
@@ -2233,10 +2313,10 @@ void drawMenu()
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 	glEnable(GL_BLEND);
-    glTranslatef(-.8, 0.65, 0.0);
+    glTranslatef(-.85, 0.65, 0.0);
     glScalef(.003, .003, .003);
     ftglFont->FaceSize(24);
-    glColor4f(1.0, 1.0, 1.0, 1);
+    glColor4f(.25, 1.0, 0.0, 1);
 
     ftglFont->Render("Select artvert:");
     glTranslatef( 0, -26, 0 );
@@ -2250,11 +2330,11 @@ void drawMenu()
 
         if ( i == menu_index )
         {
-            glColor4f( 1,1,1,1 );
+            glColor4f( 1,0.37,0,1 );
         }
         else
         {
-            glColor4f( 0.5f, 0.5f, 0.5f, 1 );
+            glColor4f( .25f, 1.f, 0.0f, 1 );
         }
         ftglFont->Render(line.c_str());
         glTranslatef(0, -26, 0 );

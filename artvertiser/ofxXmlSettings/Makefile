@@ -1,5 +1,5 @@
 CC=gcc 
-CPPFLAGS= -g -O3 -mtune=native -msse3 
+CPPFLAGS= -g -O3 -mtune=native -msse3 -arch i386
 
 OUT=libofxXmlSettings.a
 OBJ=ofxXmlSettings.o tinyxml.o tinyxmlparser.o tinyxmlerror.o

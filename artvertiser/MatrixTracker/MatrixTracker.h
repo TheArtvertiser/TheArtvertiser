@@ -6,14 +6,15 @@
 #include "../FProfiler/FSemaphore.h"
 #include <map>
 
+// prune
+#define PRUNE_MAX_SIZE 32
+
+
 using namespace std;
 
 class MatrixTracker
 {
 public:
-
-    // prune
-    static const int PRUNE_MAX_SIZE = 32;
 
     MatrixTracker();
     ~MatrixTracker();

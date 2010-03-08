@@ -68,9 +68,13 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
                              bool cache, planar_object_recognizer &detector,
                              bool running_on_binoculars )
 {
+
     detector.clear();
 
+	printf("buildCached about to grab a lock\n");
+
     detector.lock();
+
 
 	detector.ransac_dist_threshold = 5;
 	detector.max_ransac_iterations = 800;
@@ -179,6 +183,10 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
 		    detector.clear();
             return false;
 		}
+		else
+		{
+			printf("interactiveSetup succeeded\n");
+		}
 
         image_width = image->width;
 		image_height = image->height;
@@ -191,7 +199,10 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
             corners[2].x, corners[2].y,
             corners[3].x, corners[3].y
             };
-        LEARNPROGRESSION progress;
+        //LEARNPROGRESSION progress;
+		LEARNPROGRESSION progress = 0;
+
+		printf("about to call detector.build...\n");
 		if (!detector.build(image,
                 MAX_MODEL_KEYPOINTS, // max keypoints
 				PATCH_SIZE, // patch size
@@ -208,6 +219,7 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
 			return false;
 
 		}
+		printf("detector.build succeeded\n");
 
 		// save the image
 		if (!cvSaveImage(modelfile, image))
@@ -367,9 +379,18 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
     bool R_B = ( button_red&&!button_green&& button_blue);
     bool RGB = ( button_red&& button_green&& button_blue);
 
+	// ugly hack to debounce green
+	static bool debounce_green = false;
+	if ( !button_green )
+		debounce_green = false;
+	// don't allow just green if we're trying to debounce
+	else if ( debounce_green && _G_ )
+		_G_ = false;
+
     // for drawing
     int four = 4;
     CvPoint *ptr;
+	int oldx, oldy;
 
     // update
     switch( state )
@@ -378,7 +399,7 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
         if ( _G_ )
         {
             // advance
-            cvCopy( train_working_image, train_shot );
+            cvCopy( frame, train_shot );
             state = CORNERS;
             int d = 30;
             corners[0].x = d;
@@ -393,6 +414,8 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
             corner_index=0;
             x = corners[corner_index].x;
             y = corners[corner_index].y;
+			// debounce the green button
+			debounce_green = true;
         }
         else if ( R_B )
         {
@@ -412,11 +435,12 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
     case CORNERS:
         cvCopy( train_shot, train_working_image );
         putText(train_working_image, modelfile, cvPoint(3,20), &train_font);
-		putText(train_working_image, "Drag yellow corners to match the", cvPoint(3,40), &train_font);
+		putText(train_working_image, "Move yellow corners to match the", cvPoint(3,40), &train_font);
 		putText(train_working_image, "calibration target", cvPoint(3,60), &train_font);
 		putText(train_working_image, "Press red+blue to restart", cvPoint(3,80), &train_font);
 		putText(train_working_image, "Press green when ready", cvPoint(3,100), &train_font);
 
+		oldx=x; oldy=y;
         if      ( R__ )
             x += 1;
         else if ( __B )
@@ -425,7 +449,13 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
             y += 1;
         else if ( _GB )
             y -= 1;
-        else if ( _G_ )
+		// update corner if necessary
+		if ( oldx != x )
+			corners[corner_index].x = x;
+		if ( oldy != y )
+			corners[corner_index].y = y;
+		// continue checking buttons
+        if ( _G_ )
         {
             // accept
             corners[corner_index].x = x;
@@ -444,14 +474,26 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
                 x = artvert_corners[corner_index].x;
                 y = artvert_corners[corner_index].y;
             }
+			else
+			{
+				x = corners[corner_index].x;
+				y = corners[corner_index].y;
+			}	
+
+			debounce_green = true;
         }
         else if ( R_B )
         {
             // back
             corner_index--;
-            if ( corner_index < 0 )
+       		if ( corner_index < 0 )
                 state = TAKE_SHOT;
-        }
+    		else
+			{
+				x = corners[corner_index].x;
+				y = corners[corner_index].y;
+			}
+   		}
 
         ptr = corners;
         cvPolyLine(train_working_image, &ptr, &four, 1, 1,
@@ -462,12 +504,13 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
     case ARTVERT_CORNERS:
         cvCopy( train_shot, train_working_image );
         putText(train_working_image, modelfile, cvPoint(3,20), &train_font);
-        putText(train_working_image, "Drag red corners to match the", cvPoint(3,20), &train_font);
-        putText(train_working_image, "artvert target area;", cvPoint(3,40), &train_font);
-        putText(train_working_image, "Press red+blue to restart", cvPoint(3,60), &train_font);
-        putText(train_working_image, "Press green when ready", cvPoint(3,80), &train_font);
+        putText(train_working_image, "Move red corners to match the", cvPoint(3,40), &train_font);
+        putText(train_working_image, "artvert target area;", cvPoint(3,60), &train_font);
+        putText(train_working_image, "Press red+blue to restart", cvPoint(3,80), &train_font);
+        putText(train_working_image, "Press green when ready", cvPoint(3,100), &train_font);
 
-        if      ( R__ )
+		oldx = x; oldy = y;
+        if ( R__ )
             x += 1;
         else if ( __B )
             x -= 1;
@@ -475,7 +518,13 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
             y += 1;
         else if ( _GB )
             y -= 1;
-        else if ( _G_ )
+       	// update corner if necessary
+		if ( oldx != x )
+			artvert_corners[corner_index].x = x;
+		if ( oldy != y )
+			artvert_corners[corner_index].y = y;
+		// continue checking buttons
+		if ( _G_ )
         {
             // accept
             artvert_corners[corner_index].x = x;
@@ -491,6 +540,12 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
                 train_should_proceed = true;
                 interactive_train_running = false;
             }
+			else
+			{
+				x = artvert_corners[corner_index].x;
+				y = artvert_corners[corner_index].y;
+			}
+			debounce_green = true;
         }
         else if ( R_B )
         {
@@ -498,6 +553,12 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
             corner_index--;
             if ( corner_index < 0 )
                 state = CORNERS;
+			else
+			{
+				x = corners[corner_index].x;
+				y = corners[corner_index].y;
+			}
+
         }
 
         ptr = corners;

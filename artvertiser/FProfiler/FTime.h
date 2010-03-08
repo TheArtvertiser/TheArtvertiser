@@ -18,12 +18,18 @@
 
 */
 
+#ifdef __APPLE__
+#define OSX
+#endif
+
 #ifdef OSX
 #include <mach/mach_time.h>
 #else
 #include <time.h>
 #endif
 #include <stdio.h>
+
+#include <assert.h>
 
 class FTime
 {
@@ -104,7 +110,7 @@ public:
 	// equality
 	bool operator== (const FTime& other ) const {
 	    #ifdef OSX
-	    assert( false && "implement me" );
+		return ( time == other.time );
 	    #else
 	    return time.tv_sec == other.time.tv_sec && time.tv_nsec == other.time.tv_nsec;
 	    #endif
@@ -113,8 +119,7 @@ public:
 	// compare
 	bool operator< (const FTime& other) const {
         #ifdef OSX
-        assert(false&&"implement me" );
-        return false;
+		return ( time < other.time );
         #else
         /*bool res =*/return (time.tv_sec < other.time.tv_sec) ||
             (time.tv_sec == other.time.tv_sec && time.tv_nsec < other.time.tv_nsec );
