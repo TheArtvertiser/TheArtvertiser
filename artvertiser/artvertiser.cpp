@@ -2109,7 +2109,16 @@ static void* detectionThreadFunc( void* _data )
  */
 static void idle()
 {
-
+	if ( running_on_binoculars )
+	{
+	    static int fullscreen_timer = 30;
+    	if ( fullscreen_timer > 0 )
+		{
+			fullscreen_timer --;
+			if( fullscreen_timer <= 0 )
+				glutFullScreen();
+		}
+	}
 
     // detect the calibration object in every image
     // (this loop could be paralelized)
