@@ -2123,9 +2123,22 @@ static void* detectionThreadFunc( void* _data )
  */
 static void idle()
 {
+	if ( running_on_binoculars )
+	{
+	    static int fullscreen_timer = 30;
+    	if ( fullscreen_timer > 0 )
+		{
+			fullscreen_timer --;
+			if( fullscreen_timer <= 0 )
+				glutFullScreen();
+		}
+	}
 
-    if(!raw_frame_texture)
-        raw_frame_texture = new IplTexture;
+    // detect the calibration object in every image
+    // (this loop could be paralelized)
+    int nbdet=1;
+
+    if(!raw_frame_texture) raw_frame_texture = new IplTexture;
 
     PROFILE_SECTION_PUSH("getting last frame");
 
