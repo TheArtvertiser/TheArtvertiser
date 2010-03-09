@@ -130,6 +130,7 @@ void shutdownSerialThread();
 void* serialThreadFunc( void* );
 // running on binoculars?
 bool running_on_binoculars = false;
+bool no_fullscreen = false;
 
 
 // we continue tracking for 1 second, then fade for 3
@@ -523,21 +524,23 @@ static void usage(const char *s)
     cerr << "usage:\n" << s
          << " [-m <model image>] [-m <model image>] ... \n "
          "  [-ml <model images file .xml>] [-r] [-t] [-g] [-a <path>] [-l] [-vd <num>] [-vs <width> <height>]\n"
-         "  [-ds <width> <height>] [-fps <fps>]\n\n"
+         "  [-ds <width> <height>] [-fps <fps>] [-binoc [-nofullscreen]]\n\n"
          //"   -a <path>  specify path to AVI (instead of v4l device)\n"
          "   -b <path>  specify path to AVI (instead of v4l device), ignores -vs\n"
-         "   -m	specifies model image (may be used multiple times)\n"
-         "   -ml <path> load model images from <path> (respects additional -m paths)\n"
-         "   -r	do not load any data\n"
-         "   -t	train a new classifier\n"
-         "   -g	recompute geometric calibration\n"
+         "   -m	 specify model image (may be used multiple times)\n"
+         "   -ml <path>  load model images from <path> (xml) (respects additional -m paths)\n"
+         "   -r	 do not load any data\n"
+         "   -t	 train a new classifier\n"
+         "   -g	 recompute geometric calibration\n"
          "   -a <path>  load an AVI movie as an artvert\n"
          "   -i <path>  load an image as an artvert\n"
-         "   -l	rebuild irradiance map from scratch\n"
+         "   -l	 rebuild irradiance map from scratch\n"
          "   -vd <num>  V4L video device number (0-n)\n"
          "   -vs <width> <height>  video width and height (default 640x480)\n"
          "   -ds <width> <height>  frame size at which to run the detector (default to video width/height)\n"
-         "   -fps <fps> desired fps at which to run the image capture\n\n";
+         "   -fps <fps>  desired fps at which to run the image capture\n"
+		 "   -binoc  run as if operating on binoculars (necessary for osx training)\n"
+		 "      -nofullscreen  don't try to run fullscreen in -binoc mode\n\n";
     exit(1);
 }
 
@@ -546,22 +549,31 @@ static void usage(const char *s)
 void exit_handler()
 {
     printf("in exit_handler\n");
-    // shutdown serial
-    if ( serial_thread_is_running )
-    {
-        printf("stopping serial\n");
-        shutdownSerialThread();
-    }
-    // shutdown detection thread
+     // shutdown detection thread
     if ( detection_thread_running )
     {
         printf("stopping detection\n");
         shutdownDetectionThread();
     }
+ 	// shutdown serial
+    if ( serial_thread_is_running )
+    {
+        printf("stopping serial\n");
+        shutdownSerialThread();
+    }
+	// shutdown binocular training
+	if ( multi && multi->model.isInteractiveTrainBinocularsRunning() )
+	{
+		printf("stopping interactive train binoculars\n");
+		multi->model.abortInteractiveTrainBinoculars();
+	}
+
     // shutdown capture
     if ( multi )
     {
         printf("stopping multithread capture\n");
+
+
         multi->cams[0]->shutdownMultiThreadCapture();
     }
     // delete cameras
@@ -749,7 +761,7 @@ static bool init( int argc, char** argv )
     bool redo_lighting=false;
     bool redo_training = false;
     bool redo_geom = false;
-    char *avi_bg_path="";
+    char *avi_bg_path=(char*)"";
     bool got_ds = false;
     bool got_fps = false;
     bool video_source_is_avi = false;
@@ -775,6 +787,11 @@ static bool init( int argc, char** argv )
             running_on_binoculars = true;
             printf(" -binoc: running on binoculars\n");
         }
+		else if ( strcmp(argv[i], "-nofullscreen")==0 )
+		{
+			no_fullscreen = true;
+			printf(" -nofullscreen: won't go fullscreen\n");
+		}
         else if ( strcmp(argv[i], "-ml" )== 0 )
         {
             if ( i==argc-1)
@@ -1193,22 +1210,43 @@ int main(int argc, char *argv[])
     glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
     //glutInitWindowSize(video_width,video_height); // hard set the init window size
     //glutInitWindowSize(800,450); // hard set the init window size
-
-
     glutDisplayFunc(emptyWindow);
 
+	bool start_fullscreen = false;
 #ifdef __APPLE__
-    glutReshapeFunc(reshape);
-    glutCreateWindow("The Artvertiser 0.4");
+	// if on apple, don't ever go fullscreen
+#else
+	// look for -binoc flag on commandline
+	// also look for -nofullscreen flag
+	for ( int i=0; i<argc; i++ )
+	{
+		if ( strcmp( argv[i], "-binoc" )== 0 )
+		{
+			// if found, start_fullscreen is true
+			start_fullscreen = true;
+		}
+		// if found, -nofullscreen cancels fullscreen 
+		if ( strcmp( argv[i], "-nofullscreen" )==0 )
+		{
+			start_fullscreen = false;
+		}
+	}
 #endif
+
+	if ( !start_fullscreen )
+	{
+    	glutReshapeFunc(reshape);
+    	glutCreateWindow("The Artvertiser 0.4");
+	}
     glutMouseFunc(mouse);
     glutEntryFunc(entry);
 
-#ifndef __APPLE__
-    glutGameModeString("1024x768:16@60");
-    glutEnterGameMode();
-    glutSetCursor(GLUT_CURSOR_NONE);
-#endif
+	if ( start_fullscreen )
+	{
+  	  	glutGameModeString("1024x768:16@60");
+   		glutEnterGameMode();
+    	glutSetCursor(GLUT_CURSOR_NONE);
+	}
 
     if (!init(argc,argv)) return -1;
 
@@ -1386,7 +1424,7 @@ static void geomCalibDraw(void)
 static void geomCalibEnd()
 {
 
-    if (!multi->model.augm.LoadOptimalStructureFromFile("camera_c.txt", "camera_r_t.txt"))
+    if (!multi->model.augm.LoadOptimalStructureFromFile((char*)"camera_c.txt", (char*)"camera_r_t.txt"))
     {
         cout << "failed to load camera calibration.\n";
         exit(-1);
@@ -1469,7 +1507,7 @@ static void geomCalibIdle(void)
  */
 static void geomCalibStart(bool cache)
 {
-    if (cache && multi->model.augm.LoadOptimalStructureFromFile("camera_c.txt", "camera_r_t.txt"))
+    if (cache && multi->model.augm.LoadOptimalStructureFromFile((char*)"camera_c.txt", (char*)"camera_r_t.txt"))
     {
         start();
         return;
@@ -2123,7 +2161,7 @@ static void* detectionThreadFunc( void* _data )
  */
 static void idle()
 {
-	if ( running_on_binoculars )
+	if ( running_on_binoculars && !no_fullscreen )
 	{
 	    static int fullscreen_timer = 30;
     	if ( fullscreen_timer > 0 )
@@ -2236,7 +2274,7 @@ void updateMenu()
 		}
 	}
 
-	if ( !button_state_changed )
+	if ( !button_state_changed || new_artvert_switching_in_progress )
 		return;
 
 	printf("menu sees new button state: %s %s %s\n", 
@@ -2310,7 +2348,21 @@ void drawMenu()
 			ftglFont->FaceSize(24);
 			glColor4f(0.0, 1.0, 0.0, 1);
 
-			ftglFont->Render("changing artvert...");
+			if ( multi->model.isLearnInProgress() )
+			{	
+				// must manually tokenize
+				char message[2048];
+			    strncpy( message, multi->model.getLearnProgressMessage(), 2048 );
+				char* ptr = strtok( message,"\n");
+				while( ptr != NULL) 
+				{
+        			ftglFont->Render(ptr);
+	        		glTranslatef(0, -26, 0 );
+					ptr = strtok( NULL, "\n" );
+				}
+			}
+			else
+				ftglFont->Render("changing artvert...");
 			
 
 		}

@@ -31,6 +31,13 @@ public:
 
     /// true if we're running interactive training on the binoculars
     bool isInteractiveTrainBinocularsRunning() { return interactive_train_running; }
+	/// tell the interactive training to abort
+	void abortInteractiveTrainBinoculars() { if( interactive_train_running ) interactive_train_should_stop = true; }
+
+	/// true if learning is in progress
+	bool isLearnInProgress() { return learn_running; }
+	/// get the training progress message
+	const char* getLearnProgressMessage() { return progress_string; }
 
 private:
 	IplImage *image;
@@ -52,9 +59,17 @@ private:
 	IplTexture train_texture;
 	bool interactive_train_running;
 	bool train_should_proceed;
+	bool interactive_train_should_stop;
+	bool learn_running;
+
+
+	bool debounce_green, debounce_redblue;
 	int x, y;
 	int corner_index;
 	CvFont train_font;
+
+	static char progress_string[2048];
+	static void learnProgressionFunc( int phase, int current, int total ); 
 };
 
 

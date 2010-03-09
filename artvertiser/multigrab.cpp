@@ -112,7 +112,7 @@ void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_w
 
 	printf("calling cvQueryFrame...\n");
 	IplImage* test_image = cvQueryFrame( cam );
-	printf("test_image was %x\n", test_image );
+	printf("test_image was %lx\n", (unsigned long)test_image );
 	if ( test_image != 0 )
 	{
 		printf(" width %i, height %i, depth %i, channels %i\n", test_image->width, test_image->height, test_image->depth, test_image->nChannels );

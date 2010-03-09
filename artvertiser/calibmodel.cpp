@@ -1,6 +1,8 @@
 #include "calibmodel.h"
 #include "multigrab.h"
 
+char CalibModel::progress_string[2048];
+
 CalibModel::CalibModel()
 {
 	image=0;
@@ -9,6 +11,10 @@ CalibModel::CalibModel()
 	win = "The Artvertiser 0.4";
 	train_working_image = 0;
 	interactive_train_running = false;
+	interactive_train_should_stop = false;
+	debounce_green = false;
+	debounce_redblue = false;
+	strcpy(progress_string, "");
 
 	cvInitFont(&train_font, CV_FONT_HERSHEY_SIMPLEX, .5, .5, 0, 0, CV_AA);
 }
@@ -200,19 +206,22 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
             corners[3].x, corners[3].y
             };
         //LEARNPROGRESSION progress;
-		LEARNPROGRESSION progress = 0;
+		//LEARNPROGRESSION progress = 0;
 
 		printf("about to call detector.build...\n");
+		learn_running = true;
+		strcpy(progress_string, "preparing..");	
 		if (!detector.build(image,
                 MAX_MODEL_KEYPOINTS, // max keypoints
 				PATCH_SIZE, // patch size
 				YAPE_RADIUS,                 // yape radius. Use 3,5 or 7.
 				NUM_TREES,                // number of trees for the classifier. Somewhere between 12-50
 				NUM_GAUSSIAN_LEVELS,      // number of levels in the gaussian pyramid
-				progress,
+				&learnProgressionFunc,
 				working_roi
 				))
         {
+			learn_running = false;
 		    printf("build based on interactiveSetup failed\n");
 			detector.unlock();
 			detector.clear();
@@ -220,11 +229,12 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
 
 		}
 		printf("detector.build succeeded\n");
-
+		strcpy( progress_string, "saving..\n");
 		// save the image
 		if (!cvSaveImage(modelfile, image))
 		{
 		    printf("saving input image failed\n");
+			learn_running = false;
 		    detector.unlock();
 		    detector.clear();
 		    return false;
@@ -235,6 +245,7 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
 		ofstream roif(roifn.c_str());
 		if (!roif.good())
 		{
+			learn_running = false;
 		    detector.unlock();
 		    detector.clear();
  		    printf("saving .roi file failed\n");
@@ -249,6 +260,7 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
 		ofstream artvert_roif(roifn.c_str());
 		if (!artvert_roif.good())
 		{
+			learn_running = false;
 		    detector.unlock();
 		    detector.clear();
  		    printf("saving .artvertroi file failed\n");
@@ -274,6 +286,7 @@ void CalibModel::onMouse(int event, int x, int y, int flags)
         /*printf("dumping trained cache:\n");
         detector.dump();*/
 
+		learn_running = false;
 	}
 
 	detector.unlock();
@@ -341,11 +354,14 @@ bool CalibModel::interactiveTrainBinoculars()
     train_should_proceed = false;
     // we want the interactive training to run
     interactive_train_running = true;
+	interactive_train_should_stop = false;
+	debounce_green = true;
+	debounce_redblue = true;
 
     // wait until done
     int timeout =5*60;
     // 5 minute time out
-    while ( interactive_train_running && timeout>0 )
+    while ( interactive_train_running && !interactive_train_should_stop && timeout>0 )
     {
         printf("waiting for interactiveTrainBinoculars to complete .. %i\n", timeout );
         timeout-=5;
@@ -363,6 +379,12 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
     if ( !interactive_train_running )
         return;
 
+	if ( interactive_train_should_stop )
+	{
+		interactive_train_running =  false;
+		return;
+	}
+
     // copy to training
     if ( train_working_image == 0 )
     {
@@ -379,13 +401,19 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
     bool R_B = ( button_red&&!button_green&& button_blue);
     bool RGB = ( button_red&& button_green&& button_blue);
 
-	// ugly hack to debounce green
-	static bool debounce_green = false;
+	// debounce 
+	
+	// don't allow just green if we're trying to debounce
 	if ( !button_green )
 		debounce_green = false;
-	// don't allow just green if we're trying to debounce
 	else if ( debounce_green && _G_ )
 		_G_ = false;
+	
+	// don't allow red+blue if we're trying to debounce
+	if ( !button_red || !button_blue )
+		debounce_redblue = false;
+	else if ( debounce_redblue && R_B )
+		R_B = false;
 
     // for drawing
     int four = 4;
@@ -421,6 +449,7 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
         {
             // abort
             interactive_train_running = false;
+			debounce_redblue = true;
         }
         else
         {
@@ -435,7 +464,7 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
     case CORNERS:
         cvCopy( train_shot, train_working_image );
         putText(train_working_image, modelfile, cvPoint(3,20), &train_font);
-		putText(train_working_image, "Move yellow corners to match the", cvPoint(3,40), &train_font);
+		putText(train_working_image, "Move green corners to match the", cvPoint(3,40), &train_font);
 		putText(train_working_image, "calibration target", cvPoint(3,60), &train_font);
 		putText(train_working_image, "Press red+blue to restart", cvPoint(3,80), &train_font);
 		putText(train_working_image, "Press green when ready", cvPoint(3,100), &train_font);
@@ -469,11 +498,11 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
                     artvert_corners[i] = corners[i];
                 state = ARTVERT_CORNERS;
 
-                // setup index
-                corner_index=0;
-                x = artvert_corners[corner_index].x;
-                y = artvert_corners[corner_index].y;
-            }
+				// setup index
+				corner_index=0;
+				x = artvert_corners[corner_index].x;
+				y = artvert_corners[corner_index].y;
+			}
 			else
 			{
 				x = corners[corner_index].x;
@@ -481,135 +510,139 @@ void CalibModel::interactiveTrainBinocularsUpdate( IplImage* frame,
 			}	
 
 			debounce_green = true;
-        }
-        else if ( R_B )
-        {
-            // back
-            corner_index--;
-       		if ( corner_index < 0 )
-                state = TAKE_SHOT;
-    		else
+		}
+		else if ( R_B )
+		{
+			// back
+			corner_index--;
+			if ( corner_index < 0 )
+				state = TAKE_SHOT;
+			else
 			{
 				x = corners[corner_index].x;
 				y = corners[corner_index].y;
 			}
-   		}
+			debounce_redblue = true;
+		}
 
-        ptr = corners;
-        cvPolyLine(train_working_image, &ptr, &four, 1, 1,
-                cvScalar(0,255,0));
+		ptr = corners;
+		cvPolyLine(train_working_image, &ptr, &four, 1, 1,
+				cvScalar(0,255,0));
+		cvCircle( train_working_image, corners[corner_index], 10, cvScalar(0,255,0));
 
-        break;
+		break;
 
-    case ARTVERT_CORNERS:
-        cvCopy( train_shot, train_working_image );
-        putText(train_working_image, modelfile, cvPoint(3,20), &train_font);
-        putText(train_working_image, "Move red corners to match the", cvPoint(3,40), &train_font);
-        putText(train_working_image, "artvert target area;", cvPoint(3,60), &train_font);
-        putText(train_working_image, "Press red+blue to restart", cvPoint(3,80), &train_font);
-        putText(train_working_image, "Press green when ready", cvPoint(3,100), &train_font);
+	case ARTVERT_CORNERS:
+		cvCopy( train_shot, train_working_image );
+		putText(train_working_image, modelfile, cvPoint(3,20), &train_font);
+		putText(train_working_image, "Move red corners to match the", cvPoint(3,40), &train_font);
+		putText(train_working_image, "artvert target area;", cvPoint(3,60), &train_font);
+		putText(train_working_image, "Press red+blue to restart", cvPoint(3,80), &train_font);
+		putText(train_working_image, "Press green when ready", cvPoint(3,100), &train_font);
 
 		oldx = x; oldy = y;
-        if ( R__ )
-            x += 1;
-        else if ( __B )
-            x -= 1;
-        else if ( RG_ )
-            y += 1;
-        else if ( _GB )
-            y -= 1;
-       	// update corner if necessary
+		if ( R__ )
+			x += 1;
+		else if ( __B )
+			x -= 1;
+		else if ( RG_ )
+			y += 1;
+		else if ( _GB )
+			y -= 1;
+		// update corner if necessary
 		if ( oldx != x )
 			artvert_corners[corner_index].x = x;
 		if ( oldy != y )
 			artvert_corners[corner_index].y = y;
 		// continue checking buttons
 		if ( _G_ )
-        {
-            // accept
-            artvert_corners[corner_index].x = x;
-            artvert_corners[corner_index].y = y;
-            corner_index++;
-            if ( corner_index > 3 )
-            {
-                // finished
-                if ( image != 0 )
-                    cvReleaseImage( &image );
-                image = cvCreateImage( cvGetSize( train_shot), train_shot->depth, train_shot->nChannels );
-                cvCopy( train_shot, image );
-                train_should_proceed = true;
-                interactive_train_running = false;
-            }
+		{
+			// accept
+			artvert_corners[corner_index].x = x;
+			artvert_corners[corner_index].y = y;
+			corner_index++;
+			if ( corner_index > 3 )
+			{
+				// finished
+				if ( image != 0 )
+					cvReleaseImage( &image );
+				image = cvCreateImage( cvGetSize( train_shot), train_shot->depth, train_shot->nChannels );
+				cvCopy( train_shot, image );
+				train_should_proceed = true;
+				interactive_train_running = false;
+			}
 			else
 			{
 				x = artvert_corners[corner_index].x;
 				y = artvert_corners[corner_index].y;
 			}
 			debounce_green = true;
-        }
-        else if ( R_B )
-        {
-            // back
-            corner_index--;
-            if ( corner_index < 0 )
-                state = CORNERS;
+		}
+		else if ( R_B )
+		{
+			// back
+			corner_index--;
+			if ( corner_index < 0 )
+				state = CORNERS;
 			else
 			{
-				x = corners[corner_index].x;
-				y = corners[corner_index].y;
+				x = artvert_corners[corner_index].x;
+				y = artvert_corners[corner_index].y;
 			}
+			debounce_redblue = true;
 
-        }
+		}
 
-        ptr = corners;
-        cvPolyLine(train_working_image, &ptr, &four, 1, 1,
-                cvScalar(0,255,0));
-        ptr = artvert_corners;
-        cvPolyLine(train_working_image, &ptr, &four, 1, 1,
-                cvScalar(0,0,255));
+		ptr = corners;
+		cvPolyLine(train_working_image, &ptr, &four, 1, 1,
+				cvScalar(0,255,0));
+		ptr = artvert_corners;
+		cvPolyLine(train_working_image, &ptr, &four, 1, 1,
+				cvScalar(0,0,255));
+		cvCircle( train_working_image, artvert_corners[corner_index], 10, cvScalar(0,0,255));
 
-        break;
-    }
+		break;
+	}
 
-    train_texture.setImage( train_working_image );
+	train_texture.setImage( train_working_image );
 
 }
 
 void CalibModel::interactiveTrainBinocularsDraw()
 {
-    if ( !interactive_train_running )
-        return;
+	if ( !interactive_train_running )
+		return;
 
-    IplTexture* tex = &train_texture;
+	IplTexture* tex = &train_texture;
 
-    IplImage *im = tex->getIm();
-    int w = im->width-1;
-    int h = im->height-1;
+	IplImage *im = tex->getIm();
+	int w = im->width-1;
+	int h = im->height-1;
 
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
 
-    glDisable(GL_BLEND);
-    glDisable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND);
+	glDisable(GL_DEPTH_TEST);
 
-    tex->loadTexture();
+	tex->loadTexture();
 
-    glBegin(GL_QUADS);
-    glColor4f(1,1,1,1);
+	glBegin(GL_QUADS);
+	glColor4f(1,1,1,1);
 
-    glTexCoord2f(tex->u(0), tex->v(0));
-    glVertex2f(-1, 1);
-    glTexCoord2f(tex->u(w), tex->v(0));
-    glVertex2f(1, 1);
-    glTexCoord2f(tex->u(w), tex->v(h));
-    glVertex2f(1, -1);
-    glTexCoord2f(tex->u(0), tex->v(h));
-    glVertex2f(-1, -1);
-    glEnd();
+	glTexCoord2f(tex->u(0), tex->v(0));
+	glVertex2f(-1, 1);
+	glTexCoord2f(tex->u(w), tex->v(0));
+	glVertex2f(1, 1);
+	glTexCoord2f(tex->u(w), tex->v(h));
+	glVertex2f(1, -1);
+	glTexCoord2f(tex->u(0), tex->v(h));
+	glVertex2f(-1, -1);
+	glEnd();
 
-    tex->disableTexture();
+	tex->disableTexture();
 
 }
 
@@ -632,29 +665,29 @@ bool CalibModel::interactiveSetup(CvCapture *capture )
 
 	bool pause=false;
 
-    IplImage *frame_gray, *frame = NULL;
-    FTime timestamp;
-    MultiThreadCapture* mtc = MultiThreadCaptureManager::getInstance()->getCaptureForCam(capture);
-    int timeout = 10000;
-    bool got = false;
-    do {
-        got = mtc->getLastDetectFrame( &frame_gray, &frame, &timestamp, /*blocking*/true );
-    }
-    while ( !got &&
-           !usleep( 100000 ) &&
-           (timeout-=100) > 0 );
-    if ( frame == NULL )
-    {
-        printf("capture failed\n");
-        return false;
-    }
+	IplImage *frame_gray, *frame = NULL;
+	FTime timestamp;
+	MultiThreadCapture* mtc = MultiThreadCaptureManager::getInstance()->getCaptureForCam(capture);
+	int timeout = 10000;
+	bool got = false;
+	do {
+		got = mtc->getLastDetectFrame( &frame_gray, &frame, &timestamp, /*blocking*/true );
+	}
+	while ( !got &&
+			!usleep( 100000 ) &&
+			(timeout-=100) > 0 );
+	if ( frame == NULL )
+	{
+		printf("capture failed\n");
+		return false;
+	}
 
 	IplImage *shot=0, *text=0;
 
 	state = TAKE_SHOT;
 
 	bool accepted =false;
-    bool artvert_accepted = false;
+	bool artvert_accepted = false;
 	while (!accepted) {
 
 		// wait for a key
@@ -668,9 +701,9 @@ bool CalibModel::interactiveSetup(CvCapture *capture )
 
 		// clear text or grab the image to display
 		if (!pause || shot==0) {
-            bool got = mtc->getLastDetectFrame( &frame_gray, &frame, NULL,/*block until available*/true );
-            if ( !got )
-                continue;
+			bool got = mtc->getLastDetectFrame( &frame_gray, &frame, NULL,/*block until available*/true );
+			if ( !got )
+				continue;
 			if (!text) {
 				text=cvCreateImage(cvGetSize(frame), IPL_DEPTH_8U, 3);
 				int d = 30;
@@ -694,8 +727,8 @@ bool CalibModel::interactiveSetup(CvCapture *capture )
 				cvCopy(shot, text);
 		}
 
-        int four = 4;
-        CvPoint *ptr;
+		int four = 4;
+		CvPoint *ptr;
 		// display text / react to keyboard
 		switch (state) {
 			default:
@@ -714,46 +747,46 @@ bool CalibModel::interactiveSetup(CvCapture *capture )
 					break;
 				}
 			case CORNERS:
-					putText(text, modelfile, cvPoint(3,20), &font);
-					putText(text, "Drag yellow corners to match the", cvPoint(3,40), &font);
-					putText(text, "calibration target", cvPoint(3,60), &font);
-					putText(text, "press 'r' to restart", cvPoint(3,80), &font);
-					putText(text, "press space when ready", cvPoint(3,100), &font);
-					if (k=='r') {
-						pause = false;
-						state = TAKE_SHOT;
+				putText(text, modelfile, cvPoint(3,20), &font);
+				putText(text, "Drag green corners to match the", cvPoint(3,40), &font);
+				putText(text, "calibration target", cvPoint(3,60), &font);
+				putText(text, "press 'r' to restart", cvPoint(3,80), &font);
+				putText(text, "press space when ready", cvPoint(3,100), &font);
+				if (k=='r') {
+					pause = false;
+					state = TAKE_SHOT;
+				}
+				if (k==' ') {
+					for ( int i=0;i<4; i++ )
+					{
+						artvert_corners[i].x = corners[i].x;
+						artvert_corners[i].y = corners[i].y;
 					}
-					if (k==' ') {
-					    for ( int i=0;i<4; i++ )
-					    {
-                            artvert_corners[i].x = corners[i].x;
-                            artvert_corners[i].y = corners[i].y;
-					    }
-						state = ARTVERT_CORNERS;
-					}
-                    ptr = corners;
-					cvPolyLine(text, &ptr, &four, 1, 1,
-							cvScalar(0,255,0));
-					break;
-            case ARTVERT_CORNERS:
-            		putText(text, "Drag red corners to match the", cvPoint(3,20), &font);
-					putText(text, "artvert target area;", cvPoint(3,40), &font);
-					putText(text, "press 'r' to restart", cvPoint(3,60), &font);
-					putText(text, "press space when ready", cvPoint(3,80), &font);
-					if (k=='r') {
-						pause = false;
-						state = TAKE_SHOT;
-					}
-					if (k==' ') {
-						accepted = true;
-					}
-					ptr = corners;
-					cvPolyLine(text, &ptr, &four, 1, 1,
-							cvScalar(0,255,0));
-                    ptr = artvert_corners;
-					cvPolyLine(text, &ptr, &four, 1, 1,
-							cvScalar(0,0,255));
-                    break;
+					state = ARTVERT_CORNERS;
+				}
+				ptr = corners;
+				cvPolyLine(text, &ptr, &four, 1, 1,
+						cvScalar(0,255,0));
+				break;
+			case ARTVERT_CORNERS:
+				putText(text, "Drag red corners to match the", cvPoint(3,20), &font);
+				putText(text, "artvert target area;", cvPoint(3,40), &font);
+				putText(text, "press 'r' to restart", cvPoint(3,60), &font);
+				putText(text, "press space when ready", cvPoint(3,80), &font);
+				if (k=='r') {
+					pause = false;
+					state = TAKE_SHOT;
+				}
+				if (k==' ') {
+					accepted = true;
+				}
+				ptr = corners;
+				cvPolyLine(text, &ptr, &four, 1, 1,
+						cvScalar(0,255,0));
+				ptr = artvert_corners;
+				cvPolyLine(text, &ptr, &four, 1, 1,
+						cvScalar(0,0,255));
+				break;
 		}
 		cvShowImage(win, text);
 	}
@@ -761,9 +794,9 @@ bool CalibModel::interactiveSetup(CvCapture *capture )
 	cvReleaseImage(&text);
 	image = shot;
 
-    cvDestroyWindow( win );
-    // make sure the destroy window succeeds
-    cvWaitKey(0);
+	cvDestroyWindow( win );
+	// make sure the destroy window succeeds
+	cvWaitKey(0);
 
 	return true;
 }
@@ -778,4 +811,37 @@ void CalibModel::onMouseStatic(int event, int x, int y, int flags, void* param)
 		cerr << "onMouseStatic(): null-pointer.\n";
 }
 
+
+void CalibModel::learnProgressionFunc( int phase, int current, int total )
+{
+	sprintf(progress_string, "learning, phase %i/4: %4.1f%%", phase+1, 100.0f*float(current)/total );
+	if ( current==0 )
+		printf("\n");
+	printf("\rphase %i/4: %4i/%4i ", phase+1, current, total);
+	fflush(stdout);
+
+	/*for ( int i=0; i<4; i++ )
+	{
+		if ( phase > i )
+			strcat(progress_string, "[----------------------------------------]\n" );
+		else if ( phase == i )
+		{
+			float finishedPct = float(current)/float(total);
+			int count = finishedPct*40;
+			strcat(progress_string, "[");
+			for ( int j=0; j<count; j++ )
+			{
+				strcat(progress_string, "-");
+			}
+			for ( int j=0; j<40-count; j++ )
+			{
+				strcat(progress_string, " ");
+			}
+			strcat(progress_string, "]\n");
+		}
+		else
+			strcat( progress_string, "[                                        ]\n");
+	}*/
+
+}
 
