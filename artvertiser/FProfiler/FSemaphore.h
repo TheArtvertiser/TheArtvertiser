@@ -15,7 +15,9 @@
 #include <pthread.h>
 #include <sys/errno.h>
 #include <assert.h>
+#ifndef __APPLE__
 #include <malloc.h>
+#endif
 
 #ifdef __APPLE__
 //#warning compiling under OSX
