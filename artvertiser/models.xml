@@ -1,31 +1,17 @@
 <artverts>
-	<!--	<advert>
-		<model_filename>model_00482_1.bmp</model_filename>
-		<advert>dunkin donuts</advert>
-		<artvert>
-			<name>artvert for 00482_1</name>
-			<artist>unknown artist</artist>
-			<image_filename>artvert1.png</image_filename>
-		</artvert>
-	</advert>
 	<advert>
-		<model_filename>model_00482_4.bmp</model_filename>
-		<advert>dunkin donuts</advert>
-		<artvert>
-			<name>artvert for 00482_4</name>
-			<image_filename>artvert3.png</image_filename>
-			<artist>unknown artist</artist>
-		</artvert>
-	</advert>
-	-->
-	<advert>
-		<model_filename>models/posters1.bmp</model_filename>
-		<advert>kunst beer</advert>
+		<model_filename>models/ships.bmp</model_filename>
+		<advert>ships</advert>
 		<artvert>
 			<name>your art here</name>
 			<image_filename>artverts/your_art_here.png</image_filename>
 			<artist>us</artist>
 		</artvert>
+	</advert>
+
+	<advert>
+		<model_filename>models/v2_test_lab/v2_1.bmp</model_filename>
+		<advert>v2 test lab 1</advert>
 		<artvert>
 			<name>USB Bomb</name>
 			<image_filename>artverts/usb_bomb.png</image_filename>
@@ -33,44 +19,37 @@
 		</artvert>
 	</advert>
 	<advert>
-		<model_filename>models/posters4.bmp</model_filename>
-		<advert>Sport Hilfe</advert>
+		<model_filename>models/v2_test_lab/v2_2.bmp</model_filename>
+		<advert>v2 test lab 2</advert>
 		<artvert>
-			<name>Paradise Berlin</name>
-			<image_filename>artverts/posters4.png</image_filename>
+			<name>USB Bomb</name>
+			<image_filename>artverts/usb_bomb.png</image_filename>
 			<artist>us</artist>
 		</artvert>
 	</advert>
 	<advert>
-		<model_filename>models/posters7.bmp</model_filename>
-		<advert>Rathaus Passagen</advert>
+		<model_filename>models/v2_test_lab/v2_3.bmp</model_filename>
+		<advert>v2 test lab 3</advert>
 		<artvert>
-			<name>Rathaus Passagen</name>
-			<image_filename>artverts/spider.png</image_filename>
+			<name>USB Bomb</name>
+			<image_filename>artverts/usb_bomb.png</image_filename>
+			<artist>us</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/v2_test_lab/v2_4.bmp</model_filename>
+		<advert>v2 test lab 4</advert>
+		<artvert>
+			<name>USB Bomb</name>
+			<image_filename>artverts/usb_bomb.png</image_filename>
 			<artist>us</artist>
 		</artvert>
 	</advert>
 
-	<advert>
-		<model_filename>models/posters8.bmp</model_filename>
-		<advert>Motor Welt</advert>
-		<artvert>
-			<name>You're not here</name>
-			<image_filename>artverts/mountains.jpg</image_filename>
-			<artist>us</artist>
-		</artvert>
-	</advert>
-	<advert>
-		<model_filename>models/posters9.bmp</model_filename>
-		<advert>94.3 RS2</advert>
-		<artvert>
-			<name>obey</name>
-			<image_filename>artverts/obey.png</image_filename>
-			<artist>obey</artist>
-		</artvert>
-	</advert>
-	<advert>
-		<model_filename>models/ships.bmp</model_filename>
+
+
+
+	<model_filename>models/posters10.bmp</model_filename>
 		<advert>Sparkasse</advert>
 		<artvert>
 			<name>A Tradition of The Best Advice</name>
@@ -78,29 +57,7 @@
 			<artist>Jason Reizner</artist>
 		</artvert>
 	</advert>
-	<advert>
-		<model_filename>models/posters11.bmp</model_filename>
-		<advert>Pixar</advert>
-		<artvert>
-			<name>Enlightenment</name>
-			<image_filename>artverts/Enlightenment.jpg</image_filename>
-			<artist>Bjorn Erik Haugen</artist>
-		</artvert>
-	</advert>
-	<advert>
-		<model_filename>models/posters12.bmp</model_filename>
-		<advert>Avene/Apotheke</advert>
-		<artvert>
-			<name>Temple of Health</name>
-			<image_filename>artverts/01_The_temple_of_health.jpg</image_filename>
-			<artist>Ivana Kohlhammer</artist>
-		</artvert>
-		<artvert>
-			<name>Untitled</name>
-			<image_filename>artverts/woman_art_Torres.jpg</image_filename>
-			<artist>Gerardo Torres</artist>
-		</artvert>
-	</advert>
+
 	<advert>
 		<model_filename>models/posters13.bmp</model_filename>
 		<advert>La Roche</advert>
@@ -124,25 +81,6 @@
 			<artist>Animazon</artist>
 		</artvert>
 	</advert>
-<!--	
-	<advert>
-		<model_filename>model_00482_3.bmp</model_filename>
-		<advert>dunkin donuts</advert>
-		<artvert>
-			<name>artvert for 00482_3</name>
-			<image_filename>artvert2.png</image_filename>
-			<artist>unknown artist</artist>
-		</artvert>
-	</advert>
-	<advert>
-		<model_filename>model_00483_1.bmp</model_filename>
-		<advert>dunkin donuts</advert>
-		<artvert>
-			<name>artvert for 00483_1</name>
-			<image_filename>artvert4.png</image_filename>
-			<artist>unknown artist</artist>
-		</artvert>
-	</advert>
-	-->
+
 </artverts>
 
