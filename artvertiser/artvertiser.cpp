@@ -270,7 +270,19 @@ public:
 			IplImage *avi_frame = 0;
 		    	avi_frame = cvQueryFrame( avi_capture );
 			if ( avi_frame == 0 )
-				return fallback_artvert_image;
+			{
+				if ( avi_play_init )
+				{
+					// we know the avi is good, so: rewind!
+        			cvSetCaptureProperty( avi_capture, CV_CAP_PROP_POS_FRAMES, 0 );
+					// try again
+					avi_frame = cvQueryFrame( avi_capture );
+					if ( avi_frame == 0 )
+						return fallback_artvert_image;
+				}
+				else
+					return fallback_artvert_image;
+			}
 			if ( avi_image == 0 )
 				avi_image = cvCreateImage( cvGetSize(avi_frame), avi_frame->depth, avi_frame->nChannels );
 			cvCopy( avi_frame, avi_image );

@@ -15,6 +15,7 @@ CalibModel::CalibModel()
 	debounce_green = false;
 	debounce_redblue = false;
 	strcpy(progress_string, "");
+	learn_running = false;
 
 	cvInitFont(&train_font, CV_FONT_HERSHEY_SIMPLEX, .5, .5, 0, 0, CV_AA);
 }
