@@ -1,0 +1,113 @@
+
+INTRODUCTION:
+
+The Artvertiser is a small platform designed to track and substitute an image in
+a video stream (here defined as an 'advert'), live or archival, with another
+image or video ('artvert'). It has been designed primarily as a 'Product
+Replacement' application, designed for susbtituting advertisements in the street
+with art.
+
+The Artvertiser code was initially developed by Julian Oliver but has since been
+significantly improved by Damian Stewart - now running on low spec devices such
+as the Intel 'Atom' Core Duo boards alongside improvements to the tracking.
+
+The code builds heavily upon BazAR <http://cvlab.epfl.ch/software/bazar/> and
+was authored on a Debian Linux system. It is known to compile and run just fine
+on a 3D capable Ubuntu or Debian system. It should however compile on any Linux
+system with little effort. 
+
+BUILDING
+
+Here are the basic dependencies:
+
+	OpenCV-1.1 	<http://sourceforge.net/projects/opencvlibrary/files/>
+	FTGL-2.1 	<http://sourceforge.net/projects/ftgl/files/>
+	GLUT		(consult your package manager for the glut headers)
+
+To build The Artvertiser on Linux, just type 'make' in the top level directory.
+
+To build The Artvertiser on OS X, be sure you've satisfied the pre-requisites in
+the 'osx_prereqs.txt', then copy the 'Makefile.osx' over the 'Makefile' in each
+directory (monitor the build errors for clues if stuck).
+
+TRAINING
+
+The Artvertiser requires a database of feature points before it can detect an
+image. This database is generated in a training phase.
+
+Training is divided into two parts, beginning with Classifier Training.
+
+To train and create a database called 'BurgerKing', using the default capture
+device on your computer, cd into the 'artvertiser' directory and run:
+
+	./artvertiser -t -g -m BurgerKing.bmp
+
+(NOTE '.bmp' suffix!)
+
+To capture on a second webcam on your computer:
+
+	./artvertiser -t -g -vd 1 -m BurgerKing.bmp
+
+Now place a planar image in front of the camera. It should be flat, have plenty
+of detail and should take up as much of the captured area as possible while
+still being in focus. 
+
+While keeping it still hit SPACE on your computer. With the mouse, drag the
+corners of the green quadrangle to match the corners of your image. The green
+quadrangle defines the parts of your image you wish to track. When ready, press
+SPACE again. The red quadrangle defines the part of the image you want the
+augmentation (video, image) to appear. Move the corners into position and hit
+SPACE again.
+
+There will now be a pause as you see the software working hard to find all the
+interesting feature points in the image. 
+
+When this process is complete the training will move into the Geometric
+Calibration phase (switch '-g') and you'll see the camera capturing again. Here
+you need to wave the image in front of the camera a few times until enough data
+has been aquired. 
+
+Once done the software will move immediately into Tracking and you can test the
+results by moving the image around in front of the camera.
+
+RUNNING
+
+To capture from the third video capture device on your computer using the
+classifier BurgerKing:
+
+	./artvertiser -vd 2 -m BurgerKing.bmp
+
+To capture from archival video (eg a hollywood movie) featuring some product
+placement from Budweiser, using the Classifier you've trained called 'Bud',
+substituting it with an image 'nippedBud.png':
+
+	./artvertiser -b SomeAwfulMovie.avi -m Bud.bmp -i /path/to/nippedBud.png
+
+To do the same, but substitute the Budweiser product placement with a movie
+you've made:
+
+	./artvertiser -b SomeAwfulMovie.avi -m Bud.bmp -i /path/to/nippedBud.avi
+	
+See the usage information for more switches by reading the code or with a bad
+switch, like so:
+
+	./artvertiser -u
+
+RUNNING WITH MULTIPLE ARTVERTS (EXHIBITION MODE):
+
+The Artvertiser can be told to resource an XML file with a list of all the
+Classifiers to be used, alongside their substituting artverts. This is known as
+'Exhibition Mode' and is great for augmentations in the street. See 'models.xml'
+for a guide as to how this all works. To use your own XML file, execute The
+Artvertiser as follows:
+
+	./artvertiser -ml myModelFile.xml
+
+CONTACT:
+
+Problems, questions, answers, feel free to contact Julian on
+julian@julianoliver.com or Damian on damian@frey.co.nz.
+
+Have fun!
+
+http://theartvertiser.com

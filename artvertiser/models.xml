@@ -1,149 +1,31 @@
 <artverts>
-	<!--<advert>
-		<model_filename>models/ships.bmp</model_filename>
-		<advert>ships</advert>
+	<advert>
+		<model_filename>models/CHANGEME.bmp</model_filename>
+		<advert>CHANGEME</advert>
 		<artvert>
-			<name>your art here</name>
+			<name>Your Art Here</name>
 			<image_filename>artverts/your_art_here.png</image_filename>
-			<artist>us</artist>
+			<artist>The Artvertiser Team</artist>
 		</artvert>
-	</advert>-->
+	</advert>
 
-	<!--<advert>
-		<model_filename>models/v2_test_lab/v2_1.bmp</model_filename>
-		<advert>v2 test lab 1</advert>
+	<advert>
+		<model_filename>models/CHANGEME2.bmp</model_filename>
+		<advert>CHANGEME2</advert>
 		<artvert>
 			<name>USB Bomb</name>
 			<image_filename>artverts/usb_bomb.png</image_filename>
 			<artist>us</artist>
 		</artvert>
-	</advert>-->
-	<advert>
-		<model_filename>models/v2_test_lab/v2_2.bmp</model_filename>
-		<advert>Stimorol</advert>
 		<artvert>
-			<name>your art here</name>
-			<image_filename>artverts/your_art_here.png</image_filename>
-			<artist>us</artist>
-		</artvert>
-		<artvert>
-			<name>A Tradition of The Best Advice</name>
-			<movie_filename>artverts/advice_flat.mp4</movie_filename>
-			<artist>Jason Reizner</artist>
-		</artvert>
-		<artvert>
-			<name>Publicity Against Consumption</name>
-			<movie_filename>artverts/publicity_against_consumption.avi</movie_filename>
-			<artist>Animazon</artist>
-		</artvert>
-		<artvert>
-			<name>Meaninglessness</name>
-			<movie_filename>artverts/meaninglessness.avi</movie_filename>
-			<artist>unknown</artist>
-		</artvert>
-	</advert>
-	<advert>
-		<model_filename>models/v2_test_lab/v2_3.bmp</model_filename>
-		<advert>v2 test lab 3</advert>
-		<artvert>
-			<name>Spider</name>
+			<name>Arachne</name>
 			<image_filename>artverts/spider.png</image_filename>
-			<artist>us</artist>
-		</artvert>
-	</advert>
-	<advert>
-		<model_filename>models/v2_test_lab/v2_4.bmp</model_filename>
-		<advert>v2 test lab 4</advert>
-		<artvert>
-			<name>USB Bomb</name>
-			<image_filename>artverts/usb_bomb.png</image_filename>
-			<artist>us</artist>
-		</artvert>
-	</advert>
-	<advert>
-		<model_filename>models/v2_test_lab/v2_5.bmp</model_filename>
-		<advert>v2 test lab 5</advert>
-		<artvert>
-			<name>Electropalm</name>
-			<image_filename>artverts/electropalm.png</image_filename>
-			<artist>us</artist>
-		</artvert>
-	</advert>
-	<advert>
-		<model_filename>models/v2_test_lab/v2_6.bmp</model_filename>
-		<advert>v2 test lab 6</advert>
-		<artvert>
-			<name>Spider</name>
-			<image_filename>artverts/spider.png</image_filename>
-			<artist>us</artist>
-		</artvert>
-	</advert>
-<advert>
-		<model_filename>models/v2_test_lab/v2_7.bmp</model_filename>
-		<advert>v2 test lab 7</advert>
-		<artvert>
-			<name>USB Bomb</name>
-			<image_filename>artverts/usb_bomb.png</image_filename>
-			<artist>us</artist>
-		</artvert>
-	</advert>
-	<advert>
-		<model_filename>models/v2_test_lab/v2_8.bmp</model_filename>
-		<advert>v2 test lab 8</advert>
-		<artvert>
-			<name>Electropalm</name>
-			<image_filename>artverts/electropalm.png</image_filename>
-			<artist>us</artist>
-		</artvert>
-	</advert>
-	<advert>
-		<model_filename>models/v2_test_lab/v2_9.bmp</model_filename>
-		<advert>v2 test lab 9</advert>
-		<artvert>
-			<name>Spider</name>
-			<image_filename>artverts/spider.png</image_filename>
-			<artist>us</artist>
-		</artvert>
-	</advert>
-
-
-
-
-
-
-
-
-	<advert>	
-		<model_filename>models/posters10.bmp</model_filename>
-		<advert>Sparkasse</advert>
-		<artvert>
-			<name>A Tradition of The Best Advice</name>
-			<movie_filename>artverts/advice_flat.mp4</movie_filename>
-			<artist>Jason Reizner</artist>
-		</artvert>
-	</advert>
-
-	<advert>
-		<model_filename>models/posters13.bmp</model_filename>
-		<advert>La Roche</advert>
-		<artvert>
-			<name>Hair Helmuts are Super Cool</name>
-			<image_filename>artverts/laroche-ad-hairJustinYoung1500x980.jpg</image_filename>
-			<artist>Justin Young</artist>
+			<artist>Earth</artist>
 		</artvert>
 		<artvert>
-			<name>Untitled</name>
-			<image_filename>artverts/laroche-ad-pattern-JustinYoung850x555.jpg</image_filename>
-			<artist>Justin Young</artist>
-		</artvert>
-	</advert>
-	<advert>
-		<model_filename>models/posters15.bmp</model_filename>
-		<advert>Ulla</advert>
-		<artvert>
-			<name>Publicity Against Consumption</name>
-			<movie_filename>artverts/publicity_against_consumption.mov</movie_filename>
-			<artist>Animazon</artist>
+			<name>A Movie Instead</name>
+			<movie_filename>artverts/a-movie-instead.avi</movie_filename>
+			<artist>ETC INC</artist>
 		</artvert>
 	</advert>
 

@@ -78,12 +78,12 @@ AUTOMAKE = ${SHELL} /home/julian/devel/The-Artvertiser/missing --run automake-1.
 AWK = gawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O3 -mtune=native -msse3 -arch i386
+CFLAGS = -g -O3 -mtune=native -msse3
 CPP = gcc -E
 CPPFLAGS = -I/usr/include/freetype2
 CXX = g++
 CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -g -O3 -mtune=native -msse3 -arch i386
+CXXFLAGS = -g -O3 -mtune=native -msse3
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
 DEPDIR = .deps
@@ -92,11 +92,9 @@ ECHO_N = -n
 ECHO_T = 
 EGREP = /bin/grep -E
 EXEEXT = 
-GLEW_LIBS = -lGLEW -framework OpenGL -framework GLUT -lftgl -lm
-# GLEW_LIBS = -lGLEW -lGL -lglut -lftgl -lm
+GLEW_LIBS = -lGLEW -lGL -lglut -lftgl -lm
 GLUT_CFLAGS = -pthread
-# GLUT_LIBS = -lglut  -lSM -lICE -lXmu -lXi  -lGLU -lGL  -lm
-GLUT_LIBS = -framework GLUT
+GLUT_LIBS = -lglut  -lSM -lICE -lXmu -lXi  -lGLU -lGL  -lm
 GLU_CFLAGS = -pthread
 GLU_LIBS = -lGLU -lGL  -lm
 GL_CFLAGS = -pthread
@@ -109,16 +107,13 @@ INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LDFLAGS = 
 LIBOBJS = 
-#LIBS = -lglut -lftgl -lboost_thread
-LIBS = -lftgl -lboost_thread -framework GLUT
+LIBS = -lglut -lftgl
 LTLIBOBJS = 
 MAKEINFO = ${SHELL} /home/julian/devel/The-Artvertiser/missing --run makeinfo
 MKDIR_P = /bin/mkdir -p
 OBJEXT = o
 OPENCV_CFLAGS = -I/usr/local/include/opencv  
 OPENCV_LIBS = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml  
-#OPENCV_FLAGS = -I/System/Library/Frameworks/OpenCV.framework/Headers
-#OPENCV_LIBS = -framework OpenCV
 PACKAGE = bazar
 PACKAGE_BUGREPORT = julien.pilet@epfl.ch
 PACKAGE_NAME = bazar
@@ -193,9 +188,9 @@ top_builddir = ..
 top_srcdir = ..
 #openglprogs = 
 openglprogs = artvertiser
-artvertiser_CXXFLAGS = $(OPENCV_CFLAGS) -I../garfeild -I../starter
-artvertiser_LDADD = -L/usr/local/lib $(OPENCV_LIBS)  -lml FProfiler/libfprofiler.a  ../garfeild/libgarfeild.a ../starter/libstarter.a ofxXmlSettings/libofxXmlSettings.a MatrixTracker/libMatrixTracker.a \
-		 -lGLEW -framework OpenGL -lm -lboost_thread
+artvertiser_CXXFLAGS = -I/usr/local/include/opencv   -I../garfeild -I../starter
+artvertiser_LDADD = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml FProfiler/libfprofiler.a  ../garfeild/libgarfeild.a ../starter/libstarter.a ofxXmlSettings/libofxXmlSettings.a MatrixTracker/libMatrixTracker.a \
+		 -lGLEW -lGL  -lm
 
 artvertiser_SOURCES = artvertiser.cpp calibmodel.cpp calibmodel.h \
 		 multigrab.h multigrab.cpp multithreadcapture.cpp multithreadcapture.h

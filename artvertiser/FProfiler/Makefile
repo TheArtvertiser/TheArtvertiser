@@ -1,5 +1,5 @@
 CC=gcc 
-CPPFLAGS=-g -o2 -arch i386
+CPPFLAGS=-g -o2
 
 OUT=libfprofiler.a
 OBJ=FProfiler.o FTime.o FThread.o 
