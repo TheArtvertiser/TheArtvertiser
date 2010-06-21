@@ -77,13 +77,17 @@ mcvm.o: math/mcvm.cpp math/mcvm.h /usr/include/c++/4.3/iostream \
   /usr/include/sys/types.h /usr/include/sys/select.h \
   /usr/include/bits/select.h /usr/include/sys/sysmacros.h \
   /usr/include/alloca.h /usr/include/string.h \
-  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/float.h /usr/include/math.h \
-  /usr/include/bits/huge_val.h /usr/include/bits/huge_valf.h \
-  /usr/include/bits/huge_vall.h /usr/include/bits/inf.h \
-  /usr/include/bits/nan.h /usr/include/bits/mathdef.h \
-  /usr/include/bits/mathcalls.h /usr/include/bits/mathinline.h \
-  /usr/local/include/opencv/cxerror.h /usr/local/include/opencv/cvver.h \
-  /usr/local/include/opencv/cxcore.hpp \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/float.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/emmintrin.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/xmmintrin.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/mmintrin.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/mm_malloc.h \
+  /usr/include/math.h /usr/include/bits/huge_val.h \
+  /usr/include/bits/huge_valf.h /usr/include/bits/huge_vall.h \
+  /usr/include/bits/inf.h /usr/include/bits/nan.h \
+  /usr/include/bits/mathdef.h /usr/include/bits/mathcalls.h \
+  /usr/include/bits/mathinline.h /usr/local/include/opencv/cxerror.h \
+  /usr/local/include/opencv/cvver.h /usr/local/include/opencv/cxcore.hpp \
   /usr/local/include/opencv/cvtypes.h /usr/local/include/opencv/cv.hpp \
   /usr/local/include/opencv/cvcompat.h
 
@@ -324,6 +328,14 @@ math/mcvm.h:
 /usr/include/string.h:
 
 /usr/lib/gcc/i486-linux-gnu/4.3.2/include/float.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/emmintrin.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/xmmintrin.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/mmintrin.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/mm_malloc.h:
 
 /usr/include/math.h:
 

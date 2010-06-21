@@ -13,13 +13,17 @@ artvertiser-multigrab.o: multigrab.cpp multigrab.h calibmodel.h \
   /usr/include/bits/sigset.h /usr/include/bits/time.h \
   /usr/include/sys/sysmacros.h /usr/include/bits/pthreadtypes.h \
   /usr/include/alloca.h /usr/include/string.h \
-  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/float.h /usr/include/math.h \
-  /usr/include/bits/huge_val.h /usr/include/bits/huge_valf.h \
-  /usr/include/bits/huge_vall.h /usr/include/bits/inf.h \
-  /usr/include/bits/nan.h /usr/include/bits/mathdef.h \
-  /usr/include/bits/mathcalls.h /usr/include/bits/mathinline.h \
-  /usr/local/include/opencv/cxerror.h /usr/local/include/opencv/cvver.h \
-  /usr/local/include/opencv/cxcore.hpp \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/float.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/emmintrin.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/xmmintrin.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/mmintrin.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/mm_malloc.h \
+  /usr/include/math.h /usr/include/bits/huge_val.h \
+  /usr/include/bits/huge_valf.h /usr/include/bits/huge_vall.h \
+  /usr/include/bits/inf.h /usr/include/bits/nan.h \
+  /usr/include/bits/mathdef.h /usr/include/bits/mathcalls.h \
+  /usr/include/bits/mathinline.h /usr/local/include/opencv/cxerror.h \
+  /usr/local/include/opencv/cvver.h /usr/local/include/opencv/cxcore.hpp \
   /usr/local/include/opencv/cvtypes.h /usr/local/include/opencv/cv.hpp \
   /usr/local/include/opencv/cvcompat.h \
   /usr/local/include/opencv/highgui.h ../garfeild/garfeild.h \
@@ -128,12 +132,23 @@ artvertiser-multigrab.o: multigrab.cpp multigrab.h calibmodel.h \
   ../garfeild/viewsets/affine_image_generator.h \
   ../garfeild/viewsets/image_classification_forest.h \
   ../garfeild/viewsets/image_object_point_match.h \
-  ../garfeild/calib/CamCalibration.h ../garfeild/calib/CamAugmentation.h \
-  ../garfeild/calib/CamCalibration.h ../garfeild/lightcalib/lightcalib.h \
+  ../artvertiser/FProfiler/FSemaphore.h /usr/include/semaphore.h \
+  /usr/include/bits/semaphore.h /usr/include/sys/errno.h \
+  /usr/include/errno.h /usr/include/bits/errno.h \
+  /usr/include/linux/errno.h /usr/include/asm/errno.h \
+  /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
+  /usr/include/malloc.h ../garfeild/calib/CamCalibration.h \
+  ../garfeild/calib/CamAugmentation.h ../garfeild/calib/CamCalibration.h \
+  ../garfeild/lightcalib/lightcalib.h \
   ../garfeild/lightcalib/lightcollector.h \
   ../garfeild/lightcalib/lightmap.h ../starter/math/growmat.h \
   ../garfeild/lightcalib/ipltexture.h ../config.h /usr/include/GL/glew.h \
-  /usr/include/GL/glu.h /usr/include/GL/gl.h
+  /usr/include/GL/glu.h /usr/include/GL/gl.h multithreadcapture.h \
+  FProfiler/FThread.h FProfiler/FSemaphore.h FProfiler/FTime.h \
+  /usr/include/c++/4.3/map /usr/include/c++/4.3/bits/stl_tree.h \
+  /usr/include/c++/4.3/bits/stl_map.h \
+  /usr/include/c++/4.3/bits/stl_multimap.h FProfiler/FProfiler.h \
+  FProfiler/FSemaphore.h FProfiler/FTime.h FProfiler/FThread.h
 
 multigrab.h:
 
@@ -196,6 +211,14 @@ calibmodel.h:
 /usr/include/string.h:
 
 /usr/lib/gcc/i486-linux-gnu/4.3.2/include/float.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/emmintrin.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/xmmintrin.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/mmintrin.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/mm_malloc.h:
 
 /usr/include/math.h:
 
@@ -511,6 +534,28 @@ calibmodel.h:
 
 ../garfeild/viewsets/image_object_point_match.h:
 
+../artvertiser/FProfiler/FSemaphore.h:
+
+/usr/include/semaphore.h:
+
+/usr/include/bits/semaphore.h:
+
+/usr/include/sys/errno.h:
+
+/usr/include/errno.h:
+
+/usr/include/bits/errno.h:
+
+/usr/include/linux/errno.h:
+
+/usr/include/asm/errno.h:
+
+/usr/include/asm-generic/errno.h:
+
+/usr/include/asm-generic/errno-base.h:
+
+/usr/include/malloc.h:
+
 ../garfeild/calib/CamCalibration.h:
 
 ../garfeild/calib/CamAugmentation.h:
@@ -534,3 +579,27 @@ calibmodel.h:
 /usr/include/GL/glu.h:
 
 /usr/include/GL/gl.h:
+
+multithreadcapture.h:
+
+FProfiler/FThread.h:
+
+FProfiler/FSemaphore.h:
+
+FProfiler/FTime.h:
+
+/usr/include/c++/4.3/map:
+
+/usr/include/c++/4.3/bits/stl_tree.h:
+
+/usr/include/c++/4.3/bits/stl_map.h:
+
+/usr/include/c++/4.3/bits/stl_multimap.h:
+
+FProfiler/FProfiler.h:
+
+FProfiler/FSemaphore.h:
+
+FProfiler/FTime.h:
+
+FProfiler/FThread.h:
