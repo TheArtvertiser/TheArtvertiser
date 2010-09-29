@@ -1047,17 +1047,21 @@ void toggleRecording()
 	{
 		record_timestep.SetSeconds( 1.0f/record_fps );
 		is_recording = true;
+		// construct filename
 		char filename[512];
 		time_t timestamp;
 		time(&timestamp);
-		sprintf(filename, "record_%010i.avi", (int)timestamp );
+		sprintf(filename, "/home/artvertiser/recordings/recording_%010i.avi", (int)timestamp );
+		// select codec
 		ofxGstVideoRecorder::Codec codec = ofxGstVideoRecorder::JPEG;
 		int bpp=24;
 
+		// allocate pixel temp buffer space
 		if ( pixels == NULL )
 			pixels = new unsigned char[video_width*video_height*3];
 
 		printf("**_ starting recording\n");
+		// go
 		recorder.setup( video_width, video_height, bpp, filename, codec, record_fps );
 		record_timer.SetNow();
 	}
@@ -2006,6 +2010,7 @@ static void draw()
         //ftglFont->Render(date(now).c_str());
         if (frame_ok == 1 and (now/1000)%2== 0)
         {
+			glPushMatrix();
             glTranslatef(video_width-295, video_height+35, 0);
             glColor4f(0.0, 1.0, 0.0, .8);
             glBegin(GL_TRIANGLES);
@@ -2016,7 +2021,24 @@ static void draw()
             glTranslatef(70, 5, 0);
             ftglFont->FaceSize(16);
             ftglFont->Render("tracking");
+			glPopMatrix();
         }
+		if ( is_recording && ((now/1000)%2) == 0 )
+		{
+			glPushMatrix();
+			glTranslatef(video_width-195, video_height+35, 0 );
+			glColor4f( 1.0f, 0.0f, 0.0f, 0.8f );
+			glBegin( GL_QUADS );
+			glVertex3f( 145, 5, 0 );
+			glVertex3f( 155, 5, 0 );
+			glVertex3f( 155, 15, 0 );
+			glVertex3f( 145, 15, 0 );
+			glEnd();
+			glTranslatef( 70, 5, 0 );
+			ftglFont->FaceSize( 16 );
+			ftglFont->Render("recording");
+			glPopMatrix();
+		}
 
         // reset the ftgl font size for next pass
         ftglFont->FaceSize(12);
@@ -2261,7 +2283,6 @@ static void idle()
     {
         IplImage* captured_frame;
         multi->cams[current_cam]->getLastDrawFrame( &captured_frame, &raw_frame_timestamp );
-		updateRecording( captured_frame );
 
         static list< pair<IplImage*, FTime> > frameRingBuffer;
         while ( frameRingBuffer.size()<VIDEO_DELAY_FRAMES )
@@ -2281,6 +2302,7 @@ static void idle()
         raw_frame_timestamp = frameRingBuffer.front().second;
 
         raw_frame_texture->setImage(raw_frame);
+		updateRecording( raw_frame );
     }
     else
     {
@@ -2303,7 +2325,34 @@ static void idle()
     }
     else
     {
-        updateMenu();
+		// deal with buttons, ui
+		if ( !menu_is_showing )
+		{
+			// check red button 
+        	bool button_red = button_state   & BUTTON_RED;
+			static bool prev_button_red = button_red;
+			// did the button state just change?
+			bool changed = (button_red != prev_button_red);
+			// we need to be a bit clever to allow the keyboard 'R' key to play nice with the red button
+			// if we're recording, the button just changed, and it's now up, stop recording
+			if ( changed && !button_red && is_recording )
+			{
+				// stop recording 
+				toggleRecording();
+			}
+			// if we're not recording, the button just changed, and it's now down, start recording
+			else if ( changed && button_red && !is_recording )
+			{
+				// start recording
+				toggleRecording();
+			}
+			// store prev state
+			prev_button_red = button_red;
+		}
+		if ( !is_recording )
+		{
+        	updateMenu();
+		}
         //doDetection();
     }
     glutPostRedisplay();
