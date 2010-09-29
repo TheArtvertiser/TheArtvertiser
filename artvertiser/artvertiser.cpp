@@ -2023,7 +2023,7 @@ static void draw()
             ftglFont->Render("tracking");
 			glPopMatrix();
         }
-		if ( is_recording && ((now/1000)%2) == 0 )
+		if ( is_recording && ((now/200)%2) == 0 )
 		{
 			glPushMatrix();
 			glTranslatef(video_width-195, video_height+35, 0 );
@@ -2333,17 +2333,10 @@ static void idle()
 			static bool prev_button_red = button_red;
 			// did the button state just change?
 			bool changed = (button_red != prev_button_red);
-			// we need to be a bit clever to allow the keyboard 'R' key to play nice with the red button
-			// if we're recording, the button just changed, and it's now up, stop recording
-			if ( changed && !button_red && is_recording )
+			// hit red button to toggle recording status
+			if ( changed && button_red )
 			{
 				// stop recording 
-				toggleRecording();
-			}
-			// if we're not recording, the button just changed, and it's now down, start recording
-			else if ( changed && button_red && !is_recording )
-			{
-				// start recording
 				toggleRecording();
 			}
 			// store prev state
