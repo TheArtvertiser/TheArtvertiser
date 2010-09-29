@@ -1037,33 +1037,55 @@ static bool init( int argc, char** argv )
 bool is_recording;
 ofxGstVideoRecorder recorder;
 unsigned char* pixels = NULL;
+FTime record_timer;
+static const float record_fps = 20.0f;
+FTime record_timestep;
 
 void toggleRecording()
 {
 	if ( !is_recording )
 	{
+		record_timestep.SetSeconds( 1.0f/record_fps );
 		is_recording = true;
-		int fps = 30;
 		char filename[512];
 		time_t timestamp;
 		time(&timestamp);
 		sprintf(filename, "record_%010i.avi", (int)timestamp );
-		ofxGstVideoRecorder::Codec codec = ofxGstVideoRecorder::LOSLESS_JPEG;
+		ofxGstVideoRecorder::Codec codec = ofxGstVideoRecorder::JPEG;
 		int bpp=24;
 
 		if ( pixels == NULL )
 			pixels = new unsigned char[video_width*video_height*3];
 
-		recorder.setupRecordWindow( 0, 0, video_width, video_height, bpp, filename, codec, fps );
+		printf("**_ starting recording\n");
+		recorder.setup( video_width, video_height, bpp, filename, codec, record_fps );
+		record_timer.SetNow();
+	}
+	else
+	{
+		printf("**_ stopping recording\n");
+		is_recording = false;
+		recorder.shutdown();
 	}
 }
-void updateRecording()
+
+void updateRecording(IplImage* frame)
 {
 	if ( !is_recording )
 		return;
 	
-	glReadPixels(0,0,video_width, video_height, GL_RGB, GL_UNSIGNED_BYTE, pixels );
-	recorder.newFrame( pixels );
+	//glReadPixels(0,0,video_width, video_height, GL_RGB, GL_UNSIGNED_BYTE, pixels );
+	FTime now_time;
+	now_time.SetNow();
+	while ( record_timestep < (now_time - record_timer) )
+	{
+		unsigned char* source_pixels = (unsigned char*)frame->imageData;
+		memcpy( pixels, source_pixels, video_width*video_height*3 );
+	//	printf("**_ recorder frame\n");
+		recorder.newFrame( pixels );
+		// advance time by one frame
+		record_timer.SetSeconds( record_timer.ToSeconds() + record_timestep.ToSeconds() );
+	}
 
 }
 
@@ -2026,6 +2048,9 @@ static void draw()
     glutSwapBuffers();
     //cvReleaseImage(&image); // cleanup used image
     glFlush();
+
+	//printf("writing frame\n");
+	//updateRecording();
 }
 
 
@@ -2236,6 +2261,7 @@ static void idle()
     {
         IplImage* captured_frame;
         multi->cams[current_cam]->getLastDrawFrame( &captured_frame, &raw_frame_timestamp );
+		updateRecording( captured_frame );
 
         static list< pair<IplImage*, FTime> > frameRingBuffer;
         while ( frameRingBuffer.size()<VIDEO_DELAY_FRAMES )
@@ -2261,6 +2287,7 @@ static void idle()
         IplImage* raw_frame = raw_frame_texture->getImage();
         multi->cams[current_cam]->getLastDrawFrame( &raw_frame, &raw_frame_timestamp );
         raw_frame_texture->setImage(raw_frame);
+		updateRecording( raw_frame );
     }
 
     PROFILE_SECTION_POP();

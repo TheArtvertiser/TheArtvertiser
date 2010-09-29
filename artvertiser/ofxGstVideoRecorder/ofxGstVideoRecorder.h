@@ -53,6 +53,7 @@ public:
 	void setupRecordWindow(int x, int y, int width, int height,int bpp, string file, Codec codec, int fps=30);
 	void setupRecordScreen(int x, int y, int width, int height,int bpp, string file, Codec codec, int fps=30);
 
+	void shutdown();
 
 	void newFrame(unsigned char * pixels);
 

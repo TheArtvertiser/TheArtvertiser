@@ -533,7 +533,7 @@ ofGstUtils::ofGstUtils() {
 	if(!gst_inited){
 		gst_init (NULL, NULL);
 		gst_inited=true;
-		//ofLog(OF_LOG_VERBOSE,"ofGstUtils: gstreamer inited");
+		printf("ofGstUtils: gstreamer inited\n");
 	}
 	if(!plugin_registered){
 		gst_plugin_register_static(GST_VERSION_MAJOR, GST_VERSION_MINOR,
@@ -822,6 +822,7 @@ bool ofGstUtils::startPipeline(){
 
 	setSpeed(1.0);
 
+	printf("startPipeline : ret %s\n", ret?"T":"F" );
 	return ret;
 }
 
@@ -1166,14 +1167,14 @@ void ofGstUtils::gstHandleMessage(){
 	while(gst_bus_have_pending(bus)) {
 		GstMessage* msg = gst_bus_pop(bus);
 
-		//ofLog(OF_LOG_VERBOSE,"GStreamer: Got %s message", GST_MESSAGE_TYPE_NAME(msg));
+		printf("GStreamer: Got %s message:\n.\t", GST_MESSAGE_TYPE_NAME(msg));
 
 		switch (GST_MESSAGE_TYPE (msg)) {
 
 			case GST_MESSAGE_BUFFERING:
 				gint pctBuffered;
 				gst_message_parse_buffering(msg,&pctBuffered);
-				//ofLog(OF_LOG_VERBOSE,"GStreamer: buffering %i\%", pctBuffered);
+				printf("GStreamer: buffering %i %% \n", pctBuffered);
 				if(bIsStream && !bLoaded){
 					ofGstDataLock(&gstData);
 					allocate();
@@ -1191,7 +1192,7 @@ void ofGstUtils::gstHandleMessage(){
 				//if(!
 						gst_element_query_duration(gstPipeline,&format,&durationNanos);
 					//	)
-					//ofLog(OF_LOG_WARNING,"GStreamer: cannot query duration");
+					printf("GStreamer: cannot query duration");
 			}break;
 
 			case GST_MESSAGE_STATE_CHANGED:{
@@ -1210,12 +1211,12 @@ void ofGstUtils::gstHandleMessage(){
 				}
 				seek_unlock();*/
 
-				//ofLog(OF_LOG_VERBOSE,"GStreamer: state changed from " + getName(oldstate) + " to " + getName(newstate) + " (" + getName(pendstate) + ")");
+				printf("%s\n",string(string("GStreamer: state changed from ") + getName(oldstate) + " to " + getName(newstate) + " (" + getName(pendstate) + ")").c_str() );
 			}break;
 
 			case GST_MESSAGE_ASYNC_DONE:
 				gstData.speed=speed;
-				//ofLog(OF_LOG_VERBOSE,"GStreamer: async done");
+				printf("GStreamer: async done\n");
 			break;
 
 			case GST_MESSAGE_ERROR: {
@@ -1223,8 +1224,8 @@ void ofGstUtils::gstHandleMessage(){
 				gchar *debug;
 				gst_message_parse_error(msg, &err, &debug);
 
-				//ofLog(OF_LOG_ERROR, "GStreamer Plugin: Embedded video playback halted; module %s reported: %s",
-				//	  gst_element_get_name(GST_MESSAGE_SRC (msg)), err->message);
+				printf( "GStreamer Plugin: Embedded video playback halted; module %s reported: %s\n",
+					  gst_element_get_name(GST_MESSAGE_SRC (msg)), err->message);
 
 				g_error_free(err);
 				g_free(debug);
@@ -1234,7 +1235,7 @@ void ofGstUtils::gstHandleMessage(){
 			}break;
 
 			case GST_MESSAGE_EOS:
-				//ofLog(OF_LOG_VERBOSE,"GStreamer: end of the stream.");
+				printf("GStreamer: end of the stream.\n");
 				bIsMovieDone = true;
 
 				switch(loopMode){
@@ -1289,7 +1290,7 @@ void ofGstUtils::gstHandleMessage(){
 			break;
 
 			default:
-				//ofLog(OF_LOG_VERBOSE,"GStreamer: unhandled message");
+				printf("GStreamer: unhandled message\n");
 			break;
 
 		}

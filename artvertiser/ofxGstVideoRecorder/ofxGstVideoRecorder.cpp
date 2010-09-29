@@ -26,8 +26,14 @@ ofxGstVideoRecorder::ofxGstVideoRecorder() {
 	bIsUdpStream = false;
 }
 
+void ofxGstVideoRecorder::shutdown()
+{
+    if(gstSrc) 
+	    gst_app_src_end_of_stream (gstSrc);
+}
+
 ofxGstVideoRecorder::~ofxGstVideoRecorder() {
-	if(gstSrc) gst_app_src_end_of_stream (gstSrc);
+	shutdown();
 }
 
 void ofxGstVideoRecorder::udpStreamTo(string comma_separated_ips){
@@ -67,7 +73,7 @@ void ofxGstVideoRecorder::setup(int width, int height, int bpp, string file, Cod
 		sink= "filesink name=video-sink sync=false location=" + file;
 
 	string encoder;
-	string muxer = "mpegtsmux ! ";
+	string muxer = "avimux ! ";
 	string pay = "";
 	string videorate = "videorate ! video/x-raw-rgb, framerate="+ofToString(fps)+"/1 ! ";
 
@@ -176,6 +182,8 @@ void ofxGstVideoRecorder::setup(int width, int height, int bpp, string file, Cod
 
 	GError * error = NULL;
 	gstPipeline = gst_parse_launch (pipeline_string.c_str(), &error);
+	if ( !gstPipeline || error )
+		printf("parse launch error: %s\n", error->message );
 
 	gstSink = gst_bin_get_by_name(GST_BIN(gstPipeline),"video-sink");
 	gstSrc = (GstAppSrc*)gst_bin_get_by_name(GST_BIN(gstPipeline),"video_src");
@@ -186,6 +194,10 @@ void ofxGstVideoRecorder::setup(int width, int height, int bpp, string file, Cod
 		//g_object_set (G_OBJECT(gstSrc), "block", TRUE, NULL);
 		//gst_app_src_set_size (gstSrc,10000*width*height*bpp/8);
 		//gst_app_src_set_callbacks (gstSrc, &callbacks, &data, &gst_destroy_notify);
+	}
+	else
+	{
+		printf("got no gstSrc\n");
 	}
 
 	pixels = new unsigned char[width*height*bpp/8];
@@ -250,7 +262,7 @@ void ofxGstVideoRecorder::newFrame(unsigned char * pixels){
 
 	GstFlowReturn flow_return = gst_app_src_push_buffer(gstSrc, buffer);
 	if (flow_return != GST_FLOW_OK) {
-		printf("error pushing buffer\n");
+		printf("error pushing buffer: flow_return was %i\n", flow_return );
 	}
 	ofGstUtils::update();
 }
