@@ -50,7 +50,8 @@ am_artvertiser_OBJECTS = artvertiser-artvertiser.$(OBJEXT) \
 	artvertiser-multithreadcapture.$(OBJEXT)
 artvertiser_OBJECTS = $(am_artvertiser_OBJECTS) 
 artvertiser_DEPENDENCIES = ../garfeild/libgarfeild.a \
-	../starter/libstarter.a FProfiler/libfprofiler.a MatrixTracker/libMatrixTracker.a ofxXmlSettings/libofxXmlSettings.a
+	../starter/libstarter.a FProfiler/libfprofiler.a MatrixTracker/libMatrixTracker.a ofxXmlSettings/libofxXmlSettings.a ofxGstVideoRecorder/libofxGstVideoRecorder.a
+
 artvertiser_LINK = $(CXXLD) $(artvertiser_CXXFLAGS) $(CXXFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I. -I$(top_builddir)
@@ -78,12 +79,12 @@ AUTOMAKE = ${SHELL} /home/julian/devel/The-Artvertiser/missing --run automake-1.
 AWK = gawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O3 -mtune=native -msse3
+CFLAGS = -g -O3 -mtune=native -msse3 
 CPP = gcc -E
 CPPFLAGS = -I/usr/include/freetype2
 CXX = g++
 CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -g -O3 -mtune=native -msse3
+CXXFLAGS = -g -O3 -mtune=native -msse3	`pkg-config gstreamer-0.10 --cflags`
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
 DEPDIR = .deps
@@ -107,7 +108,7 @@ INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LDFLAGS = 
 LIBOBJS = 
-LIBS = -lglut -lftgl
+LIBS = -lglut -lftgl 
 LTLIBOBJS = 
 MAKEINFO = ${SHELL} /home/julian/devel/The-Artvertiser/missing --run makeinfo
 MKDIR_P = /bin/mkdir -p
@@ -189,7 +190,7 @@ top_srcdir = ..
 #openglprogs = 
 openglprogs = artvertiser
 artvertiser_CXXFLAGS = -I/usr/local/include/opencv   -I../garfeild -I../starter
-artvertiser_LDADD = -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml FProfiler/libfprofiler.a  ../garfeild/libgarfeild.a ../starter/libstarter.a ofxXmlSettings/libofxXmlSettings.a MatrixTracker/libMatrixTracker.a \
+artvertiser_LDADD = `pkg-config gstreamer-0.10 gstreamer-video-0.10 gstreamer-base-0.10 libudev --libs` -lgstapp-0.10 -L/usr/local/lib -lcxcore -lcv -lhighgui -lcvaux -lml FProfiler/libfprofiler.a  ../garfeild/libgarfeild.a ../starter/libstarter.a ofxXmlSettings/libofxXmlSettings.a MatrixTracker/libMatrixTracker.a ofxGstVideoRecorder/libofxGstVideoRecorder.a \
 		 -lGLEW -lGL  -lm
 
 artvertiser_SOURCES = artvertiser.cpp calibmodel.cpp calibmodel.h \

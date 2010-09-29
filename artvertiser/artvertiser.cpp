@@ -1032,6 +1032,41 @@ static bool init( int argc, char** argv )
     return true;
 }
 
+#include <time.h>
+#include <ofxGstVideoRecorder/ofxGstVideoRecorder.h>
+bool is_recording;
+ofxGstVideoRecorder recorder;
+unsigned char* pixels = NULL;
+
+void toggleRecording()
+{
+	if ( !is_recording )
+	{
+		is_recording = true;
+		int fps = 30;
+		char filename[512];
+		time_t timestamp;
+		time(&timestamp);
+		sprintf(filename, "record_%010i.avi", (int)timestamp );
+		ofxGstVideoRecorder::Codec codec = ofxGstVideoRecorder::LOSLESS_JPEG;
+		int bpp=24;
+
+		if ( pixels == NULL )
+			pixels = new unsigned char[video_width*video_height*3];
+
+		recorder.setupRecordWindow( 0, 0, video_width, video_height, bpp, filename, codec, fps );
+	}
+}
+void updateRecording()
+{
+	if ( !is_recording )
+		return;
+	
+	glReadPixels(0,0,video_width, video_height, GL_RGB, GL_UNSIGNED_BYTE, pixels );
+	recorder.newFrame( pixels );
+
+}
+
 /*! The keyboard callback: reacts to '+' and '-' to change the viewed cam, 'q' exits.
  * 'd' turns on/off the dynamic lightmap update.
  * 'f' goes fullscreen.
@@ -1100,6 +1135,10 @@ static void keyboard(unsigned char c, int x, int y)
 		break;
 	case '\\':
 		button_state |= BUTTON_BLUE;
+		break;
+	
+	case 'R':
+		toggleRecording();
 		break;
 
     default:
