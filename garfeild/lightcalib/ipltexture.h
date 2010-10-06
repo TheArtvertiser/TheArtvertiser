@@ -28,37 +28,17 @@
 
 #include <cv.h>
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#else
-#ifdef WIN32
-	// Comment this out if you do not have GLEW installed.
-#define HAVE_GLEW
-#endif
-#endif
-
-#ifdef __APPLE__ 
-#undef HAVE_GLEW
-#endif
-#ifdef HAVE_GLEW
-#include <GL/glew.h>
-#ifndef HAVE_GL
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
 #define HAVE_GL
-#endif
-#else
-#ifdef WIN32
+#elif defined WIN32
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <GL/gl.h>
 #define HAVE_GL
-#endif
-
-#ifdef HAVE_GL
-#ifdef HAVE_APPLE_OPENGL_FRAMEWORK
-#include <OpenGL/gl.h>
 #else
 #include <GL/gl.h>
-#endif
-#endif
+#define HAVE_GL
 #endif
 
 

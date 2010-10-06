@@ -53,6 +53,8 @@ int MultiGrab::init( char *avi_bg_path, int width, int height, int v4l_device, i
 		player->loadMovie( avi_bg_path );
 		player->setLoopState( OF_LOOP_NORMAL );
 		player->play();
+		player->update();
+		printf("player has new frame? %c\n", player->isFrameNew()?'y':'n' );
 		ofBaseVideo *c = player;
 		cams.push_back(new Cam(true, c, width, height, detect_width, detect_height, desired_capture_fps ));
 	}
@@ -69,6 +71,7 @@ int MultiGrab::init( char *avi_bg_path, int width, int height, int v4l_device, i
 		cout << "MultiGrab::init creating camera with device "<<v4l_device<<", capture at " << width << "x" << height << " detect at " << detect_width << "x" << detect_height << endl;
 		ofVideoGrabber* grabber = new ofVideoGrabber();
 		grabber->initGrabber( width, height, false );
+		grabber->update();
 		
 		ofBaseVideo *c = grabber;
 		if ( c == 0 )

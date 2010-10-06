@@ -23,7 +23,7 @@
 #include "ofxMatrix4x4.h"
 #include <cv.h>
 #include "../FProfiler/FTime.h"
-#include "ofxSemaphore.h"
+#include "ofxMutex.h"
 #include <map>
 
 // prune
@@ -79,8 +79,8 @@ public:
 
 private:
 
-    void lock() { poses_lock.wait(); };
-    void unlock() { poses_lock.signal(); };
+    void lock() { poses_lock.lock(); };
+    void unlock() { poses_lock.unlock(); };
 
     class Pose {
     public:
@@ -124,7 +124,7 @@ private:
     void make4x4MatrixFromQuatTrans( const ofxQuaternion& rot, const ofxVec3f& trans, ofxMatrix4x4& output );
     void smoothAndMakeMatrix( const ofxQuaternion& rot, const ofxVec3f& trans, const FTime& for_time, ofxMatrix4x4& output );
 
-    ofxSemaphore poses_lock;
+    ofxMutex poses_lock;
 
 
     float rotation_smoothing;

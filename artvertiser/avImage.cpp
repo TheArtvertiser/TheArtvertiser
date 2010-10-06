@@ -59,7 +59,7 @@ IplImage* avGetFrame( ofBaseVideo* video_source )
 	{
 		// is the one we have the right size?
 		working_frame = &working_frames[video_source];
-		CvSize size = cvGetSize( working_frame );
+		CvSize size = cvGetSize( working_frame->getCvImage() );
 		if ( size.width != video_source->getWidth() ||
 			size.height != video_source->getHeight() )
 		{
@@ -74,12 +74,14 @@ IplImage* avGetFrame( ofBaseVideo* video_source )
 	{
 		// 24 bit RGB
 		working_frame = &working_frames[video_source];
+		working_frame->setUseTexture( false );
 		working_frame->allocate( video_source->getWidth(), video_source->getHeight() );
+		
 	}
 	
 	// now copy
 	working_frame->setFromPixels( video_source->getPixels(), video_source->getWidth(), video_source->getHeight() );
-	
+
 	return working_frame->getCvImage();
 }
 
@@ -87,7 +89,12 @@ IplImage* avGetFrame( ofBaseVideo* video_source )
 
 int avSaveImage( const char* path, CvArr* image )
 {
-	return 0;
+	ofImage testy;
+	testy.setUseTexture( false );
+	IplImage* f = (IplImage*)image;
+	testy.setFromPixels( (unsigned char*)f->imageData, f->width, f->height, OF_IMAGE_COLOR );
+	testy.saveImage( path );
+	return true;
 }
 
 

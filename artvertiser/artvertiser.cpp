@@ -46,6 +46,7 @@
  *
  */
 
+#include "artvertiser.h"
 #include "multigrab.h"
 
 #define ARTVERTISER_VERSION "0.92"
@@ -73,19 +74,23 @@
 #include <stdio.h>
 #include <time.h>
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
 #include <calib/camera.h>
 
 #ifdef __APPLE__
-#define HAVE_APPLE_OPENGL_FRAMEWORK
-#endif
-#ifdef HAVE_APPLE_OPENGL_FRAMEWORK
+#include <OpenGL/gl.h>
 #include <GLUT/glut.h>
-#else
+#define HAVE_GL
+#elif defined WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <GL/gl.h>
 #include <GL/glut.h>
+#define HAVE_GL
+#else
+#include <GL/gl.h>
+#include <GL/glut.h>
+#define HAVE_GL
 #endif
 
 /*
@@ -270,12 +275,13 @@ public:
 		if ( artvert_is_movie )
 		{
 
-			if ( !avi_capture )
+			if ( avi_capture==NULL )
 			{
 				ofVideoPlayer * avi_cap = new ofVideoPlayer();
 				avi_cap->loadMovie( artvert_movie_file.c_str() );
 				avi_cap->setLoopState( OF_LOOP_NORMAL );
 				avi_cap->play();
+				avi_cap->update();
 				avi_capture = avi_cap;
 				avi_play_init = false;
 			}	
@@ -348,6 +354,7 @@ private:
 vector< Artvert > artvert_list;
 bool new_artvert_switching_in_progress = false;
 int current_artvert_index=-1;
+ofxMutex new_artvert_requested_lock;
 bool new_artvert_requested = false;
 int new_artvert_requested_index = 0;
 vector< bool > model_file_needs_training;
@@ -363,8 +370,8 @@ bool detection_thread_should_exit = false;
 bool detection_thread_running = false;
 
 
-static void start();
-static void geomCalibStart(bool cache);
+//static void start();
+//static void geomCalibStart(bool cache);
 
 // initialise a couple of fonts.
 CvFont font, fontbold;
@@ -373,12 +380,6 @@ CvFont font, fontbold;
 GLenum format;
 GLuint imageID;
 
-// ftgl font setup
-ofTrueTypeFont font_12;
-ofTrueTypeFont font_16;
-ofTrueTypeFont font_24;
-ofTrueTypeFont font_32;
-//static FTFont *ftglFont;
 
 // interface
 bool show_status = false;
@@ -436,6 +437,7 @@ string getSettingsString()
 }
 
 
+
 std::string date(int now)
 {
     time_t rawtime;
@@ -462,31 +464,40 @@ void entry(int state)
         cout << "Mouse Left" << endl;
 }*/
 
-void mouse(int button, int state, int x, int y)
+void Artvertiser::mousePressed( int x, int y, int button )
 {
-    if (button == GLUT_RIGHT_BUTTON)
-    {
-        if (state == GLUT_DOWN)
-        {
-            label = true;
-        }
-
-        else
-        {
-            label = false;
-        }
-    }
-    else if (button == GLUT_LEFT_BUTTON)
-    {
-        if (state == GLUT_DOWN)
-            lbutton_down = true;
-        else
-            lbutton_down = false;
-    }
-	
+	if ( button == 0 )
+		// left button
+		lbutton_down = true;
+	else if ( button == 1 )
+		label = true;
 	mouse_x = x;
 	mouse_y = y;
 }
+
+void Artvertiser::mouseReleased( int x, int y, int button )
+{
+	if ( button == 0 )
+		// left button
+		lbutton_down = false;
+	if ( button == 1 )
+		label = false;
+	mouse_x = x;
+	mouse_y = y;
+}
+
+void Artvertiser::mouseDragged( int x, int y, int button )
+{
+	mouse_x = x;
+	mouse_y = y;
+}
+
+void Artvertiser::mouseMoved( int x, int y )
+{
+	mouse_x = x;
+	mouse_y = y;
+}
+
 
 // text drawing function
 static void drawText(IplImage *img, const char *text, CvPoint point, CvFont *font, CvScalar colour, double size)
@@ -570,10 +581,19 @@ static void usage(const char *s)
 
 
 
-void exit_handler()
+void Artvertiser::exitHandler()
 {
     printf("in exit_handler\n");
-     // shutdown detection thread
+
+	// shutdown interactive training
+	if ( multi && multi->model.isInteractiveTrainRunning() )
+	{
+		printf("stopping interactive train binoculars\n");
+		multi->model.abortInteractiveTrain();
+	}
+	
+	
+	// shutdown detection thread
     if ( detection_thread_running )
     {
         printf("stopping detection\n");
@@ -585,12 +605,6 @@ void exit_handler()
         printf("stopping serial\n");
         shutdownSerialThread();
     }
-	// shutdown binocular training
-	if ( multi && multi->model.isInteractiveTrainRunning() )
-	{
-		printf("stopping interactive train binoculars\n");
-		multi->model.abortInteractiveTrain();
-	}
 	
     // shutdown capture
     if ( multi )
@@ -701,6 +715,7 @@ int serialport_read_until(int fd, char* buf, char until)
 
 bool loadOrTrain( int new_index )
 {
+	printf("entered loadOrTrain(%i)\n", new_index );
     // fetch data
     if ( new_index < 0 || new_index >= artvert_list.size() )
     {
@@ -778,294 +793,13 @@ bool loadOrTrain( int new_index )
 
 bool redo_geom = false;
 
-static bool init( int argc, char** argv )
+
+Artvertiser::Artvertiser()
 {
-    // register exit function
-    atexit( &exit_handler );
-
-    // dump opencv version
-    printf("built with opencv version %s\n", CV_VERSION );
-
-    // more from before init should be moved here
-    bool redo_lighting=false;
-    bool redo_training = false;
-    char *avi_bg_path=(char*)"";
-    bool got_ds = false;
-    bool got_fps = false;
-    bool video_source_is_avi = false;
-    char *model_file_list_file = NULL;
-
-	if ( argc == 1 )
-	{
-		usage(argv[0]);
-		exit(1);
-	}
-
-	// load fallback
-	fallback_artvert_image = avLoadImage("fallback_artvert_image.png");
-
-    // parse command line
-    for (int i=1; i<argc; i++)
-    {
-        if (strcmp(argv[i], "-m") ==0)
-        {
-            if (i==argc-1)
-                usage(argv[0]);
-			Artvert a;
-			a.model_file = argv[i+1];
-			a.advert = "cmdline "+a.model_file;
-			// store
-         	artvert_list.push_back( a );
-            printf(" -m: adding model image '%s'\n", argv[i+1] );
-            i++;
-        }
-        else if ( strcmp(argv[i], "-binoc")==0 )
-        {
-            running_on_binoculars = true;
-            printf(" -binoc: running on binoculars\n");
-        }
-		else if ( strcmp(argv[i], "-nofullscreen")==0 )
-		{
-			no_fullscreen = true;
-			printf(" -nofullscreen: won't go fullscreen\n");
-		}
-        else if ( strcmp(argv[i], "-ml" )== 0 )
-        {
-            if ( i==argc-1)
-                usage(argv[0]);
-            model_file_list_file = argv[i+1];
-            printf(" -ml: loading model image list from '%s'\n", argv[i+1] );
-            i++;
-        }
-        else if (strcmp(argv[i], "-r")==0)
-        {
-            redo_geom=redo_training=redo_lighting=true;
-        }
-        else if (strcmp(argv[i], "-g")==0)
-        {
-            redo_geom=true;
-        }
-        else if (strcmp(argv[i], "-l")==0)
-        {
-            redo_lighting=true;
-        }
-        else if (strcmp(argv[i], "-t")==0)
-        {
-            redo_training=true;
-            printf( "-t: redoing training\n");
-        }
-        else if (strcmp(argv[i], "-a")==0)
-        {
-			ofVideoPlayer* player = new ofVideoPlayer();
-			player->loadMovie( argv[i+1] );
-			player->play();
-            avi_capture = player;
-            avi_play=true;
-        }
-        else if (strcmp(argv[i], "-i")==0)
-        {
-			IplImage *image1 = avLoadImage(argv[i]+1);
-        }
-        else if (strcmp(argv[i], "-b")==0)
-        {
-            video_source_is_avi = true;
-            avi_bg_path=argv[i+1];
-            printf(" -b: loading from avi '%s'\n", avi_bg_path );
-        }
-        else if (strcmp(argv[i], "-i")==0)
-        {
-            image_path=argv[i+1];
-        }
-        else if ( strcmp(argv[i], "-fps")==0 )
-        {
-            desired_capture_fps=atoi(argv[i+1]);
-            got_fps = true;
-            i++;
-        }
-        else if (strcmp(argv[i], "-vd")==0)
-        {
-            v4l_device=atoi(argv[i+1]);
-            printf(" -vd: using v4l device %i\n", v4l_device);
-            i++;
-        }
-        else if (strcmp(argv[i], "-vs")==0)
-        {
-            video_width=atoi(argv[i+1]);
-            video_height=atoi(argv[i+2]);
-            if ( !got_ds )
-            {
-                // also set detect size (if not already set)
-                detect_width = video_width;
-                detect_height = video_height;
-            }
-            printf(" -vs: video size is %ix%i\n", video_width, video_height );
-            if ( video_width == 0 || video_height == 0 )
-            {
-                usage(argv[0]);
-                exit(1);
-            }
-            i+=2;
-        }
-        else if ( strcmp(argv[i], "-ds")==0 )
-        {
-            detect_width = atoi(argv[i+1]);
-            detect_height = atoi(argv[i+2]);
-            printf(" -ds: detection frame size is %ix%i\n", detect_width, detect_height );
-            if ( detect_width == 0 || detect_height == 0 )
-            {
-                usage(argv[0]);
-                exit(1);
-            }
-            got_ds = true;
-            i+=2;
-        }
-        else if (argv[i][0]=='-')
-        {
-            usage(argv[0]);
-        }
-
-    }
-
-
-    // read model files from model_file_list_file
-    if ( model_file_list_file != NULL )
-    {
-        // try to open
-        ofxXmlSettings data;
-        data.loadFile( model_file_list_file );
-
-        if ( data.getNumTags( "artverts" ) == 1 )
-        {
-            data.pushTag( "artverts" );
-            int num_filenames = data.getNumTags( "advert" );
-            printf("   -ml: opened %s, %i adverts\n", model_file_list_file, num_filenames );
-            for ( int i=0; i<num_filenames; i++ )
-            {
-                data.pushTag("advert", i);
-				Artvert a;
-                a.model_file = data.getValue( "model_filename", "model.bmp" );
-				a.advert = data.getValue( "advert", "unknown advert" );
-				int num_artverts = data.getNumTags( "artvert" );
-            	printf("   -ml: got advert, model file '%s', advert '%s', %i artverts\n", a.model_file.c_str(), a.advert.c_str(), num_artverts );
-				for ( int j=0; j<num_artverts; j++ )
-				{
-					data.pushTag("artvert", j );
-					a.name = data.getValue( "name", "unnamed" );
-					a.artist = data.getValue( "artist", "unknown artist" );
-					if ( data.getNumTags("movie_filename") != 0 )
-					{
-						// load a movie
-						a.artvert_is_movie = true;
-						a.artvert_movie_file = data.getValue("movie_filename", "artvertmovie1.mp4" );
-					}
-					else
-					{
-						// load an image
-						a.artvert_image_file = data.getValue( "image_filename", "artvert1.png" );
-					}
-                	printf("     %i: %s:%s:%s\n", j, a.name.c_str(), a.artist.c_str(),
-                    	   a.artvert_is_movie?(a.artvert_movie_file+"( movie)").c_str() : a.artvert_image_file.c_str() );
-
-	                artvert_list.push_back( a );
-					data.popTag();
-				}
-                data.popTag();
-            }
-            data.popTag();
-        }
-        else
-        {
-            printf("   -ml: error reading '%s': couldn't find 'artverts' tag\n", model_file_list_file );
-        }
-    }
-
-    // check if model file list is empty
-    if ( artvert_list.empty() )
-    {
-        // add default
-		Artvert a;
-        artvert_list.push_back( a );
-    }
-
-    // set up training flags
-    for ( int i=0; i<artvert_list.size(); i++ )
-    	model_file_needs_training.push_back( redo_training );
-
-    // check for video size arg if necessary
-    if ( video_source_is_avi )
-    {
-        // try to read from video
-		ofVideoPlayer temp_player;
-		temp_player.loadMovie( avi_bg_path );
-        video_width = temp_player.getWidth();
-        video_height = temp_player.getHeight();
-        //int video_fps = temp_player.getSpeed();
-		int video_fps = 25.0f;
-        printf(" -b: read video width/height %i/%i from avi (ignoring -vs)\n", video_width, video_height );
-        if ( !got_ds )
-        {
-            detect_width = video_width;
-            detect_height = video_height;
-        }
-        if ( !got_fps )
-        {
-            desired_capture_fps = video_fps;
-        }
-    }
-
-    //cout << avi_bg_path << endl;
-    cache_light = !redo_lighting;
-
-    glutReshapeWindow( video_width, video_height );
-
-    multi = new MultiGrab();
-
-    if( multi->init(avi_bg_path, video_width, video_height, v4l_device,
-                    detect_width, detect_height, desired_capture_fps ) ==0)
-    {
-        cerr <<"Initialization error.\n";
-        return false;
-    }
-
-
-    artvert_struct artvert1 = {"Arrebato, 1980", image1, "Feb, 2009", "Iván Zulueta", "Polo", "Madrid, Spain"};
-    artvert_struct artvert2 = {"name2", image2, "2008", "simon innings", "Helmut Lang", "Parlance Avenue"};
-    artvert_struct artvert3 = {"name3", image3, "2008", "simon innings", "Loreal", "Parlance Avenue"};
-    artvert_struct artvert4 = {"name4", image4, "2008", "simon innings", "Hugo Boss", "Parlance Avenue"};
-    artvert_struct artvert5 = {"name5", image5, "2008", "simon innings", "Burger King", "Parlance Avenue"};
-
-    artverts[0] = artvert1;
-    artverts[1] = artvert2;
-    artverts[2] = artvert3;
-    artverts[3] = artvert4;
-    artverts[4] = artvert5;
-
-
-    last_frame_caught_time.SetNow();
-    frame_timer.SetNow();
-
-    // start serial
-    startSerialThread();
-
-	// start normal display
-	start();
-
-    printf("init() finished\n");
-    return true;
 }
 
-
-void loadAndStart()
+Artvertiser::~Artvertiser()
 {
-    // load geometry
-    bool res = loadOrTrain(0);
-
-    // try to load geom cache + start the run loop
-    if ( res ) 
-		geomCalibStart(!redo_geom);
-
-    // start detection
-    startDetectionThread( 1 /* priority, only if running as root */ );
 }
 
 
@@ -1073,7 +807,7 @@ void loadAndStart()
  * 'd' turns on/off the dynamic lightmap update.
  * 'f' goes fullscreen.
  */
-static void keyboard(unsigned char c, int x, int y)
+void Artvertiser::keyPressed(int c )
 {
 	// for r/g/b buttons
 	char old_button_state = button_state;
@@ -1240,7 +974,7 @@ static void keyboard(unsigned char c, int x, int y)
 	
 }
 
-static void keyboardReleased(unsigned char c, int x, int y)
+void Artvertiser::keyReleased(int c)
 {
 	char old_button_state = button_state;
 	switch ( c )
@@ -1263,6 +997,7 @@ static void keyboardReleased(unsigned char c, int x, int y)
 	if ( old_button_state != button_state )
 		button_state_changed = true;
 }
+
 static void emptyWindow()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1270,84 +1005,290 @@ static void emptyWindow()
 
 
 
-
-
-
-
-int main(int argc, char *argv[])
+void Artvertiser::setup( int argc, char** argv )
 {
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
-    //glutInitWindowSize(video_width,video_height); // hard set the init window size
-    //glutInitWindowSize(800,450); // hard set the init window size
-    glutDisplayFunc(emptyWindow);
 
-	bool start_fullscreen = false;
-#ifdef __APPLE__
-	// if on apple, don't ever go fullscreen
-#else
-	// look for -binoc flag on commandline
-	// also look for -nofullscreen flag
-	for ( int i=0; i<argc; i++ )
-	{
-		if ( strcmp( argv[i], "-binoc" )== 0 )
+    // dump opencv version
+    printf("built with opencv version %s\n", CV_VERSION );
+	
+    // more from before init should be moved here
+    bool redo_lighting=false;
+    bool redo_training = false;
+    char *avi_bg_path=(char*)"";
+    bool got_ds = false;
+    bool got_fps = false;
+    bool video_source_is_avi = false;
+    char *model_file_list_file = NULL;
+	
+	// load fallback
+	fallback_artvert_image = avLoadImage("fallback_artvert_image.png");
+	
+    // parse command line
+    for (int i=1; i<argc; i++)
+    {
+        if (strcmp(argv[i], "-m") ==0)
+        {
+            if (i==argc-1)
+                usage(argv[0]);
+			Artvert a;
+			a.model_file = argv[i+1];
+			a.advert = "cmdline "+a.model_file;
+			// store
+         	artvert_list.push_back( a );
+            printf(" -m: adding model image '%s'\n", argv[i+1] );
+            i++;
+        }
+        else if ( strcmp(argv[i], "-binoc")==0 )
+        {
+            running_on_binoculars = true;
+            printf(" -binoc: running on binoculars\n");
+        }
+		else if ( strcmp(argv[i], "-nofullscreen")==0 )
 		{
-			// if found, start_fullscreen is true
-			start_fullscreen = true;
+			no_fullscreen = true;
+			printf(" -nofullscreen: won't go fullscreen\n");
 		}
-		// if found, -nofullscreen cancels fullscreen 
-		if ( strcmp( argv[i], "-nofullscreen" )==0 )
-		{
-			start_fullscreen = false;
-		}
-	}
-#endif
+        else if ( strcmp(argv[i], "-ml" )== 0 )
+        {
+            if ( i==argc-1)
+                usage(argv[0]);
+            model_file_list_file = argv[i+1];
+            printf(" -ml: loading model image list from '%s'\n", argv[i+1] );
+            i++;
+        }
+        else if (strcmp(argv[i], "-r")==0)
+        {
+            redo_geom=redo_training=redo_lighting=true;
+        }
+        else if (strcmp(argv[i], "-g")==0)
+        {
+            redo_geom=true;
+        }
+        else if (strcmp(argv[i], "-l")==0)
+        {
+            redo_lighting=true;
+        }
+        else if (strcmp(argv[i], "-t")==0)
+        {
+            redo_training=true;
+            printf( "-t: redoing training\n");
+        }
+        else if (strcmp(argv[i], "-a")==0)
+        {
+			ofVideoPlayer* player = new ofVideoPlayer();
+			player->loadMovie( argv[i+1] );
+			player->play();
+			player->update();
+            avi_capture = player;
+            avi_play=true;
+        }
+        else if (strcmp(argv[i], "-i")==0)
+        {
+			IplImage *image1 = avLoadImage(argv[i]+1);
+        }
+        else if (strcmp(argv[i], "-b")==0)
+        {
+            video_source_is_avi = true;
+            avi_bg_path=argv[i+1];
+            printf(" -b: loading from avi '%s'\n", avi_bg_path );
+        }
+        else if (strcmp(argv[i], "-i")==0)
+        {
+            image_path=argv[i+1];
+        }
+        else if ( strcmp(argv[i], "-fps")==0 )
+        {
+            desired_capture_fps=atoi(argv[i+1]);
+            got_fps = true;
+            i++;
+        }
+        else if (strcmp(argv[i], "-vd")==0)
+        {
+            v4l_device=atoi(argv[i+1]);
+            printf(" -vd: using v4l device %i\n", v4l_device);
+            i++;
+        }
+        else if (strcmp(argv[i], "-vs")==0)
+        {
+            video_width=atoi(argv[i+1]);
+            video_height=atoi(argv[i+2]);
+            if ( !got_ds )
+            {
+                // also set detect size (if not already set)
+                detect_width = video_width;
+                detect_height = video_height;
+            }
+            printf(" -vs: video size is %ix%i\n", video_width, video_height );
+            if ( video_width == 0 || video_height == 0 )
+            {
+                usage(argv[0]);
+                exit(1);
+            }
+            i+=2;
+        }
+        else if ( strcmp(argv[i], "-ds")==0 )
+        {
+            detect_width = atoi(argv[i+1]);
+            detect_height = atoi(argv[i+2]);
+            printf(" -ds: detection frame size is %ix%i\n", detect_width, detect_height );
+            if ( detect_width == 0 || detect_height == 0 )
+            {
+                usage(argv[0]);
+                exit(1);
+            }
+            got_ds = true;
+            i+=2;
+        }
+        else if (argv[i][0]=='-')
+        {
+            usage(argv[0]);
+        }
+		
+    }
+	
+	
+    // read model files from model_file_list_file
+    if ( model_file_list_file != NULL )
+    {
+        // try to open
+        ofxXmlSettings data;
+        data.loadFile( model_file_list_file );
+		
+        if ( data.getNumTags( "artverts" ) == 1 )
+        {
+            data.pushTag( "artverts" );
+            int num_filenames = data.getNumTags( "advert" );
+            printf("   -ml: opened %s, %i adverts\n", model_file_list_file, num_filenames );
+            for ( int i=0; i<num_filenames; i++ )
+            {
+                data.pushTag("advert", i);
+				Artvert a;
+                a.model_file = data.getValue( "model_filename", "model.bmp" );
+				a.advert = data.getValue( "advert", "unknown advert" );
+				int num_artverts = data.getNumTags( "artvert" );
+            	printf("   -ml: got advert, model file '%s', advert '%s', %i artverts\n", a.model_file.c_str(), a.advert.c_str(), num_artverts );
+				for ( int j=0; j<num_artverts; j++ )
+				{
+					data.pushTag("artvert", j );
+					a.name = data.getValue( "name", "unnamed" );
+					a.artist = data.getValue( "artist", "unknown artist" );
+					if ( data.getNumTags("movie_filename") != 0 )
+					{
+						// load a movie
+						a.artvert_is_movie = true;
+						a.artvert_movie_file = data.getValue("movie_filename", "artvertmovie1.mp4" );
+					}
+					else
+					{
+						// load an image
+						a.artvert_image_file = data.getValue( "image_filename", "artvert1.png" );
+					}
+                	printf("     %i: %s:%s:%s\n", j, a.name.c_str(), a.artist.c_str(),
+                    	   a.artvert_is_movie?(a.artvert_movie_file+"( movie)").c_str() : a.artvert_image_file.c_str() );
+					
+	                artvert_list.push_back( a );
+					data.popTag();
+				}
+                data.popTag();
+            }
+            data.popTag();
+        }
+        else
+        {
+            printf("   -ml: error reading '%s': couldn't find 'artverts' tag\n", model_file_list_file );
+        }
+    }
+	
+    // check if model file list is empty
+    if ( artvert_list.empty() )
+    {
+        // add default
+		Artvert a;
+        artvert_list.push_back( a );
+    }
+	
+    // set up training flags
+    for ( int i=0; i<artvert_list.size(); i++ )
+    	model_file_needs_training.push_back( redo_training );
+	
+    // check for video size arg if necessary
+    if ( video_source_is_avi )
+    {
+        // try to read from video
+		ofVideoPlayer temp_player;
+		temp_player.loadMovie( avi_bg_path );
+		temp_player.update();
+        video_width = temp_player.getWidth();
+        video_height = temp_player.getHeight();
+        //int video_fps = temp_player.getSpeed();
+		int video_fps = 25.0f;
+        printf(" -b: read video width/height %i/%i from avi (ignoring -vs)\n", video_width, video_height );
+        if ( !got_ds )
+        {
+            detect_width = video_width;
+            detect_height = video_height;
+        }
+        if ( !got_fps )
+        {
+            desired_capture_fps = video_fps;
+        }
+    }
+	
+    //cout << avi_bg_path << endl;
+    cache_light = !redo_lighting;
+	
+    glutReshapeWindow( video_width, video_height );
+	
+    multi = new MultiGrab();
+	
+    if( multi->init(avi_bg_path, video_width, video_height, v4l_device,
+                    detect_width, detect_height, desired_capture_fps ) ==0)
+    {
+        cerr <<"Initialization error.\n";
+		exit(1);
+    }
+	
+	
+    artvert_struct artvert1 = {"Arrebato, 1980", image1, "Feb, 2009", "Iván Zulueta", "Polo", "Madrid, Spain"};
+    artvert_struct artvert2 = {"name2", image2, "2008", "simon innings", "Helmut Lang", "Parlance Avenue"};
+    artvert_struct artvert3 = {"name3", image3, "2008", "simon innings", "Loreal", "Parlance Avenue"};
+    artvert_struct artvert4 = {"name4", image4, "2008", "simon innings", "Hugo Boss", "Parlance Avenue"};
+    artvert_struct artvert5 = {"name5", image5, "2008", "simon innings", "Burger King", "Parlance Avenue"};
+	
+    artverts[0] = artvert1;
+    artverts[1] = artvert2;
+    artverts[2] = artvert3;
+    artverts[3] = artvert4;
+    artverts[4] = artvert5;
+	
+	
+    last_frame_caught_time.SetNow();
+    frame_timer.SetNow();
+	
+    // start serial
+    startSerialThread();
+	
 
-	if ( !start_fullscreen )
-	{
-    	glutReshapeFunc(reshape);
-    	glutCreateWindow("The Artvertiser " ARTVERTISER_VERSION );
-	}
-    glutMouseFunc(mouse);
-    //glutEntryFunc(entry);
-
-	if ( start_fullscreen )
-	{
-  	  	glutGameModeString("1024x768:16@60");
-   		glutEnterGameMode();
-    	glutSetCursor(GLUT_CURSOR_NONE);
-	}
-
-    if (!init(argc,argv)) return -1;
-
-
-    //ftglFont = new FTBufferFont("/usr/share/fonts/truetype/freefont/FreeMono.ttf");
 	font_12.loadFont("fonts/FreeSans.ttf", 12);
 	font_16.loadFont("fonts/FreeSans.ttf", 16);
 	font_24.loadFont("fonts/FreeSans.ttf", 24);
 	font_32.loadFont("fonts/FreeSans.ttf", 32);
-	/*
-    ftglFont = new FTBufferFont("fonts/FreeSans.ttf");
-    ftglFont->FaceSize(12);
-    ftglFont->CharMap(ft_encoding_unicode);
-	 */
 
-    //cvDestroyAllWindows();
-    //cvWaitKey(0);
+    printf("setup() finished\n");
 
-    glutKeyboardFunc(keyboard);
-	glutKeyboardUpFunc(keyboardReleased);
-    glutMainLoop();
-    glutLeaveGameMode();
-    return 0; /* ANSI C requires main to return int. */
 }
 
 //!\brief  Draw a frame contained in an IplTexture object on an OpenGL viewport.
 static bool drawBackground(IplTexture *tex)
 {
     //printf("draw background\n");
-    if (!tex || !tex->getIm()) return false;
+	if ( !tex )
+		return false;
+	if ( !tex->getImage() )
+		return false;
     //printf("drawBackground: drawing frame with timestamp %f\n", raw_frame_timestamp.ToSeconds() );
+
+	avSaveImage("drawBackground.jpg", tex->getImage() );
 
     IplImage *im = tex->getIm();
     int w = im->width-1;
@@ -1358,8 +1299,8 @@ static bool drawBackground(IplTexture *tex)
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    glDisable(GL_BLEND);
-    glDisable(GL_DEPTH_TEST);
+  //  glDisable(GL_BLEND);
+  //  glDisable(GL_DEPTH_TEST);
 
     tex->loadTexture();
 
@@ -1436,13 +1377,7 @@ static void drawDetectedPoints(int frame_width, int frame_height)
 }
 
 
-/*! \brief A draw callback during camera calibration
- *
- * GLUT calls that function during camera calibration when repainting the
- * window is required.
- * During geometric calibration, no 3D is known: we just plot 2d points
- * where some feature points have been recognized.
- */
+/*
 static void geomCalibDraw(void)
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1491,12 +1426,8 @@ static void geomCalibDraw(void)
 
     detector.unlock();
 
-    glutSwapBuffers();
 }
 
-/*!\brief Called when geometric calibration ends. It makes
- * sure that the CamAugmentation object is ready to work.
- */
 static void geomCalibEnd()
 {
 
@@ -1512,12 +1443,7 @@ static void geomCalibEnd()
     calib=0;
 }
 
-/*! Called by GLUT during geometric calibration when there's nothing else to do.
- * This function grab frames from camera(s), run the 2D detection on every image,
- * and keep the result in memory for calibration. When enough homographies have
- * been detected, it tries to actually calibrate the cameras.
- */
-static void geomCalibIdle(void)
+ static void geomCalibIdle(void)
 {
     // detect the calibration object in every image
     // (this loop could be paralelized)
@@ -1571,22 +1497,17 @@ static void geomCalibIdle(void)
                 ))
         {
             calib->PrintOptimizedResultsToFile1();
-            geomCalibEnd();
-            start();
+			geomCalibEnd();
             return;
         }
     }
     glutPostRedisplay();
 }
 
-/*!\brief Start geometric calibration. If the calibration can be loaded from disk,
- * continue directly with photometric calibration.
- */
 static void geomCalibStart(bool cache)
 {
     if (cache && multi->model.augm.LoadOptimalStructureFromFile((char*)"camera_c.txt", (char*)"camera_r_t.txt"))
     {
-        start();
         return;
     }
 
@@ -1602,10 +1523,10 @@ static void geomCalibStart(bool cache)
     glutDisplayFunc(geomCalibDraw);
     glutIdleFunc(geomCalibIdle);
 }
+*/
 
 
-
-static void drawAugmentation()
+void Artvertiser::drawAugmentation()
 {
 
     // we know that im is not NULL already
@@ -1925,7 +1846,7 @@ static void drawAugmentation()
  * case, we have access to 3D data. Thus, we can augment the calibration target
  * with cool stuff.
  */
-static void draw()
+void Artvertiser::draw()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_LIGHTING);
@@ -1934,7 +1855,6 @@ static void draw()
         multi->model.interactiveTrainDraw();
     else
     {
-
         drawBackground(raw_frame_texture);
 
         string cnt_str;
@@ -2043,9 +1963,6 @@ static void draw()
         drawMenu();
     }
 
-    glutSwapBuffers();
-    //cvReleaseImage(&image); // cleanup used image
-    glFlush();
 }
 
 
@@ -2176,14 +2093,18 @@ static void* detectionThreadFunc( void* _data )
     {
         PROFILE_THIS_BLOCK("detection_thread");
 
+		new_artvert_requested_lock.lock();
         if ( new_artvert_requested )
         {
             // no longer draw
             frame_ok = false;
             // go with the loading
-            loadOrTrain(new_artvert_requested_index);
+            bool res = loadOrTrain(new_artvert_requested_index); 
+			if ( res )
+				multi->model.augm.LoadOptimalStructureFromFile((char*)"camera_c.txt", (char*)"camera_r_t.txt");
             new_artvert_requested = false;
         }
+		new_artvert_requested_lock.unlock();
 
         bool frame_retrieved = false;
         bool frame_retrieved_and_ok = multi->cams[0]->detect( frame_retrieved, frame_ok );
@@ -2240,11 +2161,9 @@ static void* detectionThreadFunc( void* _data )
 }
 
 
-/*! GLUT calls this during photometric calibration or augmentation phase when
- * there's nothing else to do. This function does the 2D detection and bundle
- * adjusts the 3D pose of the calibration pattern.
- */
-static void idle()
+
+
+void Artvertiser::update()
 {
 	if ( running_on_binoculars && !no_fullscreen )
 	{
@@ -2295,14 +2214,19 @@ static void idle()
         multi->cams[current_cam]->getLastDrawFrame( &raw_frame, &raw_frame_timestamp );
         raw_frame_texture->setImage(raw_frame);
     }
+	
+	
 
     PROFILE_SECTION_POP();
 
 	static int frame_count = 10;
 	if ( frame_count == 1 )
 	{
-		printf("loadAndStart\n");
-		loadAndStart();
+		new_artvert_requested_index = 0;
+		new_artvert_requested = true;
+		// start detection
+		startDetectionThread( 1 /* priority, only if running as root */ );
+		
 		frame_count = 0;
 	}
 	else
@@ -2320,8 +2244,9 @@ static void idle()
 		}
 		else
 		{
-			assert( false && "implement me" );
-			multi->model.interactiveTrainUpdate( raw_frame_texture->getImage(), mouse_x, mouse_y, lbutton_down, last_key );
+			multi->model.interactiveTrainUpdate( raw_frame_texture->getImage(),
+												mouse_x, mouse_y, 
+												lbutton_down, last_key );
 			
 			// );
 			
@@ -2346,15 +2271,6 @@ static void idle()
         show_profile_results = false;
     }
 }
-
-//! Starts photometric calibration.
-static void start()
-{
-    glutIdleFunc(idle);
-	printf("setting glutDisplayFunc\n");
-    glutDisplayFunc(draw);
-}
-
 
 
 /*
@@ -2427,8 +2343,10 @@ void updateMenu()
 	if ( button_state == BUTTON_GREEN )
 	{
 
+		new_artvert_requested_lock.lock();
 		new_artvert_requested_index = menu_index;
 		new_artvert_requested = true;
+		new_artvert_requested_lock.unlock();
 
 	    menu_is_showing = false;
 
@@ -2440,7 +2358,7 @@ void updateMenu()
 
 }
 
-void drawMenu()
+void Artvertiser::drawMenu()
 {
 	if ( !menu_is_showing )
 	{

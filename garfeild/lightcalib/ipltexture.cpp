@@ -79,6 +79,7 @@ void IplTexture::loadTexture()
 		im = downsampled;
 	}
 
+	
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, texture);
 
@@ -92,7 +93,7 @@ void IplTexture::loadTexture()
 	GLenum type;
 	switch (im->depth) {
 		case IPL_DEPTH_8U: type = GL_UNSIGNED_BYTE; break;
-		case IPL_DEPTH_8S: type = GL_BYTE; break;
+		case IPL_DEPTH_8S: type = GL_BYTE; break; 
 		case IPL_DEPTH_16S: type = GL_SHORT; break;
 		case IPL_DEPTH_32F: type = GL_FLOAT; break;
 		default:

@@ -55,7 +55,7 @@ private:
     CaptureMap capture_map;
 
     static MultiThreadCaptureManager* instance;
-    ofxSemaphore lock;
+    ofxMutex lock;
 
 };
 
@@ -160,7 +160,7 @@ private:
 	ofxSemaphore process_thread_semaphore;
 
     // lock for the last frame
-    ofxSemaphore last_frame_lock;
+    ofxMutex last_frame_lock;
     // double buffered
     // How this works: when requested via getLastProcessedFrame, we return processed (& last_frame + timestamp)
     // and swap processed and processed_ret pointers (same for last_frame + timestamp).

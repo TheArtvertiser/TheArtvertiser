@@ -28,28 +28,20 @@
 #include "camera.h"
 #include "matvec.h"
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
-#ifdef HAVE_GL
-
-#ifdef HAVE_APPLE_OPENGL_FRAMEWORK
+#ifdef __APPLE__
 #include <OpenGL/gl.h>
-#else
-#include <GL/gl.h>
-#endif
-
-#else
-
-#ifdef WIN32
+#define HAVE_GL
+#elif defined WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <GL/gl.h>
 #define HAVE_GL
+#else
+#include <GL/gl.h>
+#define HAVE_GL
 #endif
 
-#endif
+
 
 using namespace std;
 

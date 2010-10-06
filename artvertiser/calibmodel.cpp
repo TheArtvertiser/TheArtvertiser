@@ -654,6 +654,18 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 											  int mouse_x, int mouse_y, bool mouse_button_down, 
 											  int key )
 {
+	static const float DIST_THRESH = 25.0f;
+
+	// deal with click
+	static bool prev_mouse_button_down = false;
+	bool mouse_just_down = false;
+	if ( mouse_button_down && mouse_button_down != prev_mouse_button_down )
+		mouse_just_down = true;
+	
+	if ( !mouse_button_down )
+		corner_index = -1;
+		
+	
     if ( !interactive_train_running )
         return;
 	
@@ -669,7 +681,9 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
         train_working_image = cvCreateImage( cvGetSize( frame ), frame->depth, frame->nChannels );
         train_shot = cvCreateImage( cvGetSize( frame ), frame->depth, frame->nChannels );
     }
-		
+
+	//printf("interactiveTrainUpdate: mouse %3i %3i %c key %3i '%c'\n", mouse_x, mouse_y, mouse_button_down?'x':' ', key, key );
+	
     // for drawing
     int four = 4;
     CvPoint *ptr;
@@ -724,21 +738,22 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 			putText(train_working_image, "Press space when ready", cvPoint(3,100), &train_font);
 
 			// work out which corner is closest to the mouse
-			corner_index = -1;
-			for ( int i=0; i<4; i++ )
+			if ( mouse_just_down )
 			{
-				float dx = (corners[i].x-mouse_x);
-				float dy = (corners[i].y-mouse_y);
-				float distance = sqrtf(dx*dx + dy*dy);
-				if ( distance < 10.0f )
+				for ( int i=0; i<4; i++ )
 				{
-					if ( corner_index == -1 || closest_distance > distance )
+					float dx = (corners[i].x-mouse_x);
+					float dy = (corners[i].y-mouse_y);
+					float distance = sqrtf(dx*dx + dy*dy);
+					if ( distance < DIST_THRESH )
 					{
-						corner_index = i;
-						closest_distance = distance;
+						if ( corner_index == -1 || closest_distance > distance )
+						{
+							corner_index = i;
+							closest_distance = distance;
+						}
 					}
 				}
-					
 			}
 			
 			if ( mouse_button_down && corner_index != -1 )
@@ -777,21 +792,22 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 			putText(train_working_image, "Press space when ready", cvPoint(3,100), &train_font);
 
 			// work out which corner is closest to the mouse
-			corner_index = -1;
-			for ( int i=0; i<4; i++ )
+			if ( mouse_just_down )
 			{
-				float dx = (artvert_corners[i].x-mouse_x);
-				float dy = (artvert_corners[i].y-mouse_y);
-				float distance = sqrtf(dx*dx + dy*dy);
-				if ( distance < 10.0f )
+				for ( int i=0; i<4; i++ )
 				{
-					if ( corner_index == -1 || closest_distance > distance )
+					float dx = (artvert_corners[i].x-mouse_x);
+					float dy = (artvert_corners[i].y-mouse_y);
+					float distance = sqrtf(dx*dx + dy*dy);
+					if ( distance < DIST_THRESH )
 					{
-						corner_index = i;
-						closest_distance = distance;
+						if ( corner_index == -1 || closest_distance > distance )
+						{
+							corner_index = i;
+							closest_distance = distance;
+						}
 					}
 				}
-				
 			}
 			
 			if ( mouse_button_down && corner_index != -1 )
@@ -827,6 +843,8 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 			
 			break;
 	}
+	
+	mouse_just_down = false;
 	
 	train_texture.setImage( train_working_image );
 	

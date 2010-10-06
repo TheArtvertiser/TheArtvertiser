@@ -36,26 +36,26 @@ MultiThreadCaptureManager* MultiThreadCaptureManager::instance = NULL;
 MultiThreadCapture* MultiThreadCaptureManager::getCaptureForCam( ofBaseVideo* cam )
 {
     MultiThreadCapture* result = 0;
-    lock.wait();
+    lock.lock();
     if ( capture_map.find( cam ) != capture_map.end() )
         result = capture_map[cam];
-    lock.signal();
+    lock.unlock();
     return result;
 
 }
 
 void MultiThreadCaptureManager::addCaptureForCam(ofBaseVideo* cam, MultiThreadCapture* cap )
 {
-    lock.wait();
+    lock.lock();
     capture_map[cam] = cap;
-    lock.signal();
+    lock.unlock();
 }
 
 void MultiThreadCaptureManager::removeCaptureForCam( ofBaseVideo* cam )
 {
-    lock.wait();
+    lock.lock();
     capture_map.erase( cam );
-    lock.signal();
+    lock.unlock();
 }
 
 MultiThreadCapture::MultiThreadCapture( ofBaseVideo* _capture )
@@ -67,8 +67,8 @@ MultiThreadCapture::MultiThreadCapture( ofBaseVideo* _capture )
     capture_frame(0), process_thread_should_exit(false), process_thread_semaphore(0), /* start semaphore in busy state */
     new_draw_frame_available(false),
     new_detect_frame_available(false),
-    frame_counter(0)
-    {
+    frame_counter(0) 
+{
     MultiThreadCaptureManager* manager = MultiThreadCaptureManager::getInstance();
     assert( manager->getCaptureForCam( capture ) == NULL );
     manager->addCaptureForCam( capture, this );
@@ -178,6 +178,7 @@ void MultiThreadCapture::ThreadedFunction()
 
     PROFILE_SECTION_PUSH("grab");
     //bool grabbed = cvGrabFrame( capture );
+	capture->update();
 	bool grabbed = capture->isFrameNew();
     PROFILE_SECTION_POP();
     if ( grabbed )
@@ -195,6 +196,7 @@ void MultiThreadCapture::ThreadedFunction()
         PROFILE_SECTION_PUSH("retrieve");
         //IplImage* f = cvRetrieveFrame( capture );
 		IplImage* f = avGetFrame( capture );
+		
         PROFILE_SECTION_POP();
         if ( f )
         {
@@ -203,6 +205,7 @@ void MultiThreadCapture::ThreadedFunction()
             PROFILE_SECTION_PUSH("mtc capture frame");
 
             capture_frame_lock.lock();
+			
             // store locally
             if ( capture_frame==0 || capture_frame->width != f->width ||
                 capture_frame->height != f->height ||
@@ -220,12 +223,17 @@ void MultiThreadCapture::ThreadedFunction()
             PROFILE_SECTION_POP();
 
             // tell the process thread
+//			printf("MTC::ThreadedFunction signalling process_thread_semaphore\n", process_thread_semaphore.getValue() );
             process_thread_semaphore.signal();
 
 			// sleep for a little
         }
 
     }
+	else
+	{
+	//	printf("no new frame, sleeping\n");
+	}
 /*    else
     {
         printf("cvGrabFrame failed: trying to rewind\n");
@@ -233,6 +241,7 @@ void MultiThreadCapture::ThreadedFunction()
         cvSetCaptureProperty( capture, CV_CAP_PROP_POS_FRAMES, 0 );
     }*/
 
+	
     PROFILE_SECTION_PUSH("idle sleeping");
     // wait a bit, to maintain desired framerate
     double elapsed = framerate_timer.Update();
@@ -284,7 +293,7 @@ void* MultiThreadCapture::processPthreadFunc( void* _data )
 void MultiThreadCapture::processThreadedFunction( )
 {
 
-    //printf("entering processThreadedFunction()\n");
+    printf("MultiThreadCapture entering processThreadedFunction()\n");
     while ( true )
     {
         process_thread_semaphore.wait();
@@ -401,7 +410,7 @@ void MultiThreadCapture::processThreadedFunction( )
             PROFILE_SECTION_PUSH("transfer ptr/ptr");
 
             // ok, now transfer to pointers
-            last_frame_lock.wait();
+            last_frame_lock.lock();
 
             // copy last_frame to last_frame_draw
             if ( last_frame_draw == NULL )
@@ -435,7 +444,7 @@ void MultiThreadCapture::processThreadedFunction( )
             new_draw_frame_available = true;
             new_detect_frame_available = true;
 
-            last_frame_lock.signal();
+            last_frame_lock.unlock();
 
             PROFILE_SECTION_POP();
 
@@ -478,7 +487,7 @@ bool MultiThreadCapture::getCopyOfLastFrame( IplImage** last_frame_copy, FTime* 
     }
     // lock
     PROFILE_SECTION_PUSH("waiting")
-    last_frame_lock.wait();
+    last_frame_lock.lock();
     PROFILE_SECTION_POP();
     bool ret = true;
     // have a last frame?
@@ -518,7 +527,7 @@ bool MultiThreadCapture::getCopyOfLastFrame( IplImage** last_frame_copy, FTime* 
             // invoke assignment operator=
             *timestamp_copy = *timestamp_draw;
     }
-    last_frame_lock.signal();
+    last_frame_lock.unlock();
     return ret;
 }
 
@@ -554,7 +563,7 @@ bool MultiThreadCapture::getLastDrawFrame( IplImage** rawFrame, FTime* timeStamp
     if ( last_frame_draw )
     {
         PROFILE_SECTION_PUSH("waiting");
-        last_frame_lock.wait();
+        last_frame_lock.lock();
         PROFILE_SECTION_POP();
         // get image pointers
         if ( rawFrame )
@@ -565,7 +574,7 @@ bool MultiThreadCapture::getLastDrawFrame( IplImage** rawFrame, FTime* timeStamp
         swapDrawPointers();
         new_draw_frame_available = false;
 
-        last_frame_lock.signal();
+        last_frame_lock.unlock();
         return true;
     }
     else
@@ -604,7 +613,7 @@ bool MultiThreadCapture::getLastDetectFrame(
 
     if ( last_frame )
     {
-        last_frame_lock.wait();
+        last_frame_lock.lock();
 
         // get image pointers
         if ( processedFrame )
@@ -618,7 +627,7 @@ bool MultiThreadCapture::getLastDetectFrame(
         swapDetectPointers();
         new_detect_frame_available = false;
 
-        last_frame_lock.signal();
+        last_frame_lock.unlock();
         return true;
     }
     else
