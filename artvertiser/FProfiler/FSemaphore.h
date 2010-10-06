@@ -30,55 +30,6 @@
 #include <malloc.h>
 #endif
 
-#ifdef __APPLE__
-//#warning compiling under OSX
-#include <boost/thread/barrier.hpp>
-#endif
-
-class FBarrier
-{
-public:
-    /// count is the number of threads to wait for.
-    FBarrier( int count )
-    #ifdef __APPLE__
-    : barrier( count ) {};
-    #else
-    {
-        int res = pthread_barrier_init( &barrier, 0, count );
-        assert(res==0 && "error creating barrier");
-    }
-    #endif
-    ~FBarrier()
-    {
-        #ifdef __APPLE__
-        #else
-        int res = pthread_barrier_destroy( &barrier );
-        if ( res==EBUSY )
-            assert(false && "cannot destroy barrier when it is in use" );
-        #endif
-    }
-
-
-    /// wait for everyone to arrive at the barrier. return once they have. returns true if wait returns
-    /// the PTHREAD_BARRIER_SERIAL_THREAD return value.
-    bool Wait() {
-        #ifdef __APPLE__
-        return barrier.wait();
-        #else
-        int ret = pthread_barrier_wait( &barrier );
-        return ret == PTHREAD_BARRIER_SERIAL_THREAD;
-        #endif
-        }
-
-private:
-
-#ifdef __APPLE__
-	boost::barrier barrier;
-#else
-    pthread_barrier_t barrier;
-#endif
-
-};
 
 class FSemaphore
 {

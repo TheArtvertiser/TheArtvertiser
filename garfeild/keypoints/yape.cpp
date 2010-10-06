@@ -40,6 +40,7 @@ using namespace std;
 #include <starter.h>
 #include "yape.h"
 
+#include "ofxBarrier.h"
 #include "../../artvertiser/FProfiler/FProfiler.h"
 
 const unsigned int yape_bin_size = 1000;
@@ -677,14 +678,14 @@ void yape::perform_one_point(const unsigned char * I, const int x, short * Score
 
 yape::RawDetectThreadData::RawDetectThreadData()
 {
-    run_semaphore = new FSemaphore( 0 );
+    run_semaphore = new ofxSemaphore( 0 );
 }
 
 yape::RawDetectThreadData::~RawDetectThreadData()
 {
     // kill the thread
     should_stop=true;
-    run_semaphore->Signal();
+    run_semaphore->signal();
     void* ret;
     pthread_join( thread, &ret );
     delete run_semaphore;
@@ -697,7 +698,7 @@ void* yape::raw_detect_thread_func( void* _data )
     while ( true )
     {
         // continue/stop mechanism
-        data->run_semaphore->Wait();
+        data->run_semaphore->wait();
         if ( data->should_stop )
             break;
 
@@ -738,7 +739,7 @@ void* yape::raw_detect_thread_func( void* _data )
         }
 
         // finished
-        data->barrier->Wait();
+        data->barrier->wait();
 
     }
 
@@ -754,7 +755,7 @@ void yape::raw_detect_mt(IplImage* im)
         assert( raw_detect_thread_data.size() == 0 );
 
         // make shared barrier
-        shared_barrier = new FBarrier( thread_count+1 );
+        shared_barrier = new ofxBarrier( thread_count+1 );
 
         // make threads joinable
         pthread_attr_t thread_attr;
@@ -765,7 +766,7 @@ void yape::raw_detect_mt(IplImage* im)
         {
             // setup data
             RawDetectThreadData* thread_data = new RawDetectThreadData;
-            thread_data->run_semaphore = new FSemaphore(0);
+            thread_data->run_semaphore = new ofxSemaphore(0);
             thread_data->y = this;
             thread_data->barrier = shared_barrier;
             thread_data->should_stop = false;
@@ -806,11 +807,11 @@ void yape::raw_detect_mt(IplImage* im)
         y_remaining_count -= y_count;
 
         // go!
-        thread_data->run_semaphore->Signal();
+        thread_data->run_semaphore->signal();
 
     }
     // wait for all threads to complete
-    shared_barrier->Wait();
+    shared_barrier->wait();
 
 }
 

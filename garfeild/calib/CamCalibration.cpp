@@ -24,9 +24,9 @@
 
 #include <assert.h>
 #include <cv.h>
-#include <highgui.h>
 #include "CamCalibration.h"
 #include <optimization/ls_minimizer2.h>
+#include "avImage.h"
 
 /**
 \brief Calculates gradient.
@@ -1888,7 +1888,7 @@ void CamCalibration::PlotPointsToImagesAfterOptimization(){
     for( int c = 0; c < (int)v_camera.size(); c++ ){
       if( cvmGet( m_CH, c, h ) == 1 ){
         sprintf(file_name,"E:\\andreas_camcal_16_12_2005\\cam%02d%04d.bmp",c+1,h+2048); //TODO: 2048!!!!!
-        if( image[c] = cvLoadImage( file_name, 1 ) ){         //!!!!!!!!!!!!!!!
+        if( image[c] = avLoadImage( file_name, 1 ) ){         //!!!!!!!!!!!!!!!
           // Draw box:
           FILE * boxfile;
           if( (boxfile = fopen( "box.txt", "r+t" )) != NULL ){
@@ -1942,7 +1942,7 @@ void CamCalibration::PlotPointsToImagesAfterOptimization(){
         cvLine( im, cvPoint( 320,0 ), cvPoint( 320,480 ), CV_RGB ( 255,255,255 ),2,CV_AA,0 );
         cvLine( im, cvPoint( 640,0 ), cvPoint( 640,480 ), CV_RGB ( 255,255,255 ),2,CV_AA,0 );
         sprintf(file_name,"__cam%04d_%04d.bmp",cnt,h);
-        cvSaveImage( file_name, im );
+        avSaveImage( file_name, im );
         cvReleaseImage( &image[0] ); //TODO!
         cvReleaseImage( &image[1] ); //TODO!
         cvReleaseImage( &image[2] ); //TODO!
@@ -1963,7 +1963,7 @@ for( int c = 0; c < (int)v_camera.size(); c++ )         // ... cameras
 for( int h = 0; h < (int)v_camera[c]->v_homography.size(); h++ )   // ... homographies
 if( cvmGet( m_CH, c, h ) == 1  ){
 sprintf(file_name,"E:\\andreas_camcal_16_12_2005\\cam%02d%04d.bmp",c+1,h+2048);
-image1 = cvLoadImage( file_name, 1 );
+image1 = avLoadImage( file_name, 1 );
 int points = v_camera[c]->v_homography[h]->s_plane_object->p;
 for( int point = 0; point < points; point++ ){
 s_struct_plane* s_plane_object = v_camera[c]->v_homography[h]->s_plane_object;
@@ -2055,7 +2055,7 @@ fclose(boxfile);
 // Save image:
 sprintf(file_name,"__cam%02d%04d.bmp",c,h);
 printf("Image %s saved!\n",file_name);
-cvSaveImage( file_name, image1 );
+avSaveImage( file_name, image1 );
 }
 }*/
 
@@ -2223,14 +2223,16 @@ void CamCalibration::PrintOptimizedResultErrors( double *params){
             // Print errorgraphic to file:
             char file_name[200];
             sprintf( file_name, "error_graphic_%02d.jpg", cam->errorgraphic_counter++ );
-            cvSaveImage( file_name, im );
+            avSaveImage( file_name, im );
             */
+		/*
             IplImage *im2 = cvCreateImage(cvSize(800,600), IPL_DEPTH_8U, 3); //TODO: Hier echte groesse von parametern!
             cvResize(im, im2, CV_INTER_LINEAR );
             cvShowImage( "Error Histogram", im2 );
             cvWaitKey(10);
             cvReleaseImage( &im );
             cvReleaseImage( &im2 );
+		 */
             //printf( "File error_graphic_%02d.jpg successfully stored!\n\n", cam->errorgraphic_counter );
             printf( "==================================================\n" );
     } else {
@@ -2306,8 +2308,13 @@ bool CamCalibration::OptimizeCalibrationByMinimalParameterMethod( int iter, doub
 
   // Reset counter for error histogram and create an output window:
   errorgraphic_counter = 0;
-  cvNamedWindow( "Error Histogram", CV_WINDOW_AUTOSIZE );
-  cvWaitKey(10);
+  static bool created_window = false;
+/*  if ( !created_window )
+  {
+	cvNamedWindow( "Error Histogram", CV_WINDOW_AUTOSIZE );
+	created_window = true;
+  }
+  cvWaitKey(10);*/
 
   // Start calibration:
   //double post_filter_offset = 20;
@@ -2374,7 +2381,8 @@ bool CamCalibration::OptimizeCalibrationByMinimalParameterMethod( int iter, doub
   } while( FilterHomographiesAfterOptimization( p_PostFilter/*+post_filter_offset*/ ) );
 
   // Destroy histogram output window:
-  cvDestroyAllWindows();
+  //cvDestroyAllWindows();
+  //cvDestroyWindow( "Error Histogram" );
   return true;
 }
 
@@ -2442,8 +2450,8 @@ void CamCalibration::PrintOptimizedResultsToFile2( char* file_descriptor, bool c
        // Image:
        sprintf(image_in,sequence_descriptor,c_start+c,h_start+h);
        sprintf(image_out,png_descriptor,c,h);
-       IplImage * myimage = cvLoadImage( image_in, 0 );
-       cvSaveImage( image_out, myimage );
+       IplImage * myimage = avLoadImage( image_in, 0 );
+       avSaveImage( image_out, myimage );
        printf("Print to file: %i %i \n",c,h);
        }*/
     }

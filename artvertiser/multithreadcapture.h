@@ -24,11 +24,12 @@
 #include <pthread.h>
 #include <stdio.h>
 #include "FProfiler/FThread.h"
-#include "FProfiler/FSemaphore.h"
+#include "ofxMutex.h"
+#include "ofxSemaphore.h"
 #include "FProfiler/FTime.h"
 #include <cv.h>
-#include <highgui.h>
 #include <map>
+#include "ofMain.h"
 
 class MultiThreadCapture;
 
@@ -42,19 +43,19 @@ public:
     static MultiThreadCaptureManager* getInstance() { if ( instance == NULL ) instance = new MultiThreadCaptureManager(); return instance; }
 
     /// add the given MultiThreadCapture* for the given cam.
-    void addCaptureForCam( CvCapture* cam, MultiThreadCapture* cap );
+    void addCaptureForCam( ofBaseVideo* cam, MultiThreadCapture* cap );
     /// fetch the MultiThreadCapture for the given cam. return NULL if not found.
-    MultiThreadCapture* getCaptureForCam( CvCapture* cam );
+    MultiThreadCapture* getCaptureForCam( ofBaseVideo* cam );
     /// remove the MultiThreadCapture for the given cam.
-    void removeCaptureForCam( CvCapture* cam );
+    void removeCaptureForCam( ofBaseVideo* cam );
 
 private:
 
-    typedef std::map<CvCapture* , MultiThreadCapture* > CaptureMap;
+    typedef std::map<ofBaseVideo* , MultiThreadCapture* > CaptureMap;
     CaptureMap capture_map;
 
     static MultiThreadCaptureManager* instance;
-    FSemaphore lock;
+    ofxSemaphore lock;
 
 };
 
@@ -67,7 +68,7 @@ class MultiThreadCapture : public FThread
 {
 public:
     /// caller retains ownership of the capture object
-    MultiThreadCapture( CvCapture* capture );
+    MultiThreadCapture( ofBaseVideo* capture );
     ~MultiThreadCapture();
 
     /// also process the image after capturing, into an image of the given
@@ -147,19 +148,19 @@ private:
     void swapDetectPointers();
     void swapDrawPointers();
 
-    CvCapture* capture;
+    ofBaseVideo* capture;
 
-	// for the capture threa
-    FSemaphore capture_frame_lock;
+	// for the capture thread
+    ofxMutex capture_frame_lock;
     IplImage* capture_frame;
 
 	// for the process thread
 	bool process_thread_should_exit;
 	pthread_t process_thread;
-	FSemaphore process_thread_semaphore;
+	ofxSemaphore process_thread_semaphore;
 
     // lock for the last frame
-    FSemaphore last_frame_lock;
+    ofxSemaphore last_frame_lock;
     // double buffered
     // How this works: when requested via getLastProcessedFrame, we return processed (& last_frame + timestamp)
     // and swap processed and processed_ret pointers (same for last_frame + timestamp).

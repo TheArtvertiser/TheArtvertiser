@@ -38,6 +38,7 @@ using namespace std;
 #include "planar_object_recognizer.h"
 
 // damian
+#include "ofxBarrier.h"
 #include "../artvertiser/FProfiler/FProfiler.h"
 
 planar_object_recognizer::planar_object_recognizer()
@@ -49,10 +50,7 @@ detected_points(0), detected_point_views(0)
         (match_probabilities[i] = 0);
     }
 
-
     clear();
-
-
 
 }
 
@@ -61,6 +59,7 @@ void planar_object_recognizer::clear()
 {
 	printf("about to clear plana_object_recognizer...\n");
     lock();
+	printf("locked\n");
 
     ready = false;
 
@@ -72,7 +71,7 @@ void planar_object_recognizer::clear()
       {
           // tell the thread to stop
           affine_thread_data[i]->should_stop = true;
-          affine_thread_data[i]->start_signal.Signal();
+          affine_thread_data[i]->start_signal.signal();
           // wait for completion
           void* res;
           pthread_join( affine_thread_data[i]->thread, &res );
@@ -772,7 +771,7 @@ void* planar_object_recognizer::estimate_affine_transformation_thread_func( void
     while( true )
     {
         // wait for signal to begin
-        data->start_signal.Wait();
+        data->start_signal.wait();
         if ( data->should_stop )
             break;
 
@@ -877,7 +876,7 @@ void* planar_object_recognizer::estimate_affine_transformation_thread_func( void
         //printf("thread %i finished, best support %i\n", data->thread_id, best_support );
 
         // tell the barrier
-        data->barrier->Wait();
+        data->barrier->wait();
 
     }
 
@@ -941,7 +940,7 @@ bool planar_object_recognizer::estimate_affine_transformation_mt(void)
         assert(affine_thread_data.size() == 0);
 
         // construct barrier
-        shared_barrier = new FBarrier( num_threads+1 );
+        shared_barrier = new ofxBarrier( num_threads+1 );
 
         // make threads joinable
         pthread_attr_t thread_attr;
@@ -984,11 +983,11 @@ bool planar_object_recognizer::estimate_affine_transformation_mt(void)
     {
         affine_thread_data[i]->A_support = -1;
         affine_thread_data[i]->num_ransac_iterations = max_ransac_iterations/num_threads;
-        affine_thread_data[i]->start_signal.Signal();
+        affine_thread_data[i]->start_signal.signal();
     }
 
     // now wait for threads to finish
-    shared_barrier->Wait();
+    shared_barrier->wait();
 
     // and get best support
     affinity* best_A = NULL;

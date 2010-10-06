@@ -28,8 +28,9 @@
 #include <fstream>
 
 //also includes opengl if available
+
+#include "avImage.h"
 #include "lightmap.h"
-#include <highgui.h>
 
 
 #ifndef M_PI
@@ -757,7 +758,7 @@ bool LightMap::saveImage(const char *filename)
 	//double min=0, max=2;
 	//cvMinMaxLoc(image, &min, &max);
 	cvConvertScale(image, im, 128, 0);
-	int r = cvSaveImage(filename, im);
+	int r = avSaveImage(filename, im);
 	cvReleaseImage(&im);
 	return r!=0;
 }

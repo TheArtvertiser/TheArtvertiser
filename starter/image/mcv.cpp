@@ -26,9 +26,10 @@
 #include <math.h>
 
 #include <cv.h>
-#include <highgui.h>
 #include <stdio.h>
+#include "avImage.h"
 #include "mcv.h"
+
 
 using namespace std;
 
@@ -440,7 +441,7 @@ int mcvSaveImage(const char * filename, IplImage * image, bool verbose)
   int result;
 
   if (image->depth == IPL_DEPTH_8U)
-    result = cvSaveImage(filename, image);
+    result = avSaveImage(filename, image);
   else
   {
     IplImage * tempImage;
@@ -455,7 +456,7 @@ int mcvSaveImage(const char * filename, IplImage * image, bool verbose)
     tempImage = cvCreateImage(cvSize(image->width, image->height), IPL_DEPTH_8U, 1);
     cvConvertScale(image, tempImage, 255. / (max - min), -min * 255 / (max - min));
 
-    result = cvSaveImage(filename, tempImage);
+    result = avSaveImage(filename, tempImage);
 
     cvReleaseImage(&tempImage);
   }
@@ -490,7 +491,7 @@ IplImage * mcvLoadImage(const char * filename, int code, bool verbose)
   if (verbose)
     cout << "(loading " << filename << "..." << flush;
 
-  IplImage * result = cvLoadImage(filename, code);
+  IplImage * result = avLoadImage(filename, code);
 
   if (verbose && !result)
     cout << "ERROR !" << endl;

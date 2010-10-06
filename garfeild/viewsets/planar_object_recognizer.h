@@ -33,8 +33,7 @@
 #include "object_view.h"
 #include "image_classification_forest.h"
 #include "image_object_point_match.h"
-// damian
-#include "artvertiser/FProfiler/FSemaphore.h"
+#include "ofxSemaphore.h"
 
 /*!\defgroup viewsets Viewsets
  * \ingroup garfeild
@@ -328,8 +327,8 @@ public:
 
   void check_target_size(IplImage *image);
 
-  void lock()   { detector_sem.Wait();   }
-  void unlock() { detector_sem.Signal(); }
+  void lock()   { detector_sem.wait();   }
+  void unlock() { detector_sem.signal(); }
   bool isReady() { return ready; }
 
 private:
@@ -354,15 +353,15 @@ private:
     int A_support;
     int num_ransac_iterations;
 
-    FSemaphore start_signal;
-    FBarrier* barrier;
+    ofxSemaphore start_signal;
+    ofxBarrier* barrier;
     bool should_stop;
   };
 
-  FBarrier* shared_barrier;
+  ofxBarrier* shared_barrier;
   vector<EstimateAffineThreadData*> affine_thread_data;
 
-  FSemaphore detector_sem;
+  ofxSemaphore detector_sem;
 
     bool ready;
 

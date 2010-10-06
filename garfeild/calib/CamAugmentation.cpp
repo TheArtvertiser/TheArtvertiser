@@ -24,7 +24,6 @@
 
 #include <assert.h>
 #include <cv.h>
-#include <highgui.h>
 #include "CamAugmentation.h"
 #include <optimization/ls_minimizer2.h>
 

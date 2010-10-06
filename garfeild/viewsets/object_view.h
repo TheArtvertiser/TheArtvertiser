@@ -37,7 +37,7 @@
   \ingroup viewsets
 */
 
-class FBarrier;
+class ofxBarrier;
 
 class object_view
 {
@@ -67,7 +67,7 @@ public:
 
   class CompGradientThreadData;
   vector<CompGradientThreadData*> comp_gradient_thread_data;
-  FBarrier* shared_barrier;
+  ofxBarrier* shared_barrier;
 
 };
 

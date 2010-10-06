@@ -27,7 +27,7 @@ using namespace std;
 
 #include <starter.h>
 #include "object_view.h"
-#include "../../artvertiser/FProfiler/FSemaphore.h"
+#include "ofxBarrier.h"
 #include "../../artvertiser/FProfiler/FProfiler.h"
 
 // Constructor for training stage:
@@ -77,11 +77,11 @@ class object_view::CompGradientThreadData
 {
 public:
     CompGradientThreadData() : semaphore(0), should_stop(false) {};
-    ~CompGradientThreadData() { should_stop = true; semaphore.Signal(); void* ret; pthread_join( thread, &ret ); }
+    ~CompGradientThreadData() { should_stop = true; semaphore.signal(); void* ret; pthread_join( thread, &ret ); }
 
     pthread_t thread;
-    FBarrier* shared_barrier;
-    FSemaphore semaphore;
+    ofxBarrier* shared_barrier;
+    ofxSemaphore semaphore;
     bool should_stop;
 
     PyrImage* image;
@@ -100,7 +100,7 @@ void* object_view::comp_gradient_thread_func( void* _data )
 
     while ( true )
     {
-        data->semaphore.Wait();
+        data->semaphore.wait();
         if ( data->should_stop )
             break;
 
@@ -112,7 +112,7 @@ void* object_view::comp_gradient_thread_func( void* _data )
                 cvSobel( data->image->operator[](l), data->gradY->operator[](l), 0, 1, 1 );
         }
 
-        data->shared_barrier->Wait();
+        data->shared_barrier->wait();
     }
 
     pthread_exit(0);
@@ -131,7 +131,7 @@ void object_view::comp_gradient_mt()
         assert( comp_gradient_thread_data.size()==0 );
 
         // construct shared barrier
-        shared_barrier = new FBarrier( num_threads+1 );
+        shared_barrier = new ofxBarrier( num_threads+1 );
 
         // construct threads
         printf("creating %i threads for object_view::comp_gradient\n", num_threads );
@@ -161,11 +161,11 @@ void object_view::comp_gradient_mt()
         assert( thread_data->image == &image );
         assert( thread_data->gradX == &gradX );
         assert( thread_data->gradY == &gradY );
-        thread_data->semaphore.Signal();
+        thread_data->semaphore.signal();
     }
 
     // wait for all to complete
-    shared_barrier->Wait();
+    shared_barrier->wait();
 
 }
 

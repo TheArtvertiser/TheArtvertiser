@@ -49,7 +49,7 @@ public:
   //! build the pyramid from level 0 by calling cvPyrDown()
   void build();
 
-  //! try to load an image with cvLoadImage() and build a PyrImage.
+  //! try to load an image with avLoadImage() and build a PyrImage.
   //! \return 0 on failure or a valid PyrImage that has to be deleted by the caller.
   static PyrImage *load(int level, const char *filename, int color, bool fatal = true);
 

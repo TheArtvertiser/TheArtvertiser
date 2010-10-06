@@ -24,8 +24,9 @@
 #ifndef CALIBMODEL_H
 #define CALIBMODEL_H
 
+#include "ofMain.h"
+
 #include <cv.h>
-#include <highgui.h>
 #include <garfeild.h>
 
 class CalibModel {
@@ -41,27 +42,39 @@ public:
 
 	void useModelFile( const char *modelfile );
 
-	bool buildCached(int nbcam, CvCapture *capture, bool cache, planar_object_recognizer &detector,
+	bool buildCached(int nbcam, ofBaseVideo *capture, bool cache, planar_object_recognizer &detector,
                   bool run_on_binoculars = false);
 
     int getImageWidth() { return image_width; }
     int getImageHeight() { return image_height; }
 
     /// update the interactive training on binoculars
-    void interactiveTrainBinocularsUpdate(IplImage* frame, bool button_red, bool button_green, bool button_blue );
+    void interactiveTrainUpdateBinoculars(IplImage* frame, bool button_red, bool button_green, bool button_blue );
+	/// update the interactive training inline
+    void interactiveTrainUpdate(IplImage* frame, 
+									  int mouse_x, int mouse_y, bool mouse_button_down, 
+									  int key );
+	
     /// draw the interactive training on binucolurs
-    void interactiveTrainBinocularsDraw();
-
+    void interactiveTrainDraw();
     /// true if we're running interactive training on the binoculars
-    bool isInteractiveTrainBinocularsRunning() { return interactive_train_running; }
+    bool isInteractiveTrainRunning() { return interactive_train_running; }
 	/// tell the interactive training to abort
-	void abortInteractiveTrainBinoculars() { if( interactive_train_running ) interactive_train_should_stop = true; }
+	void abortInteractiveTrain() { if( interactive_train_running ) interactive_train_should_stop = true; }
 
+		
 	/// true if learning is in progress
 	bool isLearnInProgress() { return learn_running; }
 	/// get the training progress message
 	const char* getLearnProgressMessage() { return progress_string; }
 
+	// mouse
+	/*
+	void mousePressed( int x, int y );
+	void mouseReleased();
+	void mouseDragged( int x, int y );
+	 */
+	
 private:
 	IplImage *image;
 
@@ -72,12 +85,12 @@ private:
 
 	enum State { TAKE_SHOT, CORNERS, ARTVERT_CORNERS };
 	State state;
-	int grab;
-	static void onMouseStatic(int event, int x, int y, int flags, void* param);
-	void onMouse(int event, int x, int y, int flags);
-	bool interactiveSetup(CvCapture *capture);
+	//int grab;
+	//static void onMouseStatic(int event, int x, int y, int flags, void* param);
+	//void onMouse(int event, int x, int y, int flags);
+	//bool interactiveSetup(ofBaseVideo *capture);
 
-	bool interactiveTrainBinoculars();
+	bool interactiveTrain();
 	IplImage* train_working_image, *train_shot;
 	IplTexture train_texture;
 	bool interactive_train_running;

@@ -1,4 +1,4 @@
- /*
+/*
  * Copyright 2008, 2009, 2010 Julian Oliver <julian@julianoliver.com> and 
  * Damian Stewart <damian@frey.co.nz>.
  *
@@ -48,6 +48,8 @@
 
 #include "multigrab.h"
 
+#define ARTVERTISER_VERSION "0.92"
+
 // read from arduino
 #include <stdio.h>    /* Standard input/output definitions */
 #include <stdlib.h>
@@ -63,9 +65,10 @@
 #include <iostream>
 #include <sstream> // for conv int->str
 #include <vector>
-#include <opencv/cv.h>
-#include <highgui.h>
+#include <cv.h>
 #include <map>
+
+#include "avImage.h"
 
 #include <stdio.h>
 #include <time.h>
@@ -85,8 +88,10 @@
 #include <GL/glut.h>
 #endif
 
+/*
 #include "/usr/include/freetype2/freetype/config/ftconfig.h"
 #include <FTGL/ftgl.h>
+ */
 
 #include "FProfiler/FProfiler.h"
 
@@ -152,8 +157,8 @@ IplTexture *raw_frame_texture=0;
 FTime raw_frame_timestamp;
 IplTexture *tex=0;
 IplImage *image = 0;
-CvCapture *capture = 0;
-CvCapture *avi_capture = 0;
+ofBaseVideo *capture = 0;
+ofBaseVideo *avi_capture = 0;
 IplImage *avi_image = 0;
 IplImage *avi_frame = 0;
 //IplImage *model_image = 0;
@@ -170,12 +175,12 @@ int detect_height = DEFAULT_HEIGHT;
 int desired_capture_fps = DEFAULT_CAPTURE_FPS;
 
 // load some images. hard-coded for know until i get the path parsing together.
-IplImage *image1 = cvLoadImage("artvert1.png");
-IplImage *image2 = cvLoadImage("artvert2.png");
-IplImage *image3 = cvLoadImage("artvert3.png");
-IplImage *image4 = cvLoadImage("artvert4.png");
-IplImage *image5 = cvLoadImage("artvert5.png");
-IplImage *fallback_artvert_image = cvLoadImage("artvert1.png");
+IplImage *image1;// = avLoadImage("artvert1.png");
+IplImage *image2;// = avLoadImage("artvert2.png");
+IplImage *image3;// = avLoadImage("artvert3.png");
+IplImage *image4;// = avLoadImage("artvert4.png");
+IplImage *image5;// = avLoadImage("artvert5.png");
+IplImage *fallback_artvert_image;// = avLoadImage("artvert1.png");
 
 // matrix tracker
 MatrixTracker matrix_tracker;
@@ -204,6 +209,9 @@ bool sphere_object=false;
 bool avi_play=false;
 bool avi_play_init=false;
 bool lbutton_down = false;
+int mouse_x=0;
+int mouse_y=0;
+int last_key=0;
 bool label = false;
 
 bool track_kalman = false;
@@ -252,7 +260,7 @@ public:
 		if ( artvert_image )
 			cvReleaseImage( &artvert_image );
 		if ( avi_capture )
-			cvReleaseCapture( &avi_capture );
+			delete avi_capture;
 		if ( avi_image )
 			cvReleaseImage( &avi_image );
 	}
@@ -264,15 +272,20 @@ public:
 
 			if ( !avi_capture )
 			{
-				avi_capture = cvCaptureFromAVI( artvert_movie_file.c_str() );
+				ofVideoPlayer * avi_cap = new ofVideoPlayer();
+				avi_cap->loadMovie( artvert_movie_file.c_str() );
+				avi_cap->setLoopState( OF_LOOP_NORMAL );
+				avi_cap->play();
+				avi_capture = avi_cap;
 				avi_play_init = false;
 			}	
-	
-			IplImage *avi_frame = 0;
-		    	avi_frame = cvQueryFrame( avi_capture );
+
+			// get the next frame
+			IplImage* avi_frame = avGetFrame( avi_capture );
+			
 			if ( avi_frame == 0 )
 			{
-				if ( avi_play_init )
+/*				if ( avi_play_init )
 				{
 					// we know the avi is good, so: rewind!
         			cvSetCaptureProperty( avi_capture, CV_CAP_PROP_POS_FRAMES, 0 );
@@ -281,8 +294,9 @@ public:
 					if ( avi_frame == 0 )
 						return fallback_artvert_image;
 				}
-				else
-					return fallback_artvert_image;
+				else*/
+				printf("failed to load movie '%s'\n", artvert_movie_file.c_str() );
+				return fallback_artvert_image;
 			}
 			if ( avi_image == 0 )
 				avi_image = cvCreateImage( cvGetSize(avi_frame), avi_frame->depth, avi_frame->nChannels );
@@ -304,7 +318,7 @@ public:
 			if ( !artvert_image )
 			{
 				printf("loading artvert image '%s'\n", artvert_image_file.c_str() );
-				artvert_image = cvLoadImage( artvert_image_file.c_str() );
+				artvert_image = avLoadImage( artvert_image_file.c_str() );
 			}
 			if ( !artvert_image )
 			{
@@ -323,7 +337,7 @@ public:
 	bool artvert_is_movie;
 	string artvert_movie_file;
 private:
-	CvCapture* avi_capture;
+	ofBaseVideo* avi_capture;
 	IplImage* avi_image;
 	bool avi_play_init;
 	GLuint imageID;
@@ -337,7 +351,7 @@ int current_artvert_index=-1;
 bool new_artvert_requested = false;
 int new_artvert_requested_index = 0;
 vector< bool > model_file_needs_training;
-#include "ofxXmlSettings/ofxXmlSettings.h"
+#include "ofxXmlSettings.h"
 
 // detection thread
 pthread_t detection_thread;
@@ -360,7 +374,11 @@ GLenum format;
 GLuint imageID;
 
 // ftgl font setup
-static FTFont *ftglFont;
+ofTrueTypeFont font_12;
+ofTrueTypeFont font_16;
+ofTrueTypeFont font_24;
+ofTrueTypeFont font_32;
+//static FTFont *ftglFont;
 
 // interface
 bool show_status = false;
@@ -434,6 +452,7 @@ std::string date(int now)
 }
 
 
+/*
 // mouse input using GLUT.
 void entry(int state)
 {
@@ -441,7 +460,7 @@ void entry(int state)
         cout << "Mouse Entered" << endl;
     else
         cout << "Mouse Left" << endl;
-}
+}*/
 
 void mouse(int button, int state, int x, int y)
 {
@@ -460,21 +479,13 @@ void mouse(int button, int state, int x, int y)
     else if (button == GLUT_LEFT_BUTTON)
     {
         if (state == GLUT_DOWN)
-        {
             lbutton_down = true;
-            if (cnt >= NUMARTVERTS-1)
-            {
-                cnt = 0;
-            }
-            else
-            {
-                cnt ++;
-            }
-        }
         else
             lbutton_down = false;
     }
-    cout << "we are on image " << cnt << endl;
+	
+	mouse_x = x;
+	mouse_y = y;
 }
 
 // text drawing function
@@ -552,7 +563,7 @@ static void usage(const char *s)
          "   -vs <width> <height>  video width and height (default 640x480)\n"
          "   -ds <width> <height>  frame size at which to run the detector (default to video width/height)\n"
          "   -fps <fps>  desired fps at which to run the image capture\n"
-		 "   -binoc  run as if operating on binoculars (necessary for osx training)\n"
+		 "   -binoc  run as if operating on binoculars\n"
 		 "      -nofullscreen  don't try to run fullscreen in -binoc mode\n\n";
     exit(1);
 }
@@ -575,12 +586,12 @@ void exit_handler()
         shutdownSerialThread();
     }
 	// shutdown binocular training
-	if ( multi && multi->model.isInteractiveTrainBinocularsRunning() )
+	if ( multi && multi->model.isInteractiveTrainRunning() )
 	{
 		printf("stopping interactive train binoculars\n");
-		multi->model.abortInteractiveTrainBinoculars();
+		multi->model.abortInteractiveTrain();
 	}
-
+	
     // shutdown capture
     if ( multi )
     {
@@ -678,7 +689,10 @@ int serialport_read_until(int fd, char* buf, char until)
 	} while( b[0] != until && timeout > 0 );
 
 	if ( timeout<=0 )
+	{
 		fprintf(stderr, "serialport_read_until timed out\n");
+		return -1;
+	}
 
 	buf[i] = 0;  // null terminate the string
 	return 0;
@@ -730,7 +744,7 @@ bool loadOrTrain( int new_index )
 		}
 
 		// load model_image for use with diffing, later
-		// model_image = cvLoadImage(model_file.c_str());
+		// model_image = avLoadImage(model_file.c_str());
 
 		c1[0].x = roi_vec[0];
 		c1[0].y = roi_vec[1];
@@ -762,6 +776,8 @@ bool loadOrTrain( int new_index )
  * - Set the GLUT callbacks for geometric calibration or, if already done, for photometric calibration.
  */
 
+bool redo_geom = false;
+
 static bool init( int argc, char** argv )
 {
     // register exit function
@@ -773,12 +789,20 @@ static bool init( int argc, char** argv )
     // more from before init should be moved here
     bool redo_lighting=false;
     bool redo_training = false;
-    bool redo_geom = false;
     char *avi_bg_path=(char*)"";
     bool got_ds = false;
     bool got_fps = false;
     bool video_source_is_avi = false;
     char *model_file_list_file = NULL;
+
+	if ( argc == 1 )
+	{
+		usage(argv[0]);
+		exit(1);
+	}
+
+	// load fallback
+	fallback_artvert_image = avLoadImage("fallback_artvert_image.png");
 
     // parse command line
     for (int i=1; i<argc; i++)
@@ -832,12 +856,15 @@ static bool init( int argc, char** argv )
         }
         else if (strcmp(argv[i], "-a")==0)
         {
-            avi_capture=cvCaptureFromAVI(argv[i+1]);
+			ofVideoPlayer* player = new ofVideoPlayer();
+			player->loadMovie( argv[i+1] );
+			player->play();
+            avi_capture = player;
             avi_play=true;
         }
         else if (strcmp(argv[i], "-i")==0)
         {
-			IplImage *image1 = cvLoadImage(argv[i]+1);
+			IplImage *image1 = avLoadImage(argv[i]+1);
         }
         else if (strcmp(argv[i], "-b")==0)
         {
@@ -968,10 +995,12 @@ static bool init( int argc, char** argv )
     if ( video_source_is_avi )
     {
         // try to read from video
-        CvCapture* temp_cap = cvCaptureFromAVI(avi_bg_path);
-        video_width = (int)cvGetCaptureProperty( temp_cap, CV_CAP_PROP_FRAME_WIDTH );
-        video_height = (int)cvGetCaptureProperty( temp_cap, CV_CAP_PROP_FRAME_HEIGHT );
-        int video_fps = (int)cvGetCaptureProperty( temp_cap, CV_CAP_PROP_FPS );
+		ofVideoPlayer temp_player;
+		temp_player.loadMovie( avi_bg_path );
+        video_width = temp_player.getWidth();
+        video_height = temp_player.getHeight();
+        //int video_fps = temp_player.getSpeed();
+		int video_fps = 25.0f;
         printf(" -b: read video width/height %i/%i from avi (ignoring -vs)\n", video_width, video_height );
         if ( !got_ds )
         {
@@ -982,7 +1011,6 @@ static bool init( int argc, char** argv )
         {
             desired_capture_fps = video_fps;
         }
-        cvReleaseCapture(&temp_cap);
     }
 
     //cout << avi_bg_path << endl;
@@ -1013,24 +1041,33 @@ static bool init( int argc, char** argv )
     artverts[4] = artvert5;
 
 
-    // load geometry
-    loadOrTrain(0);
-
-    // try to load geom cache + start the run loop
-    geomCalibStart(!redo_geom);
-
-    // start detection
-    startDetectionThread( 1 /* priority, only if running as root */ );
-
     last_frame_caught_time.SetNow();
     frame_timer.SetNow();
 
     // start serial
     startSerialThread();
 
+	// start normal display
+	start();
+
     printf("init() finished\n");
     return true;
 }
+
+
+void loadAndStart()
+{
+    // load geometry
+    bool res = loadOrTrain(0);
+
+    // try to load geom cache + start the run loop
+    if ( res ) 
+		geomCalibStart(!redo_geom);
+
+    // start detection
+    startDetectionThread( 1 /* priority, only if running as root */ );
+}
+
 
 /*! The keyboard callback: reacts to '+' and '-' to change the viewed cam, 'q' exits.
  * 'd' turns on/off the dynamic lightmap update.
@@ -1038,8 +1075,12 @@ static bool init( int argc, char** argv )
  */
 static void keyboard(unsigned char c, int x, int y)
 {
+	// for r/g/b buttons
 	char old_button_state = button_state;
-    const char* filename;
+	
+    last_key = c;
+	
+	const char* filename;
     switch (c)
     {
     case 'n' :
@@ -1093,12 +1134,15 @@ static void keyboard(unsigned char c, int x, int y)
         cout << "we are on image " << cnt << endl;
         break;
 	case '[':
+	case '1':
 		button_state |= BUTTON_RED;
 		break;
 	case ']':
+	case '2':
 		button_state |= BUTTON_GREEN;
 		break;
 	case '\\':
+	case '3':
 		button_state |= BUTTON_BLUE;
 		break;
 
@@ -1113,7 +1157,7 @@ static void keyboard(unsigned char c, int x, int y)
         switch (c)
         {
         // detector settings
-        case '1':
+        /*case '1':
             detector.ransac_dist_threshold_ui*=1.02f;
             break;
         case '!':
@@ -1128,10 +1172,12 @@ static void keyboard(unsigned char c, int x, int y)
         case '3':
             detector.non_linear_refine_threshold_ui*=1.02f;
             break;
+			
         case '#':
             detector.non_linear_refine_threshold_ui/=1.02f;
             break;
-        case '4':
+        */
+		case '4':
             detector.match_score_threshold_ui*=1.02f;
             break;
         case '$':
@@ -1190,6 +1236,8 @@ static void keyboard(unsigned char c, int x, int y)
 
 	if ( old_button_state != button_state )
 		button_state_changed = true;
+	
+	
 }
 
 static void keyboardReleased(unsigned char c, int x, int y)
@@ -1198,12 +1246,15 @@ static void keyboardReleased(unsigned char c, int x, int y)
 	switch ( c )
 	{
 	case '[':
+	case '1':
 		button_state &= (BUTTON_GREEN | BUTTON_BLUE);
 		break;
 	case ']':
+	case '2':
 		button_state &= (BUTTON_RED | BUTTON_BLUE);
 		break;
 	case '\\':
+	case '3':
 		button_state &= (BUTTON_GREEN | BUTTON_RED);
 		break;
 	default:
@@ -1216,6 +1267,12 @@ static void emptyWindow()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
+
+
+
+
+
+
 
 int main(int argc, char *argv[])
 {
@@ -1249,10 +1306,10 @@ int main(int argc, char *argv[])
 	if ( !start_fullscreen )
 	{
     	glutReshapeFunc(reshape);
-    	glutCreateWindow("The Artvertiser 0.4");
+    	glutCreateWindow("The Artvertiser " ARTVERTISER_VERSION );
 	}
     glutMouseFunc(mouse);
-    glutEntryFunc(entry);
+    //glutEntryFunc(entry);
 
 	if ( start_fullscreen )
 	{
@@ -1265,9 +1322,15 @@ int main(int argc, char *argv[])
 
 
     //ftglFont = new FTBufferFont("/usr/share/fonts/truetype/freefont/FreeMono.ttf");
+	font_12.loadFont("fonts/FreeSans.ttf", 12);
+	font_16.loadFont("fonts/FreeSans.ttf", 16);
+	font_24.loadFont("fonts/FreeSans.ttf", 24);
+	font_32.loadFont("fonts/FreeSans.ttf", 32);
+	/*
     ftglFont = new FTBufferFont("fonts/FreeSans.ttf");
     ftglFont->FaceSize(12);
     ftglFont->CharMap(ft_encoding_unicode);
+	 */
 
     //cvDestroyAllWindows();
     //cvWaitKey(0);
@@ -1443,7 +1506,8 @@ static void geomCalibEnd()
         exit(-1);
     }
     glutIdleFunc(0);
-    //glutDisplayFunc(0);
+    // not allowed in glut 3.0 
+	// glutDisplayFunc(0);
     delete calib;
     calib=0;
 }
@@ -1678,7 +1742,7 @@ static void drawAugmentation()
         cvThreshold(diff, display, 35, 255, CV_THRESH_BINARY);
 
         cvReleaseImage(&warped);
-        cvSaveImage("checkdiff.png", display);
+        avSaveImage("checkdiff.png", display);
         */
 
         /* circles at corners of ROI. useful for debugging.
@@ -1706,12 +1770,12 @@ static void drawAugmentation()
 
         if (avi_play == true)
         {
-            IplImage *avi_frame = 0;
+            //IplImage *avi_frame = 0;
             IplImage *avi_image = 0;
-            avi_frame = cvQueryFrame( avi_capture );
-            avi_image = cvCreateImage(cvSize(video_width/2, video_height/2), 8, 3);
-            cvResize(avi_frame, avi_image, 0);
-            avi_image->origin = avi_frame->origin;
+            avi_image = avGetFrame( avi_capture );
+            //avi_image = cvCreateImage(cvSize(video_width/2, video_height/2), 8, 3);
+            //cvResize(avi_frame, avi_image, 0);
+            //avi_image->origin = avi_frame->origin;
             GLenum format = IsBGR(avi_image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
 
             if (!avi_play_init)
@@ -1822,15 +1886,15 @@ static void drawAugmentation()
 
             // render the text in the label
             glColor4f(1.0, 1.0, 1.0, 1);
-            ftglFont->Render(artverts[cnt].artvert);
+			font_12.drawString( artverts[cnt].artvert, 0, 0 );
             glTranslatef(0, -12, 0);
-            ftglFont->Render(artverts[cnt].date);
+			font_12.drawString( artverts[cnt].date, 0, 0 );
             glTranslatef(0, -12, 0);
-            ftglFont->Render(artverts[cnt].author);
+			font_12.drawString( artverts[cnt].author, 0, 0 );
             glTranslatef(0, -12, 0);
-            ftglFont->Render(artverts[cnt].advert);
+			font_12.drawString( artverts[cnt].advert, 0, 0 );
             glTranslatef(0, -12, 0);
-            ftglFont->Render(artverts[cnt].street);
+			font_12.drawString( artverts[cnt].street, 0, 0 );
         }
 
 #else
@@ -1866,8 +1930,8 @@ static void draw()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_LIGHTING);
 
-    if ( multi->model.isInteractiveTrainBinocularsRunning() )
-        multi->model.interactiveTrainBinocularsDraw();
+    if ( multi->model.isInteractiveTrainRunning() )
+        multi->model.interactiveTrainDraw();
     else
     {
 
@@ -1936,9 +2000,8 @@ static void draw()
         glLoadIdentity();
         glTranslatef(-.98, 0.9, 0.0);
         glScalef(.003, .003, .003);
-        ftglFont->FaceSize(32);
         glColor4f(1.0, 1.0, 1.0, 1);
-        ftglFont->Render("the artvertiser 0.4");
+		font_32.drawString("the artvertiser " ARTVERTISER_VERSION,0,0);
         glTranslatef(0, -(video_height+30), 0);
         glColor4f(1.0, 1.0, 1.0, .6);
         //ftglFont->FaceSize(16);
@@ -1953,12 +2016,8 @@ static void draw()
             glVertex3f(140, 20, 0);
             glEnd();
             glTranslatef(70, 5, 0);
-            ftglFont->FaceSize(16);
-            ftglFont->Render("tracking");
+			font_16.drawString( "tracking", 0, 0 );
         }
-
-        // reset the ftgl font size for next pass
-        ftglFont->FaceSize(12);
 
 
         if ( show_status )
@@ -2025,9 +2084,22 @@ void* serialThreadFunc( void* data )
     fd = serialport_init( "/dev/ttyUSB0", 9600 );
     printf("fd said %i, errno %i\n", fd, errno );
 
+	int num_timeouts = 0;
     while ( !serial_thread_should_exit )
     {
+
         int read = serialport_read_until(fd, buf, '\n');
+		if ( read == -1 )
+		{
+			num_timeouts++;
+			if ( num_timeouts > 8 )
+			{
+				printf("serial thread timed out too many times: giving up\n");
+				serial_thread_should_exit = true;
+			}
+		}
+		else
+			num_timeouts = 0;
         //printf("read: %s then %s\n",buf2, buf);
         if ( (read==0) && strlen( buf ) >= 4 /*includes final \n*/ )
         {
@@ -2226,20 +2298,42 @@ static void idle()
 
     PROFILE_SECTION_POP();
 
+	static int frame_count = 10;
+	if ( frame_count == 1 )
+	{
+		printf("loadAndStart\n");
+		loadAndStart();
+		frame_count = 0;
+	}
+	else
+		frame_count--;
 
-    if ( multi->model.isInteractiveTrainBinocularsRunning() )
+    if ( multi->model.isInteractiveTrainRunning() )
     {
-        bool button_red = button_state   & BUTTON_RED;
-        bool button_green = button_state & BUTTON_GREEN;
-        bool button_blue = button_state  & BUTTON_BLUE;
-        multi->model.interactiveTrainBinocularsUpdate( raw_frame_texture->getImage(),
-                                                      button_red, button_green, button_blue );
-    }
-    else
+		if ( running_on_binoculars )
+		{
+			bool button_red = button_state   & BUTTON_RED;
+			bool button_green = button_state & BUTTON_GREEN;
+			bool button_blue = button_state  & BUTTON_BLUE;
+			multi->model.interactiveTrainUpdateBinoculars( raw_frame_texture->getImage(),
+														  button_red, button_green, button_blue );
+		}
+		else
+		{
+			assert( false && "implement me" );
+			multi->model.interactiveTrainUpdate( raw_frame_texture->getImage(), mouse_x, mouse_y, lbutton_down, last_key );
+			
+			// );
+			
+		}
+	}
+	else
     {
         updateMenu();
         //doDetection();
     }
+	// reset last key
+	last_key = 0;
     glutPostRedisplay();
 
     PROFILE_SECTION_POP();
@@ -2257,6 +2351,7 @@ static void idle()
 static void start()
 {
     glutIdleFunc(idle);
+	printf("setting glutDisplayFunc\n");
     glutDisplayFunc(draw);
 }
 
@@ -2358,7 +2453,6 @@ void drawMenu()
 			glLoadIdentity();
 			glTranslatef(-.8, 0.65, 0.0);
 			glScalef(.003, .003, .003);
-			ftglFont->FaceSize(24);
 			glColor4f(0.0, 1.0, 0.0, 1);
 
 			if ( multi->model.isLearnInProgress() )
@@ -2369,13 +2463,13 @@ void drawMenu()
 				char* ptr = strtok( message,"\n");
 				while( ptr != NULL) 
 				{
-        			ftglFont->Render(ptr);
+        			font_24.drawString( ptr, 0, 0 );
 	        		glTranslatef(0, -26, 0 );
 					ptr = strtok( NULL, "\n" );
 				}
 			}
 			else
-				ftglFont->Render("changing artvert...");
+				font_24.drawString("changing artvert...", 0, 0);
 			
 
 		}
@@ -2393,10 +2487,9 @@ void drawMenu()
 	glEnable(GL_BLEND);
     glTranslatef(-.85, 0.65, 0.0);
     glScalef(.003, .003, .003);
-    ftglFont->FaceSize(24);
     glColor4f(.25, 1.0, 0.0, 1);
 
-    ftglFont->Render("Select artvert:");
+    font_24.drawString("Select artvert:",0,0);
     glTranslatef( 0, -26, 0 );
 
 	for ( int i=0; i<artvert_list.size(); i++ )
@@ -2414,7 +2507,7 @@ void drawMenu()
         {
             glColor4f( .25f, 1.f, 0.0f, 1 );
         }
-        ftglFont->Render(line.c_str());
+		font_24.drawString( line.c_str(), 0, 0 );
         glTranslatef(0, -26, 0 );
 
     }

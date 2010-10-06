@@ -41,7 +41,7 @@ MultiGrab::~MultiGrab()
 int MultiGrab::init( char *avi_bg_path, int width, int height, int v4l_device, int detect_width, int detect_height, int desired_capture_fps )
 {
 
-	CvCapture *c;
+	ofBaseVideo *c;
 	cams.clear();
 
 	// if artvertiser is presented an argv of a background file (-b /path/to/avi), accept it as a capture device.
@@ -49,32 +49,34 @@ int MultiGrab::init( char *avi_bg_path, int width, int height, int v4l_device, i
 	if (strlen(avi_bg_path) > 0)
 	{
 		cout << "MultiGrab::init creating capture from avi " << avi_bg_path << " size " << width << "x" << height << " detect at " << detect_width << "x" << detect_height << endl;
-		CvCapture *c = cvCaptureFromAVI(avi_bg_path);
-		if ( c == 0 )
-		{
-		    cerr << "cvCaptureFromAVI return null" << endl;
-		    return 0;
-		}
-		cams.push_back(new Cam(c, width, height, detect_width, detect_height, desired_capture_fps ));
+		ofVideoPlayer* player = new ofVideoPlayer();
+		player->loadMovie( avi_bg_path );
+		player->setLoopState( OF_LOOP_NORMAL );
+		player->play();
+		ofBaseVideo *c = player;
+		cams.push_back(new Cam(true, c, width, height, detect_width, detect_height, desired_capture_fps ));
 	}
 	// else capture from the V4L2 device
 	else
 	{
 		/*
 		while (1) {
-			CvCapture *c = cvCaptureFromCAM(cams.size());
+			ofBaseVideo *c = ofBaseVideoFromCAM(cams.size());
 			if (!c) break;
 			cams.push_back(new Cam(c));
 		}
 		*/
 		cout << "MultiGrab::init creating camera with device "<<v4l_device<<", capture at " << width << "x" << height << " detect at " << detect_width << "x" << detect_height << endl;
-		CvCapture *c = cvCaptureFromCAM(v4l_device/*, width, height*/ );
+		ofVideoGrabber* grabber = new ofVideoGrabber();
+		grabber->initGrabber( width, height, false );
+		
+		ofBaseVideo *c = grabber;
 		if ( c == 0 )
 		{
-			cerr << "cvCaptureFromCam returned null" <<endl;
+			cerr << "ofBaseVideoFromCam returned null" <<endl;
 			return 0;
 		}
-		cams.push_back(new Cam(c, width, height, detect_width, detect_height, desired_capture_fps ));
+		cams.push_back(new Cam(false, c, width, height, detect_width, detect_height, desired_capture_fps ));
 	}
 	if (cams.size()==0) {
 		 return 0;
@@ -106,7 +108,7 @@ void MultiGrab::allocLightCollector()
 	for (vector<Cam *>::iterator it=cams.begin(); it!=cams.end(); ++it)
 		(*it)->lc = new LightCollector(model.map.reflc);
 }
-void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_width, int _detect_height, int desired_capture_fps )
+void MultiGrab::Cam::setCam(ofBaseVideo *c, int _width, int _height, int _detect_width, int _detect_height, int desired_capture_fps, bool is_avi )
 {
 
 	if (cam)
@@ -114,22 +116,26 @@ void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_w
 	    if ( mtc )
             delete mtc;
         mtc = 0;
-	    cvReleaseCapture(&cam);
+		delete cam;
 	}
 	if (c==0) return;
 	cam = c;
 
-	// avoid saturating the firewire bus
-	cvSetCaptureProperty(cam, CV_CAP_PROP_FPS, desired_capture_fps);
-	cout << "setting cv capture property for size to " << _width << "x" << _height << endl;
-	int res1 = cvSetCaptureProperty(cam, CV_CAP_PROP_FRAME_WIDTH, _width);
-	int res2 = cvSetCaptureProperty(cam, CV_CAP_PROP_FRAME_HEIGHT, _height);
-	printf("cvSetCaptureProperty: results %i %i\n", res1, res2 );
-
+	if ( !is_avi )
+	{
+/*		// avoid saturating the firewire bus
+		printf("setting fps to %i\n", desired_capture_fps );
+		cvSetCaptureProperty(cam, CV_CAP_PROP_FPS, desired_capture_fps);
+		cout << "setting cv capture property for size to " << _width << "x" << _height << endl;
+		int res1 = cvSetCaptureProperty(cam, CV_CAP_PROP_FRAME_WIDTH, _width);
+		int res2 = cvSetCaptureProperty(cam, CV_CAP_PROP_FRAME_HEIGHT, _height);
+		printf("cvSetCaptureProperty: results %i %i\n", res1, res2 );*/
+	}
 	// optionally downsample the video to accelerate computation
     detect_width = _detect_width;
     detect_height = _detect_height;
 
+	/*
 	printf("cvGetCaptureProperty gives: %i %i\n", (int)cvGetCaptureProperty(cam, CV_CAP_PROP_FRAME_WIDTH),
 			(int)cvGetCaptureProperty(cam, CV_CAP_PROP_FRAME_HEIGHT ) );
 
@@ -139,7 +145,7 @@ void MultiGrab::Cam::setCam(CvCapture *c, int _width, int _height, int _detect_w
 	if ( test_image != 0 )
 	{
 		printf(" width %i, height %i, depth %i, channels %i\n", test_image->width, test_image->height, test_image->depth, test_image->nChannels );
-	}
+	}*/
 
    // now mtc
     mtc = new MultiThreadCapture( cam );
@@ -174,7 +180,8 @@ MultiGrab::Cam::~Cam() {
 	//if (gray && gray != frame) cvReleaseImage(&gray);
 	if (frame_detectsize && frame_detectsize != gray && frame_detectsize != frame ) cvReleaseImage(&frame_detectsize);
 	if (mtc) delete mtc;
-	if (cam) cvReleaseCapture(&cam);
+	//if (cam) cvReleaseCapture(&cam);
+	if (cam) delete cam;
 	if (lc) delete lc;
 }
 

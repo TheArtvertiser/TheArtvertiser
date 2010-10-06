@@ -23,8 +23,9 @@
  */
 
 #include <iostream>
-#include <highgui.h>
 #include "pyrimage.h"
+
+#include "avImage.h"
 
 using namespace std;
 
@@ -54,7 +55,7 @@ void PyrImage::build()
 
 PyrImage *PyrImage::load(int level, const char *filename, int color, bool fatal) {
 
-  IplImage *im = cvLoadImage(filename, color);
+  IplImage *im = avLoadImage(filename, color);
 
   if (im == 0) {
     cerr << filename << ": unable to load image.\n";

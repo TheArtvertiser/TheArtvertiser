@@ -90,8 +90,8 @@ static void saveImageOfDetectedPoints(char * name, IplImage * image, CvPoint * p
 \endcode
 */
 
-class FBarrier;
-class FSemaphore;
+class ofxBarrier;
+class ofxSemaphore;
 
 class yape
 {
@@ -195,7 +195,7 @@ protected:
   // For the Finite State Machine:
   int score;
   int a, b;
-  int A, B0, B1, B2;
+  int A, B_0, B1, B2;
   int state;
 
   CvMat * H;
@@ -219,11 +219,11 @@ protected:
 
         bool should_stop;
 
-        FSemaphore* run_semaphore;
-        FBarrier* barrier;
+        ofxSemaphore* run_semaphore;
+        ofxBarrier* barrier;
     };
   vector<RawDetectThreadData*> raw_detect_thread_data;
-  FBarrier* shared_barrier;
+  ofxBarrier* shared_barrier;
 
 };
 

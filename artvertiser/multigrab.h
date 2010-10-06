@@ -50,7 +50,7 @@ public:
 
 	class Cam {
     public:
-		CvCapture *cam;
+		ofBaseVideo *cam;
 		int width,height;
 		int detect_width, detect_height;
 		//PlanarObjectDetector detector;
@@ -68,10 +68,10 @@ public:
 		bool getLastDrawFrame( IplImage** raw_frame, FTime* timestamp=NULL )
             { return mtc->getLastDrawFrame( raw_frame, timestamp, true /*block*/ ); }
 
-		void setCam(CvCapture *c, int capture_width, int capture_height, int detect_width, int detect_height, int desired_capture_fps );
+		void setCam(ofBaseVideo *c, int capture_width, int capture_height, int detect_width, int detect_height, int desired_capture_fps, bool is_avi );
 		bool detect( bool& frame_retrieved, bool &detect_succeeded );
 
-		Cam(CvCapture *c=0, int _width=0, int _height=0, int _detect_width=320, int _detect_height=240, int desired_capture_fps=20 )
+		Cam(bool is_avi, ofBaseVideo *c=0, int _width=0, int _height=0, int _detect_width=320, int _detect_height=240, int desired_capture_fps=20 )
 		{
 		    frame = 0;
 			width=0;
@@ -81,7 +81,7 @@ public:
 			cam=0;
 			lc=0;
 			mtc=0;
-			if (c) setCam(c, _width, _height, _detect_width, _detect_height, desired_capture_fps );
+			if (c) setCam(c, _width, _height, _detect_width, _detect_height, desired_capture_fps, is_avi );
 			gray=0;
 			frame_detectsize=0;
 		}
@@ -100,7 +100,7 @@ public:
 
 bool add_detected_homography(int n, planar_object_recognizer &detector, CamCalibration &calib);
 bool add_detected_homography(int n, planar_object_recognizer &detector, CamAugmentation &a);
-IplImage *myQueryFrame(CvCapture *capture);
-IplImage *myRetrieveFrame(CvCapture *capture);
+IplImage *myQueryFrame(ofBaseVideo *capture);
+IplImage *myRetrieveFrame(ofBaseVideo *capture);
 
 #endif
