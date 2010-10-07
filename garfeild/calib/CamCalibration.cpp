@@ -2386,12 +2386,12 @@ bool CamCalibration::OptimizeCalibrationByMinimalParameterMethod( int iter, doub
   return true;
 }
 
-void CamCalibration::PrintOptimizedResultsToFile1()
+void CamCalibration::PrintOptimizedResultsToFile1(const char* camera_c_txt, const char* camera_r_t_txt, const char* view_r_t_txt )
 {
   FILE *stream;
 
   // Print cameras intrinsic matrix to file:
-  if( (stream = fopen( "camera_c.txt", "w+t" )) != NULL ){
+  if( (stream = fopen( camera_c_txt, "w+t" )) != NULL ){
     for( int c = 0; c < (int)s_optimal.v_camera_c.size(); c++ ){
       fprintf( stream, "no: %i\n", c );
       fprintf( stream, "width: %i\n", v_camera[c]->w );
@@ -2402,7 +2402,7 @@ void CamCalibration::PrintOptimizedResultsToFile1()
   }
 
   // Print cameras extrinsic matrix to file:
-  if( (stream = fopen( "camera_r_t.txt", "w+t" )) != NULL ){
+  if( (stream = fopen( camera_r_t_txt, "w+t" )) != NULL ){
     for( int c = 0; c < (int)s_optimal.v_camera_c.size(); c++ ){
       fprintf( stream, "no: %i\n", c );
       fprintf( stream, "width: %i\n", v_camera[c]->w );
@@ -2413,7 +2413,7 @@ void CamCalibration::PrintOptimizedResultsToFile1()
   }
 
   // Print views to file:
-  if( (stream = fopen( "view_r_t.txt", "w+t" )) != NULL ){
+  if( (stream = fopen( view_r_t_txt, "w+t" )) != NULL ){
     for( int h = 0; h < (int)s_optimal.v_homography_r_t.size(); h++ ){
       if( s_optimal.v_homography_r_t[h] ){
         fprintf( stream, "no: %i\n", h );

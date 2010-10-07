@@ -94,7 +94,7 @@ public:
     bool getLastDetectFrame( IplImage** grayFrame, IplImage** rawFrame, FTime* timestamp_copy,
                                bool block_until_available = false );
 
-    /// like getLastProcessedFrame but returns the last raw frame, rather than
+    /// like getLastDetectFrame but returns the last raw frame, rather than
     /// the last processed frame; maintains a separate available state for
     /// determining whether a frame is new or not.
     ///

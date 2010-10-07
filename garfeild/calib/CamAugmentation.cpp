@@ -128,7 +128,7 @@ void CamAugmentation::ClearAll(){
   v_opt_param.clear();
 }
 
-bool CamAugmentation::LoadOptimalStructureFromFile( char* cam_c_file, char *cam_rt_file ){
+bool CamAugmentation::LoadOptimalStructureFromFile( const char* cam_c_file, const char *cam_rt_file ){
   FILE *stream;
 
   // Load camera calibration matrices into optimal structure:

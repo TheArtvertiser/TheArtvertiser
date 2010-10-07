@@ -8,6 +8,8 @@
  */
 
 #include "ofMain.h"
+#include <cv.h>
+#include "FTime.h"
 
 class Artvertiser
 {
@@ -41,6 +43,10 @@ private:
 	ofTrueTypeFont font_24;
 	ofTrueTypeFont font_32;
 	
+
+	// delay buffer for frame delay
+	list< pair<IplImage*, FTime> > frameRingBuffer;
+
 	
 };
 

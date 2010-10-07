@@ -182,7 +182,7 @@ public:
   \b Note: A projection matrix can be built by applying the following matrix multiplication:
   \b camera_c*camera_r_t*view_r_t
   */
-  void PrintOptimizedResultsToFile1();
+	void PrintOptimizedResultsToFile1(const char* camera_c_txt, const char* camera_r_t_txt, const char* view_r_t_txt );
 
   /**
   \brief Prints resulting projection matrices to many separated files.

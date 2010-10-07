@@ -234,6 +234,7 @@ int difference = 0;
 int have_proj = 0;
 int nb_light_measures=0;
 int geom_calib_nb_homography;
+bool geom_calib_in_progress=false;
 int current_cam = 0;
 int avi_init = 0;
 int augment = 1;
@@ -335,14 +336,22 @@ public:
 		}
 	}
 
-	string model_file;
-	string artvert_image_file;
 	string artist;
 	string advert;
 	string name;
 	bool artvert_is_movie;
-	string artvert_movie_file;
+	
+	void setModelFile( string f, bool skip_data_path_stuff=false ) { model_file = skip_data_path_stuff ? f : ofToDataPath( f ); }
+	void setArtvertImageFile( string f ) { artvert_image_file = ofToDataPath( f ); }
+	void setArtvertMovieFile( string f ) { artvert_movie_file = ofToDataPath( f ); }
+	
+	string getModelFile() { return model_file; }
+	string getArtvertImageFile() { return artvert_image_file; }
+	string getArtvertMovieFile() { return artvert_movie_file; }
 private:
+	string model_file;
+	string artvert_image_file;
+	string artvert_movie_file;
 	ofBaseVideo* avi_capture;
 	IplImage* avi_image;
 	bool avi_play_init;
@@ -505,6 +514,14 @@ static void drawText(IplImage *img, const char *text, CvPoint point, CvFont *fon
     cvInitFont( font, CV_FONT_HERSHEY_DUPLEX, size, size, 0, 1, CV_AA);
     //cvInitFont( font, CV_FONT_HERSHEY_PLAIN, size, size, 0, 1, CV_AA);
     cvPutText(img, text, point, font, colour);
+}
+
+static void drawTextOnscreen( ofTrueTypeFont& font, string text )
+{
+	glPushMatrix();
+	glScalef( 1, -1, 1 );
+	font.drawString( text, 0, 0 );
+	glPopMatrix();
 }
 
 // read in ROI coords from txt file into vector.
@@ -727,10 +744,10 @@ bool loadOrTrain( int new_index )
 	// switching model..
 	new_artvert_switching_in_progress = true;
     bool wants_training = model_file_needs_training[new_index];
-    string model_file = artvert_list[new_index].model_file;
+    string model_file = artvert_list[new_index].getModelFile();
 	// do we need to switch, or can we use the same model file?
 	if ( ( current_artvert_index < 0 || current_artvert_index >= artvert_list.size() ) ||
-			model_file != artvert_list[current_artvert_index].model_file )
+			model_file != artvert_list[current_artvert_index].getModelFile() )
 	{
 		// load
 	    bool trained = multi->loadOrTrainCache( wants_training, model_file.c_str(), running_on_binoculars );
@@ -1031,8 +1048,8 @@ void Artvertiser::setup( int argc, char** argv )
             if (i==argc-1)
                 usage(argv[0]);
 			Artvert a;
-			a.model_file = argv[i+1];
-			a.advert = "cmdline "+a.model_file;
+			a.setModelFile( argv[i+1], /* don't do data path stuff */ true );
+			a.advert = "cmdline "+a.getModelFile();
 			// store
          	artvert_list.push_back( a );
             printf(" -m: adding model image '%s'\n", argv[i+1] );
@@ -1163,10 +1180,10 @@ void Artvertiser::setup( int argc, char** argv )
             {
                 data.pushTag("advert", i);
 				Artvert a;
-                a.model_file = data.getValue( "model_filename", "model.bmp" );
+                a.setModelFile( data.getValue( "model_filename", "model.bmp" ) );
 				a.advert = data.getValue( "advert", "unknown advert" );
 				int num_artverts = data.getNumTags( "artvert" );
-            	printf("   -ml: got advert, model file '%s', advert '%s', %i artverts\n", a.model_file.c_str(), a.advert.c_str(), num_artverts );
+            	printf("   -ml: got advert, model file '%s', advert '%s', %i artverts\n", a.getModelFile().c_str(), a.advert.c_str(), num_artverts );
 				for ( int j=0; j<num_artverts; j++ )
 				{
 					data.pushTag("artvert", j );
@@ -1176,15 +1193,15 @@ void Artvertiser::setup( int argc, char** argv )
 					{
 						// load a movie
 						a.artvert_is_movie = true;
-						a.artvert_movie_file = data.getValue("movie_filename", "artvertmovie1.mp4" );
+						a.setArtvertMovieFile( data.getValue("movie_filename", "artvertmovie1.mp4" ) );
 					}
 					else
 					{
 						// load an image
-						a.artvert_image_file = data.getValue( "image_filename", "artvert1.png" );
+						a.setArtvertImageFile( data.getValue( "image_filename", "artvert1.png" ) );
 					}
                 	printf("     %i: %s:%s:%s\n", j, a.name.c_str(), a.artist.c_str(),
-                    	   a.artvert_is_movie?(a.artvert_movie_file+"( movie)").c_str() : a.artvert_image_file.c_str() );
+                    	   a.artvert_is_movie?(a.getArtvertMovieFile()+"( movie)").c_str() : a.getArtvertImageFile().c_str() );
 					
 	                artvert_list.push_back( a );
 					data.popTag();
@@ -1198,12 +1215,13 @@ void Artvertiser::setup( int argc, char** argv )
             printf("   -ml: error reading '%s': couldn't find 'artverts' tag\n", model_file_list_file );
         }
     }
-	
+
     // check if model file list is empty
     if ( artvert_list.empty() )
     {
         // add default
 		Artvert a;
+		a.setModelFile( "model.bmp" );
         artvert_list.push_back( a );
     }
 	
@@ -1287,8 +1305,6 @@ static bool drawBackground(IplTexture *tex)
 	if ( !tex->getImage() )
 		return false;
     //printf("drawBackground: drawing frame with timestamp %f\n", raw_frame_timestamp.ToSeconds() );
-
-	avSaveImage("drawBackground.jpg", tex->getImage() );
 
     IplImage *im = tex->getIm();
     int w = im->width-1;
@@ -1427,40 +1443,62 @@ static void geomCalibDraw(void)
     detector.unlock();
 
 }
-
+*/
 static void geomCalibEnd()
 {
-
-    if (!multi->model.augm.LoadOptimalStructureFromFile((char*)"camera_c.txt", (char*)"camera_r_t.txt"))
-    {
-        cout << "failed to load camera calibration.\n";
+	if (calib->Calibrate(
+						 50, // max hom
+						 (multi->cams.size() > 1 ? 1:2),   // padding or random
+						 (multi->cams.size() > 1 ? 0:3),
+						 1,   // padding ratio 1/2
+						 0,
+						 0,
+						 0.0078125,	//alpha
+						 0.9,		//beta
+						 0.001953125,//gamma
+						 10,	  // iter
+						 0.05, //eps
+						 3   //postfilter eps
+						 ))
+	{
+		calib->PrintOptimizedResultsToFile1(ofToDataPath("camera_c.txt").c_str(),
+											ofToDataPath("camera_r_t.txt").c_str(),
+											ofToDataPath("view_r_t.txt").c_str());
+	}
+	if (!multi->model.augm.LoadOptimalStructureFromFile(ofToDataPath("camera_c.txt").c_str(), ofToDataPath("camera_r_t.txt").c_str()))
+	{
+		cout << "failed to load camera calibration.\n";
         exit(-1);
     }
-    glutIdleFunc(0);
-    // not allowed in glut 3.0 
-	// glutDisplayFunc(0);
     delete calib;
     calib=0;
+	geom_calib_in_progress = false;
 }
 
- static void geomCalibIdle(void)
+/// returns true when done
+static bool geomCalibIdle(void)
 {
     // detect the calibration object in every image
     // (this loop could be paralelized)
-    int nbdet=0;
+
+	/*
+	 int nbdet=0;
+	bool frame_retrieved = false;
+	bool dummy;
+	bool frame_retrieved_and_ok = multi->cams[0]->detect( frame_retrieved, dummy );
+	if ( !frame_retrieved_and_ok )
+	{
+		usleep( 10000 );
+		return false;
+	}
+	nbdet++;*/
+	int nbdet=0;
     for (int i=0; i<multi->cams.size(); ++i)
     {
         bool dummy = false;
         if (multi->cams[i]->detect(dummy, dummy)) nbdet++;
     }
-
-
-    if(!raw_frame_texture) raw_frame_texture = new IplTexture;
-    IplImage* raw_frame = raw_frame_texture->getImage();
-    multi->cams[current_cam]->getLastDrawFrame( &raw_frame );
-    raw_frame_texture->setImage(raw_frame);
-    //raw_frame_texture->setImage(multi->cams[current_cam]->frame);
-
+	
     if (nbdet>0)
     {
         for (int i=0; i<multi->cams.size(); ++i)
@@ -1481,32 +1519,21 @@ static void geomCalibEnd()
 
     if (geom_calib_nb_homography>=150)
     {
-        if (calib->Calibrate(
-                    50, // max hom
-                    (multi->cams.size() > 1 ? 1:2),   // padding or random
-                    (multi->cams.size() > 1 ? 0:3),
-                    1,   // padding ratio 1/2
-                    0,
-                    0,
-                    0.0078125,	//alpha
-                    0.9,		//beta
-                    0.001953125,//gamma
-                    10,	  // iter
-                    0.05, //eps
-                    3   //postfilter eps
-                ))
-        {
-            calib->PrintOptimizedResultsToFile1();
-			geomCalibEnd();
-            return;
-        }
+		return true;
     }
-    glutPostRedisplay();
+	
+	// not finished yet
+	return false;
 }
+
 
 static void geomCalibStart(bool cache)
 {
-    if (cache && multi->model.augm.LoadOptimalStructureFromFile((char*)"camera_c.txt", (char*)"camera_r_t.txt"))
+	if ( geom_calib_in_progress )
+		return;
+	
+    if (cache && multi->model.augm.LoadOptimalStructureFromFile(ofToDataPath("camera_c.txt").c_str(), 
+																ofToDataPath("camera_r_t.txt").c_str()))
     {
         return;
     }
@@ -1520,324 +1547,229 @@ static void geomCalibStart(bool cache)
     }
 
     geom_calib_nb_homography=0;
-    glutDisplayFunc(geomCalibDraw);
-    glutIdleFunc(geomCalibIdle);
+	
+	geom_calib_in_progress = true;
 }
-*/
+
+
 
 
 void Artvertiser::drawAugmentation()
 {
 
-    // we know that im is not NULL already
-//    IplImage *im = multi->model.image;
+	// fetch interpolated position
+	CvMat* world = cvCreateMat( 3, 4, CV_64FC1 );
 
-    //for ( int tracked_or_raw=0; tracked_or_raw<2; tracked_or_raw++ )
-    {
+	//printf(". now we want interpolated pose for %f\n", raw_frame_timestamp.ToSeconds() );
+	if ( track_kalman )
+		matrix_tracker.getInterpolatedPoseKalman( world,
+			multi->cams[0]->getFrameIndexForTime( raw_frame_timestamp ) );
+	else
+		matrix_tracker.getInterpolatedPose( world, raw_frame_timestamp );
 
-        // Fetch object -> image, world->image and world -> object matrices
+	// we make our own project matrix:
+	// fetch the pre-projection matrix from model.augm
+	CvMat* proj = multi->model.augm.GetPreProjectionMatrix(current_cam);
+	// multiply by the object-to-world matrix
+	CamCalibration::Mat3x4Mul( proj, world, proj );
 
-        CvMat *world;
-        /*if ( tracked_or_raw == 1 )
-        {
-            // fetch from model:
-            world = multi->model.augm.GetObjectToWorld();
-        }
-        else*/
-        {
+	Mat3x4 moveObject, rot, obj2World, movedRT_;
+	moveObject.setTranslate( multi->model.getImageWidth()/2, multi->model.getImageHeight()/2,
+							-120*3/4);
+	// apply rotation
+	rot.setRotate(Vec3(1,0,0),2*M_PI*180.0/360.0);
+	//rot.setIdentity();
+	moveObject.mul(rot);
+	//moveObject.scale
 
-            // or fetch interpolated position
-            world = cvCreateMat( 3, 4, CV_64FC1 );
-
-            //printf(". now we want interpolated pose for %f\n", raw_frame_timestamp.ToSeconds() );
-            if ( track_kalman )
-                matrix_tracker.getInterpolatedPoseKalman( world,
-                    multi->cams[0]->getFrameIndexForTime( raw_frame_timestamp ) );
-            else
-                matrix_tracker.getInterpolatedPose( world, raw_frame_timestamp );
-        }
-
-        /*// apply a scale factor
-        float scalef = 1.0f;
-        for ( int i=0; i<3; i++ )
-            cvmSet(world, i, i, scalef*cvmGet( world, i, i ));*/
+	CvMat cvMoveObject = cvMat(3,4,CV_64FC1, moveObject.m);
+	CvMat movedRT=cvMat(3,4,CV_64FC1,movedRT_.m);
 
 
-        // instead of this:
-           /*CvMat *proj = multi->model.augm.GetProjectionMatrix(current_cam);
-           CvMat *old_proj = multi->model.augm.GetProjectionMatrix(current_cam);*/
-        // we make our own project matrix:
-        // fetch the pre-projection matrix from model.augm
-        CvMat* proj = multi->model.augm.GetPreProjectionMatrix(current_cam);
-        // multiply by the object-to-world matrix
-        CamCalibration::Mat3x4Mul( proj, world, proj );
-
-        Mat3x4 moveObject, rot, obj2World, movedRT_;
-        moveObject.setTranslate( multi->model.getImageWidth()/2, multi->model.getImageHeight()/2,
-                                -120*3/4);
-        // apply rotation
-        rot.setRotate(Vec3(1,0,0),2*M_PI*180.0/360.0);
-        //rot.setIdentity();
-        moveObject.mul(rot);
-        //moveObject.scale
-
-        CvMat cvMoveObject = cvMat(3,4,CV_64FC1, moveObject.m);
-        CvMat movedRT=cvMat(3,4,CV_64FC1,movedRT_.m);
-
-
-        // pose only during movement
-        //if (pixel_shift >= 200 || !have_proj)
-        if ( true )
-        {
-            // memcpy or vectorisation speedup?
-            for( int i = 0; i < 3; i++ )
-            {
-                for( int j = 0; j < 4; j++ )
-                {
-                    a_proj[i][j] = cvmGet( proj, i, j );
-                    obj2World.m[i][j] = cvmGet(world, i, j);
-
-                }
-            }
-            have_proj = 1;
-            memcpy(old_a_proj, a_proj, sizeof(a_proj));
-        }
-        else // copy last known good projection over current
-        {
-            memcpy(a_proj, old_a_proj, sizeof(old_a_proj));
-        }
-        // dump the matrix
-        /*
-        printf("found matrix: %8.4f %8.4f %8.4f %8.4f\n"
-               "              %8.4f %8.4f %8.4f %8.4f\n"
-               "              %8.4f %8.4f %8.4f %8.4f\n",
-               a_proj[0][0], a_proj[0][1], a_proj[0][2], a_proj[0][3],
-               a_proj[1][0], a_proj[1][1], a_proj[1][2], a_proj[1][3],
-               a_proj[2][0], a_proj[2][1], a_proj[2][2], a_proj[2][3]
-                );*/
-
-
-        CamCalibration::Mat3x4Mul( world, &cvMoveObject, &movedRT);
-        // translate into OpenGL PROJECTION and MODELVIEW matrices
-        PerspectiveCamera c;
-        //c.loadTdir(a_proj, multi->cams[0]->frame->width, multi->cams[0]->frame->height);
-        c.loadTdir(a_proj, multi->cams[0]->detect_width, multi->cams[0]->detect_height );
-        c.flip();
-        c.setPlanes(100,1000000); // near/far clip planes
-        cvReleaseMat(&proj);
-
-        // must set the model view after drawing the background.
-        c.setGlProjection();
-        c.setGlModelView();
-
-        /*! this is the beginning of prototype code for an occlusion mask built
-         *  by comparison of the tracked plane with that of the model image
-
-        // create a copy of frame texture and warp to model image perspective
-        CvPoint2D32f *c2 = new CvPoint2D32f[4];
-        // update corner points of ROI in pixel space
-        c2[0].x = cvRound(multi->cams[0]->detector.detected_u_corner1);
-        c2[0].y = cvRound(multi->cams[0]->detector.detected_v_corner1);
-        c2[1].x = cvRound(multi->cams[0]->detector.detected_u_corner2);
-        c2[1].y = cvRound(multi->cams[0]->detector.detected_v_corner2);
-        c2[2].x = cvRound(multi->cams[0]->detector.detected_u_corner3);
-        c2[2].y = cvRound(multi->cams[0]->detector.detected_v_corner3);
-        c2[3].x = cvRound(multi->cams[0]->detector.detected_u_corner4);
-        c2[3].y = cvRound(multi->cams[0]->detector.detected_v_corner4);
-
-        CvMat* mmat = cvCreateMat(3,3, CV_32FC1);
-        IplImage *warped = cvCreateImage(cvSize(model_image->width, model_image->height), 8, 3);
-        mmat = cvGetPerspectiveTransform(c2, c1, mmat);
-        cvWarpPerspective(raw_frame_texture->getIm(), warped, mmat);
-        cvReleaseMat(&mmat);
-
-        // find difference between model image and frame
-        IplImage *i1=cvCreateImage(cvSize(im->width,im->height),im->depth,1);
-        IplImage *i2=cvCreateImage(cvSize(im->width,im->height),im->depth,1);
-        IplImage *diff=cvCreateImage(cvSize(im->width,im->height),im->depth,1);
-        IplImage *display=cvCreateImage(cvSize(im->width,im->height),im->depth,1);
-
-        cvCvtColor(im, i1,CV_BGR2GRAY);
-        cvCvtColor(warped, i2,CV_BGR2GRAY);
-        cvAbsDiff(i2,i1,diff);
-        cvThreshold(diff, display, 35, 255, CV_THRESH_BINARY);
-
-        cvReleaseImage(&warped);
-        avSaveImage("checkdiff.png", display);
-        */
-
-        /* circles at corners of ROI. useful for debugging.
-        cvCircle(raw_frame_texture->getIm(), c1, 10, CV_RGB(255, 0, 0), 2);
-        cvCircle(raw_frame_texture->getIm(), c2, 10, CV_RGB(255, 0, 0), 2);
-        cvCircle(raw_frame_texture->getIm(), c3, 10, CV_RGB(255, 0, 0), 2);
-        cvCircle(raw_frame_texture->getIm(), c4, 10, CV_RGB(255, 0, 0), 2);
-
-        tex = new IplTexture;
-        tex->setImage(raw_frame_texture->getIm());
-        drawBackground(tex);
-        */
-
-
-
-#ifndef DEBUG_SHADER
-
-        glEnable(GL_DEPTH_TEST);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glDisable(GL_CULL_FACE);
-        // multiply texture colour by surface colour of poly
-        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-        glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-
-        if (avi_play == true)
-        {
-            //IplImage *avi_frame = 0;
-            IplImage *avi_image = 0;
-            avi_image = avGetFrame( avi_capture );
-            //avi_image = cvCreateImage(cvSize(video_width/2, video_height/2), 8, 3);
-            //cvResize(avi_frame, avi_image, 0);
-            //avi_image->origin = avi_frame->origin;
-            GLenum format = IsBGR(avi_image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
-
-            if (!avi_play_init)
-            {
-                glGenTextures(1, &imageID);
-                glBindTexture(GL_TEXTURE_2D, imageID);
-                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, avi_image->width, avi_image->height, 0, format, GL_UNSIGNED_BYTE, avi_image->imageData);
-                avi_play_init=true;
-            }
-            else
-            {
-                glBindTexture(GL_TEXTURE_2D, imageID);
-                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, avi_image->width, avi_image->height, format, GL_UNSIGNED_BYTE, avi_image->imageData);
-            }
-        }
-        else
-        {
-			if ( current_artvert_index >= 0 &&
-				   	current_artvert_index < artvert_list.size() )
+	// pose only during movement
+	//if (pixel_shift >= 200 || !have_proj)
+	if ( true )
+	{
+		// memcpy or vectorisation speedup?
+		for( int i = 0; i < 3; i++ )
+		{
+			for( int j = 0; j < 4; j++ )
 			{
-				glBindTexture(GL_TEXTURE_2D, imageID);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-				IplImage* image = artvert_list.at(current_artvert_index).getArtvertImage();
-				GLenum format = IsBGR(image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->width, image->height, 0, format, GL_UNSIGNED_BYTE, image->imageData);
+				a_proj[i][j] = cvmGet( proj, i, j );
+				obj2World.m[i][j] = cvmGet(world, i, j);
+
 			}
-        }
+		}
+		have_proj = 1;
+		memcpy(old_a_proj, a_proj, sizeof(a_proj));
+	}
+	else // copy last known good projection over current
+	{
+		memcpy(a_proj, old_a_proj, sizeof(old_a_proj));
+	}
+	// dump the matrix
+	/*
+	printf("found matrix: %8.4f %8.4f %8.4f %8.4f\n"
+		   "              %8.4f %8.4f %8.4f %8.4f\n"
+		   "              %8.4f %8.4f %8.4f %8.4f\n",
+		   a_proj[0][0], a_proj[0][1], a_proj[0][2], a_proj[0][3],
+		   a_proj[1][0], a_proj[1][1], a_proj[1][2], a_proj[1][3],
+		   a_proj[2][0], a_proj[2][1], a_proj[2][2], a_proj[2][3]
+			);*/
 
-        glEnable(GL_TEXTURE_2D);
 
-        glHint(GL_POLYGON_SMOOTH, GL_NICEST);
-        glEnable(GL_POLYGON_SMOOTH);
+	CamCalibration::Mat3x4Mul( world, &cvMoveObject, &movedRT);
+	// translate into OpenGL PROJECTION and MODELVIEW matrices
+	PerspectiveCamera c;
+	//c.loadTdir(a_proj, multi->cams[0]->frame->width, multi->cams[0]->frame->height);
+	c.loadTdir(a_proj, multi->cams[0]->detect_width, multi->cams[0]->detect_height );
+	c.flip();
+	c.setPlanes(100,1000000); // near/far clip planes
+	cvReleaseMat(&proj);
 
+	// must set the model view after drawing the background.
+	c.setGlProjection();
+	c.setGlModelView();
+
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	// multiply texture colour by surface colour of poly
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 /*
-#ifndef DEBUG_SHADER
-        // apply the object transformation matrix
-        Mat3x4 w2e(c.getWorldToEyeMat());
-        w2e.mul(moveObject);
-        c.setWorldToEyeMat(w2e);
-        c.setGlModelView();
-#endif
 
-        if (multi->model.map.isReady())
-        {
-            glDisable(GL_LIGHTING);
-#ifdef DEBUG_SHADER
-            multi->model.map.enableShader(current_cam, world);
-#else
-            multi->model.map.enableShader(current_cam, &movedRT);
-#endif
-        }
+	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+ */
+	
+	if (avi_play == true)
+	{
+		//IplImage *avi_frame = 0;
+		IplImage *avi_image = 0;
+		avi_image = avGetFrame( avi_capture );
+		//avi_image = cvCreateImage(cvSize(video_width/2, video_height/2), 8, 3);
+		//cvResize(avi_frame, avi_image, 0);
+		//avi_image->origin = avi_frame->origin;
+		GLenum format = IsBGR(avi_image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
 
-*/
-        glColor4f(1.0, 1.0, 1.0, fade);
+		if (!avi_play_init)
+		{
+			glGenTextures(1, &imageID);
+			glBindTexture(GL_TEXTURE_2D, imageID);
+			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, avi_image->width, avi_image->height, 0, format, GL_UNSIGNED_BYTE, avi_image->imageData);
+			avi_play_init=true;
+		}
+		else
+		{
+			glBindTexture(GL_TEXTURE_2D, imageID);
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, avi_image->width, avi_image->height, format, GL_UNSIGNED_BYTE, avi_image->imageData);
+		}
+	}
+	else
+	{
+		if ( current_artvert_index >= 0 &&
+				current_artvert_index < artvert_list.size() )
+		{
+			glBindTexture(GL_TEXTURE_2D, imageID);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			IplImage* image = artvert_list.at(current_artvert_index).getArtvertImage();
+			GLenum format = IsBGR(image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->width, image->height, 0, format, GL_UNSIGNED_BYTE, image->imageData);
+		}
+	}
 
-        glBegin(GL_QUADS);
-        glTexCoord2f(0, 0);
-        glVertex3f(artvert_roi_vec[0], artvert_roi_vec[1], 0);
-        glTexCoord2f(1, 0);
-        glVertex3f(artvert_roi_vec[2], artvert_roi_vec[3], 0);
-        glTexCoord2f(1, 1);
-        glVertex3f(artvert_roi_vec[4], artvert_roi_vec[5], 0);
-        glTexCoord2f(0, 1);
-        glVertex3f(artvert_roi_vec[6], artvert_roi_vec[7], 0);
-        glEnd();
+	glEnable(GL_TEXTURE_2D);
 
-        glDisable(GL_TEXTURE_2D);
+	glHint(GL_POLYGON_SMOOTH, GL_NICEST);
+	glEnable(GL_POLYGON_SMOOTH);
 
-        /*! 'label' is a boolean set by the right mouse button and toggles the
-         * in-scene artvert label.
-         */
 
-        if (label)
-        {
-            glBegin(GL_LINE_LOOP);
-            glColor3f(0.0, 1.0, 0.0);
-            glVertex3f(roi_vec[0]-10, roi_vec[1]-10, 0);
-            glVertex3f(roi_vec[2]+10, roi_vec[3]-10, 0);
-            glVertex3f(roi_vec[4]+10, roi_vec[5]+10, 0);
-            glVertex3f(roi_vec[6]-10, roi_vec[7]+10, 0);
-            glVertex3f(roi_vec[0]-10, roi_vec[1]-10, 0);
-            glEnd();
+	glColor4f(1.0, 1.0, 1.0, fade);
 
-            glTranslatef(roi_vec[2]+12, roi_vec[3], 0);
-            glRotatef(180, 1.0, 0.0, 0.0);
-            glRotatef(-45, 0.0, 1.0, 0.0);
-            glColor4f(0.0, 1.0, 0.0, 1);
+	glBegin(GL_QUADS);
+	glTexCoord2f(0, 0);
+	glVertex3f(artvert_roi_vec[0], artvert_roi_vec[1], 0);
+	glTexCoord2f(1, 0);
+	glVertex3f(artvert_roi_vec[2], artvert_roi_vec[3], 0);
+	glTexCoord2f(1, 1);
+	glVertex3f(artvert_roi_vec[4], artvert_roi_vec[5], 0);
+	glTexCoord2f(0, 1);
+	glVertex3f(artvert_roi_vec[6], artvert_roi_vec[7], 0);
+	glEnd();
 
-            glBegin(GL_LINE_LOOP);
-            glVertex3f(0, 10, -.2);
-            glVertex3f(150, 10, -.2);
-            glVertex3f(150, -60, -.2);
-            glVertex3f(0, -60, -.2);
-            glEnd();
+	glDisable(GL_TEXTURE_2D);
 
-            glColor4f(0.0, 1.0, 0.0, .5);
+	// 'label' is a boolean set by the right mouse button and toggles the
+	//in-scene artvert label.
 
-            glBegin(GL_QUADS);
-            glVertex3f(0, 10, -.2);
-            glVertex3f(150, 10, -.2);
-            glVertex3f(150, -60, -.2);
-            glVertex3f(0, -60, -.2);
-            glEnd();
+	if (label)
+	{
+		printf("drawing label\n");
+		glBegin(GL_LINE_LOOP);
+		glColor3f(0.0, 1.0, 0.0);
+		glVertex3f(roi_vec[0]-10, roi_vec[1]-10, 0);
+		glVertex3f(roi_vec[2]+10, roi_vec[3]-10, 0);
+		glVertex3f(roi_vec[4]+10, roi_vec[5]+10, 0);
+		glVertex3f(roi_vec[6]-10, roi_vec[7]+10, 0);
+		glVertex3f(roi_vec[0]-10, roi_vec[1]-10, 0);
+		glEnd();
 
-            // render the text in the label
-            glColor4f(1.0, 1.0, 1.0, 1);
-			font_12.drawString( artverts[cnt].artvert, 0, 0 );
-            glTranslatef(0, -12, 0);
-			font_12.drawString( artverts[cnt].date, 0, 0 );
-            glTranslatef(0, -12, 0);
-			font_12.drawString( artverts[cnt].author, 0, 0 );
-            glTranslatef(0, -12, 0);
-			font_12.drawString( artverts[cnt].advert, 0, 0 );
-            glTranslatef(0, -12, 0);
-			font_12.drawString( artverts[cnt].street, 0, 0 );
-        }
+		glTranslatef(roi_vec[2]+12, roi_vec[3], 0);
+		glRotatef(180, 1.0, 0.0, 0.0);
+		glRotatef(-45, 0.0, 1.0, 0.0);
+		glColor4f(0.0, 1.0, 0.0, 1);
 
-#else
-#endif
-        //glEnd();
+		glBegin(GL_LINE_LOOP);
+		glVertex3f(0, 10, -.2);
+		glVertex3f(150, 10, -.2);
+		glVertex3f(150, -60, -.2);
+		glVertex3f(0, -60, -.2);
+		glEnd();
 
-        /*cvReleaseMat(&world);
-        {
-            CvScalar c =cvGet2D(multi->model.image, multi->model.image->height/2, multi->model.image->width/2);
-            glColor3d(c.val[2], c.val[1], c.val[0]);
-        }
-        if (multi->model.map.isReady())
-            multi->model.map.disableShader();
-        else
-            glDisable(GL_LIGHTING);*/
+		glColor4f(0.0, 1.0, 0.0, .5);
 
-        if ( avi_play == true  )
-        {
-            cvReleaseImage(&avi_image);
-            cvReleaseImage(&avi_frame);
-        }
-    }
+		glBegin(GL_QUADS);
+		glVertex3f(0, 10, -.2);
+		glVertex3f(150, 10, -.2);
+		glVertex3f(150, -60, -.2);
+		glVertex3f(0, -60, -.2);
+		glEnd();
+
+		// render the text in the label
+		glColor4f(1.0, 1.0, 1.0, 1);
+		drawTextOnscreen( font_12, artverts[cnt].artvert );
+		glTranslatef(0, -12, 0);
+		drawTextOnscreen( font_12, artverts[cnt].date );
+		glTranslatef(0, -12, 0);
+		drawTextOnscreen( font_12, artverts[cnt].author );
+		glTranslatef(0, -12, 0);
+		drawTextOnscreen( font_12, artverts[cnt].advert );
+		glTranslatef(0, -12, 0);
+		drawTextOnscreen( font_12, artverts[cnt].street );
+	}
+
+
+	/*cvReleaseMat(&world);
+	{
+		CvScalar c =cvGet2D(multi->model.image, multi->model.image->height/2, multi->model.image->width/2);
+		glColor3d(c.val[2], c.val[1], c.val[0]);
+	}
+	if (multi->model.map.isReady())
+		multi->model.map.disableShader();
+	else
+		glDisable(GL_LIGHTING);*/
+/*
+	if ( avi_play == true  )
+	{
+		cvReleaseImage(&avi_image);
+		cvReleaseImage(&avi_frame);
+	}*/
+
 
 }
 
@@ -1885,7 +1817,7 @@ void Artvertiser::draw()
             }
             else
                 fade = show_status?MAX_FADE_SHOW:MAX_FADE_NORMAL;
-            //printf("frame_ok: fade %f\n", fade );
+            //printf("frame ok: fade %f\n", fade );
         }
         else
         {
@@ -1899,9 +1831,8 @@ void Artvertiser::draw()
                 else
                     fade = 0.0f;
             }
-            //printf("frame_ok: fade %f, elapsed since last caught %f\n", fade, elapsed_since_last_caught );
+            //printf("frame lost: fade %f, elapsed since last caught %f\n", fade, elapsed_since_last_caught );
         }
-        //printf("frame %s, lost_count %f -> fade pct %4.2f, fade %4.2f\n", frame_ok?"y":"n", frame_lost_count, fade_pct, fade );
 
         // draw augmentation
         if ( fade > 0 && augment == 1)
@@ -1921,12 +1852,12 @@ void Artvertiser::draw()
         glTranslatef(-.98, 0.9, 0.0);
         glScalef(.003, .003, .003);
         glColor4f(1.0, 1.0, 1.0, 1);
-		font_32.drawString("the artvertiser " ARTVERTISER_VERSION,0,0);
+		drawTextOnscreen( font_32, "the artvertiser " ARTVERTISER_VERSION);
         glTranslatef(0, -(video_height+30), 0);
         glColor4f(1.0, 1.0, 1.0, .6);
         //ftglFont->FaceSize(16);
         //ftglFont->Render(date(now).c_str());
-        if (frame_ok == 1 and (now/1000)%2== 0)
+        if (frame_ok and (now/1000)%2== 0)
         {
             glTranslatef(video_width-295, video_height+35, 0);
             glColor4f(0.0, 1.0, 0.0, .8);
@@ -1936,16 +1867,17 @@ void Artvertiser::draw()
             glVertex3f(140, 20, 0);
             glEnd();
             glTranslatef(70, 5, 0);
-			font_16.drawString( "tracking", 0, 0 );
+			drawTextOnscreen( font_16, "tracking" );
         }
 
 
-        if ( show_status )
+
+        if ( show_status || geom_calib_in_progress )
         {
-            //printf("draw status\n");
-
             drawDetectedPoints( raw_frame_texture->getIm()->width, raw_frame_texture->getIm()->height );
-
+		}
+		if ( show_status )
+		{
             char detect_fps_string[256];
             sprintf(detect_fps_string, "draw fps: %4.2f\ndetection fps: %4.2f", draw_fps, detection_fps );
             drawGlutString( detect_fps_string, 1.0f, 0.2f, 0.2f, 0.7, 0.94 );
@@ -2088,71 +2020,92 @@ static void* detectionThreadFunc( void* _data )
 
     FTime detection_thread_timer;
     detection_thread_timer.SetNow();
-
+	
     while ( !detection_thread_should_exit )
     {
         PROFILE_THIS_BLOCK("detection_thread");
 
-		new_artvert_requested_lock.lock();
-        if ( new_artvert_requested )
-        {
-            // no longer draw
-            frame_ok = false;
-            // go with the loading
-            bool res = loadOrTrain(new_artvert_requested_index); 
-			if ( res )
-				multi->model.augm.LoadOptimalStructureFromFile((char*)"camera_c.txt", (char*)"camera_r_t.txt");
-            new_artvert_requested = false;
-        }
-		new_artvert_requested_lock.unlock();
+		if ( geom_calib_in_progress )
+		{
+			bool finished = geomCalibIdle();
+			if ( finished )
+			{
+				geomCalibEnd();
+			}
+			if ( detection_thread_should_exit )
+				break;
+		}
+		else
+		{
+			new_artvert_requested_lock.lock();
+			if ( new_artvert_requested )
+			{
+				// no longer draw
+				printf("new_artvert_requested:frame not ok\n" );
+				frame_ok = false;
+				// go with the loading
+				bool res = loadOrTrain(new_artvert_requested_index); 
+				new_artvert_requested = false;
+				if ( res )
+				{
+					geomCalibStart( !redo_geom );
+				}
+			}
+			new_artvert_requested_lock.unlock();
+			if ( geom_calib_in_progress )
+				continue;
 
-        bool frame_retrieved = false;
-        bool frame_retrieved_and_ok = multi->cams[0]->detect( frame_retrieved, frame_ok );
-        if( frame_retrieved )
-        {
-            double elapsed = detection_thread_timer.Update();
-            detection_fps = (detection_fps*0.0 + (1.0/elapsed))/1.0;
-        }
-        if ( !frame_retrieved_and_ok )
-        {
-            PROFILE_THIS_BLOCK("sleep till next");
-            usleep( 10000 );
-            continue;
-        }
+			bool frame_retrieved = false;
+			bool frame_retrieved_and_ok = multi->cams[0]->detect( frame_retrieved, frame_ok );
+			//printf( "detect returned frame_ok of %c\n", frame_ok?'y':'n' );
+			if( frame_retrieved )
+			{
+				double elapsed = detection_thread_timer.Update();
+				detection_fps = (detection_fps*0.0 + (1.0/elapsed))/1.0;
+			}
+			if ( !frame_retrieved_and_ok )
+			{
+				PROFILE_THIS_BLOCK("sleep till next");
+				usleep( 10000 );
+				continue;
+			}
 
-        if ( detection_thread_should_exit )
-            break;
+			if ( detection_thread_should_exit )
+				break;
 
-        multi->model.augm.Clear();
-        if (multi->cams[0]->detector.object_is_detected)
-        {
-            add_detected_homography(0, multi->cams[0]->detector, multi->model.augm);
-        }
-        else
-        {
-            multi->model.augm.AddHomography();
-        }
+			multi->model.augm.Clear();
+			if (multi->cams[0]->detector.object_is_detected)
+			{
+				add_detected_homography(0, multi->cams[0]->detector, multi->model.augm);
+			}
+			else
+			{
+				multi->model.augm.AddHomography();
+			}
 
-        frame_ok = multi->model.augm.Accomodate(4, 1e-4);
+			printf("trying from frame_ok %c to accomodate model. succeeded? ", frame_ok?'y':'n' );
+			frame_ok = multi->model.augm.Accomodate(4, 1e-4);
+			printf("%c\n", frame_ok?'y':'n' );
 
-        if (frame_ok)
-        {
-            // fetch surface normal in world coordinates
-            CvMat *mat = multi->model.augm.GetObjectToWorld();
-            float normal[3];
-            for (int j=0; j<3; j++)
-                normal[j] = cvGet2D(mat, j, 2).val[0];
+			if (frame_ok)
+			{
+				// fetch surface normal in world coordinates
+				CvMat *mat = multi->model.augm.GetObjectToWorld();
+				float normal[3];
+				for (int j=0; j<3; j++)
+					normal[j] = cvGet2D(mat, j, 2).val[0];
 
-            // continue to track
-            if ( track_kalman )
-                matrix_tracker.addPoseKalman( mat, multi->cams[0]->getFrameIndexForTime(
-                        multi->cams[0]->getLastProcessedFrameTimestamp() ) );
-            else
-                matrix_tracker.addPose( mat, multi->cams[0]->getLastProcessedFrameTimestamp() );
+				// continue to track
+				if ( track_kalman )
+					matrix_tracker.addPoseKalman( mat, multi->cams[0]->getFrameIndexForTime(
+							multi->cams[0]->getLastProcessedFrameTimestamp() ) );
+				else
+					matrix_tracker.addPose( mat, multi->cams[0]->getLastProcessedFrameTimestamp() );
 
-            cvReleaseMat(&mat);
+				cvReleaseMat(&mat);
 
-        }
+			}
+		}
     }
 
     printf("detection thread exiting\n");
@@ -2189,7 +2142,6 @@ void Artvertiser::update()
         IplImage* captured_frame;
         multi->cams[current_cam]->getLastDrawFrame( &captured_frame, &raw_frame_timestamp );
 
-        static list< pair<IplImage*, FTime> > frameRingBuffer;
         while ( frameRingBuffer.size()<VIDEO_DELAY_FRAMES )
         {
             IplImage* first_frame =  cvCreateImage( cvGetSize( captured_frame ), captured_frame->depth, captured_frame->nChannels );
@@ -2363,7 +2315,7 @@ void Artvertiser::drawMenu()
 	if ( !menu_is_showing )
 	{
 		// draw switching text?
-		if ( new_artvert_switching_in_progress )
+		if ( new_artvert_switching_in_progress || geom_calib_in_progress )
 		{
 			glMatrixMode(GL_PROJECTION);
 			glLoadIdentity();
@@ -2381,13 +2333,20 @@ void Artvertiser::drawMenu()
 				char* ptr = strtok( message,"\n");
 				while( ptr != NULL) 
 				{
-        			font_24.drawString( ptr, 0, 0 );
+        			drawTextOnscreen( font_24, ptr );
 	        		glTranslatef(0, -26, 0 );
 					ptr = strtok( NULL, "\n" );
 				}
 			}
+			else if ( geom_calib_in_progress )
+			{
+				char buf[256];
+				sprintf(buf, "geometric calibration: %.2f%%\n", 
+						100.0f*geom_calib_nb_homography/150.0f );
+				drawTextOnscreen( font_24, buf );
+			}
 			else
-				font_24.drawString("changing artvert...", 0, 0);
+				drawTextOnscreen (font_24, "changing artvert..." );
 			
 
 		}
@@ -2403,11 +2362,11 @@ void Artvertiser::drawMenu()
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 	glEnable(GL_BLEND);
-    glTranslatef(-.85, 0.65, 0.0);
+    glTranslatef(-.93, 0.65, 0.0);
     glScalef(.003, .003, .003);
     glColor4f(.25, 1.0, 0.0, 1);
 
-    font_24.drawString("Select artvert:",0,0);
+    drawTextOnscreen( font_16, "Select artvert:" );
     glTranslatef( 0, -26, 0 );
 
 	for ( int i=0; i<artvert_list.size(); i++ )
@@ -2415,7 +2374,9 @@ void Artvertiser::drawMenu()
 		string advert = artvert_list[i].advert;
 		string name = artvert_list[i].name;
 		string artist = artvert_list[i].artist;
-		string line = string("   ") + advert + " : '" + name + "' by " + artist;
+		char buf[32];
+		sprintf(buf, "%2i ", i );
+		string line = buf + advert + " : '" + name + "' by " + artist;
 
         if ( i == menu_index )
         {
@@ -2425,8 +2386,8 @@ void Artvertiser::drawMenu()
         {
             glColor4f( .25f, 1.f, 0.0f, 1 );
         }
-		font_24.drawString( line.c_str(), 0, 0 );
-        glTranslatef(0, -26, 0 );
+		drawTextOnscreen( font_16, line.c_str() );
+        glTranslatef(0, -18, 0 );
 
     }
 

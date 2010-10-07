@@ -151,7 +151,7 @@ public:
   Has to be called before Homographies may be added and finally accomodation
   takes place.
   */
-  bool LoadOptimalStructureFromFile( char* cam_c_file, char *cam_rt_file );
+  bool LoadOptimalStructureFromFile( const char* cam_c_file, const char *cam_rt_file );
 
   void ClearAll();
 
