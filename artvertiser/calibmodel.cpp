@@ -615,6 +615,9 @@ void CalibModel::interactiveTrainDraw()
 	IplTexture* tex = &train_texture;
 
 	IplImage *im = tex->getIm();
+	if ( im == NULL )
+		return;
+
 	int w = im->width-1;
 	int h = im->height-1;
 

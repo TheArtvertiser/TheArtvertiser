@@ -251,8 +251,8 @@ class Artvert
 public:
 	Artvert() { 
 		artvert_image=0; 
-		model_file="model.bmp"; 
-		artvert_image_file="artvert1.png"; 
+		model_file="<uninitialised>"; 
+		artvert_image_file="<uninitialised>"; 
 		artvert_is_movie= false;
 		artist = "unknown artist";
 		advert = "unknown advert";
@@ -1222,6 +1222,7 @@ void Artvertiser::setup( int argc, char** argv )
         // add default
 		Artvert a;
 		a.setModelFile( "model.bmp" );
+		a.setArtvertImageFile( "artvert1.png" );
         artvert_list.push_back( a );
     }
 	
