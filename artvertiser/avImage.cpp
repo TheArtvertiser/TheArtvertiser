@@ -135,6 +135,14 @@ int avSaveImage( const char* path, CvArr* image )
 
 IplImage* avLoadImage( const char* path, int is_color )
 {
+	FILE* check_exists = fopen( path, "r" );
+	if ( check_exists == NULL )
+	{
+		printf("avLoadImage: couldn't open file '%s' (does it exist?)\n", path );
+		return NULL;
+	}
+	fclose( check_exists );
+
 	static ofImage working;
 	working.setUseTexture( false );
 	working.loadImage( path );

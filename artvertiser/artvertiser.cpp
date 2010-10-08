@@ -132,7 +132,7 @@ const char BUTTON_GREEN = 0x02;
 const char BUTTON_BLUE  = 0x04;
 // serial comms
 int serialport_init(const char* serialport, int baud);
-int serialport_read_until(int fd, char* buf, char until);
+int serialport_read_until(int fd, char* buf, char until, int bufsize);
 bool serial_thread_should_exit = false;
 bool serial_thread_is_running = false;
 pthread_t serial_thread;
@@ -251,8 +251,8 @@ class Artvert
 public:
 	Artvert() { 
 		artvert_image=0; 
-		model_file="model.bmp"; 
-		artvert_image_file="artvert1.png"; 
+		model_file="<uninitialised>"; 
+		artvert_image_file="<uninitialised>"; 
 		artvert_is_movie= false;
 		artist = "unknown artist";
 		advert = "unknown advert";
@@ -703,7 +703,7 @@ int serialport_init(const char* serialport, int baud)
 
 
 // arduino serial port read
-int serialport_read_until(int fd, char* buf, char until)
+int serialport_read_until(int fd, char* buf, char until, int bufsize)
 {
 	char b[1];
 	int i=0;
@@ -717,7 +717,7 @@ int serialport_read_until(int fd, char* buf, char until)
 			continue;
 		}
 		buf[i] = b[0]; i++;
-	} while( b[0] != until && timeout > 0 );
+	} while( i<bufsize && b[0] != until && timeout > 0 );
 
 	if ( timeout<=0 )
 	{
@@ -1222,6 +1222,7 @@ void Artvertiser::setup( int argc, char** argv )
         // add default
 		Artvert a;
 		a.setModelFile( "model.bmp" );
+		a.setArtvertImageFile( "artvert1.png" );
         artvert_list.push_back( a );
     }
 	
@@ -1937,7 +1938,7 @@ void* serialThreadFunc( void* data )
     while ( !serial_thread_should_exit )
     {
 
-        int read = serialport_read_until(fd, buf, '\n');
+        int read = serialport_read_until(fd, buf, '\n', 256);
 		if ( read == -1 )
 		{
 			num_timeouts++;

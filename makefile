@@ -203,7 +203,7 @@ $(OBJ_OUTPUT)%.d : %.cpp
 	@# -MM: exclude system headers
 	@# -MT: change target name
 	@# -MF: write to file
-	$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) -MM -MT $(patsubst %.d,%.o,$@) -MF $@ $<
+	@$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) -MM -MT $(patsubst %.d,%.o,$@) -MF $@ $<
 	
 $(OBJ_OUTPUT)%.d : ../../../%.cpp
 	@echo " * "creating addon dependency file $@ for $<
@@ -212,7 +212,7 @@ $(OBJ_OUTPUT)%.d : ../../../%.cpp
 	@# -MM: exclude system headers
 	@# -MT: change target name
 	@# -MF: write to file
-	$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) -MM -MT $(patsubst %.d,%.o,$@) -MF $@ $<
+	@$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) -MM -MT $(patsubst %.d,%.o,$@) -MF $@ $<
 
 #This rule does the compilation
 #$(OBJS): $(SOURCES) $(DEPFILES)
@@ -291,11 +291,12 @@ help:
 	@echo
 
 # include dependencies
-ifeq (0,$(words $(findstring $(MAKECMDGOALS),$(NODEPS))))
-	MSG = \'$(findstring $(MAKECMDGOALS),$(NODEP))\' : depfiles match $(MAKECMDGOALS) $(NODEP)	
-	-include $(DEPFILES)
-else
-	MSG = \'$(findstring $(MAKECMDGOALS),$(NODEP))\' : depfiles included
-endif
+#ifeq (0,$(words $(findstring $(MAKECMDGOALS),$(NODEPS))))
+#	MSG = \'$(findstring $(MAKECMDGOALS),$(NODEP))\' : depfiles match $(MAKECMDGOALS) $(NODEP)	
+#	-include $(DEPFILES)
+#else
+#	MSG = \'$(findstring $(MAKECMDGOALS),$(NODEP))\' : depfiles included
+#endif
 
+-include $(DEPFILES)
 

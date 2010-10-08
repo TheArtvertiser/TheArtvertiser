@@ -9,6 +9,7 @@ testApp::testApp( int _argc, char** _argv )
 //--------------------------------------------------------------
 void testApp::setup(){
 
+	ofSetLogLevel( OF_LOG_VERBOSE );
 	ofSetBackgroundAuto(false);
 	artvertiser.setup( argc, argv );
 }
