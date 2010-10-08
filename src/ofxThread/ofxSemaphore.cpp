@@ -8,6 +8,8 @@
  */
 
 #include "ofxSemaphore.h"
+#include <errno.h>
+#include <assert.h>
 
 ofxSemaphore::ofxSemaphore( unsigned int start_value )
 {

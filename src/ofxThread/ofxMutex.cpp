@@ -8,7 +8,8 @@
  */
 
 #include "ofxMutex.h"
-
+#include <errno.h>
+#include <assert.h>
 
 ofxMutex::ofxMutex()
 {

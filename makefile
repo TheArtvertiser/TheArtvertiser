@@ -14,7 +14,7 @@
 # only .cpp support, don't use .c files
 # it will look for files in any folder inside the application
 # folder except that in the EXCLUDE_FROM_SOURCE variable
-# it doesn't autodetect include paths yet
+# but you'll need to add the include paths in USER_CFLAGS
 # add the include paths in the USER_CFLAGS variable
 # using the gcc syntax: -Ipath
 #
@@ -24,10 +24,8 @@
 #
 # edit the following  vars to customize the makefile
 
-
-COMPILER_OPTIMIZATION = -march=native -mtune=native -O3
 EXCLUDE_FROM_SOURCE="bin,.xcodeproj,obj"
-USER_CFLAGS = 
+USER_CFLAGS = -Istarter -Igarfeild -Iartvertiser -Isrc/ofxThread -Iartvertiser/FProfiler -Iartvertiser/MatrixTracker
 USER_LD_FLAGS = 
 USER_LIBS = 
 
@@ -43,11 +41,16 @@ CXX =  g++
 ARCH = $(shell uname -m)
 ifeq ($(ARCH),x86_64)
 	LIBSPATH=linux64
+	COMPILER_OPTIMIZATION = -march=native -mtune=native -finline-functions -funroll-all-loops  -O3
+else ifeq ($(ARCH),armv7l)
+	LIBSPATH=linuxarmv7l
+	COMPILER_OPTIMIZATION = -march=armv7-a -mtune=cortex-a8 -finline-functions -funroll-all-loops  -O3 -funsafe-math-optimizations -mfpu=neon -ftree-vectorize -mfloat-abi=softfp
 else
 	LIBSPATH=linux
+	COMPILER_OPTIMIZATION = -march=native -mtune=native -finline-functions -funroll-all-loops  -O3
 endif
 
-NODEPS = clean
+NODEPS = clean CleanDebug CleanRelease
 SED_EXCLUDE_FROM_SRC = $(shell echo  $(EXCLUDE_FROM_SOURCE) | sed s/\,/\\\\\|/g)
 SOURCE_DIRS = $(shell find . -maxdepth 1 -mindepth 1 -type d | grep -v $(SED_EXCLUDE_FROM_SRC) | sed s/.\\///)
 SOURCES = $(shell find $(SOURCE_DIRS) -name "*.cpp")
@@ -67,9 +70,9 @@ CFLAGS = -Wall -fexceptions
 CFLAGS += -I. 
 CFLAGS += $(INCLUDES_FLAGS)
 CFLAGS += $(CORE_INCLUDE_FLAGS)
-CFLAGS +=`pkg-config  gstreamer-0.10 gstreamer-video-0.10 gstreamer-base-0.10 libudev --cflags`
+CFLAGS += `pkg-config  gstreamer-0.10 gstreamer-video-0.10 gstreamer-base-0.10 libudev libavcodec libavformat libavutil --cflags`
 
-LDFLAGS = $(LIB_PATHS_FLAGS) -s
+LDFLAGS = $(LIB_PATHS_FLAGS) 
 
 LIBS = $(LIB_SHARED)
 LIBS += $(LIB_STATIC)
@@ -102,93 +105,164 @@ endif
 ifeq ($(findstring Debug,$(MAKECMDGOALS)),Debug)
 	TARGET_CFLAGS = -g
 	TARGET_LIBS = -lopenFrameworksDebug
+	OBJ_OUTPUT = obj/Debug/
 	TARGET_NAME = Debug
 	TARGET = bin/$(APPNAME)_debug
+	CLEANTARGET = CleanDebug
 endif
 
 ifeq ($(findstring Release,$(MAKECMDGOALS)),Release)
 	TARGET_CFLAGS = $(COMPILER_OPTIMIZATION)
 	TARGET_LIBS = -lopenFrameworks
+	OBJ_OUTPUT = obj/Release/
+	TARGET_NAME = Release
+	TARGET = bin/$(APPNAME)
+	CLEANTARGET = CleanRelease
+endif
+
+	# default to release
+ifeq (,$(MAKECMDGOALS))
+	TARGET_CFLAGS = $(COMPILER_OPTIMIZATION)
+	TARGET_LIBS = -lopenFrameworks
+	OBJ_OUTPUT = obj/Release/
 	TARGET_NAME = Release
 	TARGET = bin/$(APPNAME)
 endif
 
-ifeq ($(MAKECMDGOALS),)
-	TARGET_CFLAGS = $(COMPILER_OPTIMIZATION)
-	TARGET_LIBS = -lopenFrameworks
-	TARGET_NAME = Release
-	TARGET = bin/$(APPNAME)
+ifeq ($(MAKECMDGOALS),depend-Release)
+	OBJ_OUTPUT = obj/Release/
 endif
+
+ifeq ($(MAKECMDGOALS),depend-Debug)
+	OBJ_OUTPUT = obj/Debug/
+endif
+
 
 ifeq ($(MAKECMDGOALS),clean)
 	TARGET = bin/$(APPNAME)_debug bin/$(APPNAME)
 endif
 
-OBJ_OUTPUT = obj/$(TARGET_NAME)/
-CLEANTARGET = Clean$(TARGET_NAME)
+
+ifeq ($(TARGET_NAME),Release)
+	OF_DEPEND = ../../../libs/openFrameworksCompiled/lib/$(LIBSPATH)/libopenFrameworks.a
+else
+	OF_DEPEND = ../../../libs/openFrameworksCompiled/lib/$(LIBSPATH)/libopenFrameworksDebug.a
+endif
+
 OBJS = $(addprefix $(OBJ_OUTPUT), $(OBJFILES))
 DEPFILES = $(patsubst %.o,%.d,$(OBJS))
+
+# addons
 ifeq ($(findstring addons.make,$(wildcard *.make)),addons.make)
 	ADDONS_OBJS = $(addprefix $(OBJ_OUTPUT), $(ADDONS_OBJFILES))
 endif
 
-.PHONY: Debug Release all after
-	
+
+.PHONY: Debug Release all after depend
+
 Release: $(TARGET) after
 
 Debug: $(TARGET) after
 
-all: 
+all: $(TARGET)
 	make Release
+	make Depend
 
+depend: 
+	make depend-Release 
+	make depend-Debug
+
+debugging_blah:
+	@echo MSG: 
+	@echo $(MSG)
+	@echo source dirs:
+	@echo $(SOURCE_DIRS)
+	@echo sources:
+	@echo $(SOURCES)
+	@echo addons_sources:
+	@echo $(ADDONS_SOURCES)	
+	@echo obj_output:
+	@echo $(OBJ_OUTPUT)	
+	@echo objs:
+	@echo $(OBJS)
+	@echo addons_objs:
+	@echo $(ADDONS_OBJS)
+	@echo makecmdgoals:
+	@echo $(MAKECMDGOALS)
+	
+
+# we need separate rules for Debug and Release because of different obj/ paths
+depend-Release: $(DEPFILES)
+depend-Debug: $(DEPFILES)
+
+# This is the rule for creating the dependency files
+$(OBJ_OUTPUT)%.d : %.cpp
+	@echo " * "creating dependency file $@ for $<
+	@mkdir -p $(@D)
+	@# dependency creation flags
+	@# -MM: exclude system headers
+	@# -MT: change target name
+	@# -MF: write to file
+	$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) -MM -MT $(patsubst %.d,%.o,$@) -MF $@ $<
+	
+$(OBJ_OUTPUT)%.d : ../../../%.cpp
+	@echo " * "creating addon dependency file $@ for $<
+	@mkdir -p $(@D)
+	@# dependency creation flags
+	@# -MM: exclude system headers
+	@# -MT: change target name
+	@# -MF: write to file
+	$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) -MM -MT $(patsubst %.d,%.o,$@) -MF $@ $<
 
 #This rule does the compilation
-#$(OBJS): $(SOURCES)
-$(OBJ_OUTPUT)%.o: %.cpp
-	@echo "compiling object for: " $<
-	mkdir -p $(@D)
-	$(CXX) -c $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) -MMD -MP -MF$(OBJ_OUTPUT)$*.d -MT$(OBJ_OUTPUT)$*.d -o$@ -c $<  
+#$(OBJS): $(SOURCES) $(DEPFILES)
+$(OBJ_OUTPUT)%.o : ../../../%.cpp $(OBJ_OUTPUT)%.d
+	@echo " * "compiling addon object $@ from $<
+	@mkdir -p $(@D)
+	@# -MMD: update the dependency file
+	$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) -MMD -o $(patsubst ../../../%.cpp,$(OBJ_OUTPUT)%.o,$<) -c $<
+
+$(OBJ_OUTPUT)%.o : %.cpp $(OBJ_OUTPUT)%.d 
+	@echo " * "compiling object $@ from $< 
+	@mkdir -p $(@D)
+	@# -MMD: update the dependency file
+	$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) -MMD -o $(patsubst %.cpp,$(OBJ_OUTPUT)%.o,$<) -c $<
 
 
-$(OBJ_OUTPUT)%.o: ../../../%.cpp
-	@echo "compiling addon object for" $<
-	mkdir -p $(@D)
-	$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) -MMD -MP -MF$(OBJ_OUTPUT)$*.d -MT$(OBJ_OUTPUT)$*.d -o $@ -c $<
-	
-$(TARGET): $(OBJS) $(ADDONS_OBJS)
-	@echo "linking" $(TARGET)
-	$(CXX) -o $@ $(OBJS) $(ADDONS_OBJS) $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) $(LDFLAGS) $(USER_LDFLAGS) $(TARGET_LIBS) $(LIBS) $(ADDONSLIBS) $(USER_LIBS)
-
--include $(DEPFILES)
+$(TARGET) : $(OBJS) $(ADDONS_OBJS) $(OF_DEPEND)
+	@echo linking $(TARGET)
+	@echo "creating " $(TARGET)
+	$(CXX) $(TARGET_CFLAGS) -o $@ $(OBJS) $(ADDONS_OBJS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) $(LDFLAGS) $(USER_LDFLAGS) $(TARGET_LIBS) $(LIBS) $(ADDONSLIBS) $(USER_LIBS)
 
 .PHONY: clean CleanDebug CleanRelease
-clean:
+clean: 
 	rm -Rf obj
 	rm -f -v $(TARGET)
 	rm -Rf -v bin/libs
-	rm -f -v bin/clickToLaunchApp*
+	rm -f -v bin/launch_*
 	
 $(CLEANTARGET):
 	rm -Rf -v $(OBJ_OUTPUT)
 	rm -f -v $(TARGET)
-	rm -f -v bin/clickToLaunchApp_$(TARGET_NAME).sh
+	rm -f -v bin/launch_$(TARGET_NAME).sh
 
 
 after:
-	cp -r ../../../export/$(LIBSPATH)/libs bin/
-	cp ../../../export/$(LIBSPATH)/clickToLaunchApp.sh bin/clickToLaunchApp_$(TARGET_NAME).sh
-	sed -i s/applicationName/$(APPNAME)/g  bin/clickToLaunchApp_$(TARGET_NAME).sh
+	@cp -r ../../../export/$(LIBSPATH)/libs bin/
+	@cp ../../../export/$(LIBSPATH)/clickToLaunchApp.sh bin/launch_$(TARGET_NAME).sh
+	@sed -i 's/applicationName/$(APPNAME) "\$$@"/g'  bin/launch_$(TARGET_NAME).sh
 	@echo
 	@echo "     compiling done"
 	@echo "     to launch the application"	
 	@echo
 	@echo "     cd bin"
-	@echo "     ./clickToLaunchApp_$(TARGET_NAME).sh"
+	@echo "     ./launch_$(TARGET_NAME).sh"
 	@echo
     
 
 .PHONY: help
 help:
+ 
 	@echo 
 	@echo openFrameworks universal makefile
 	@echo
@@ -215,3 +289,13 @@ help:
 	@echo in this directory and add the names of the addons you want to
 	@echo include
 	@echo
+
+# include dependencies
+ifeq (0,$(words $(findstring $(MAKECMDGOALS),$(NODEPS))))
+	MSG = \'$(findstring $(MAKECMDGOALS),$(NODEP))\' : depfiles match $(MAKECMDGOALS) $(NODEP)	
+	-include $(DEPFILES)
+else
+	MSG = \'$(findstring $(MAKECMDGOALS),$(NODEP))\' : depfiles included
+endif
+
+
