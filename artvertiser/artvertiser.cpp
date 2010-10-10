@@ -337,7 +337,6 @@ ofxMutex new_artvert_requested_lock;
 bool new_artvert_requested = false;
 int new_artvert_requested_index = 0;
 bool load_or_train_succeeded = false;
-bool load_or_train_complete = false;
 vector< bool > model_file_needs_training;
 #include "ofxXmlSettings.h"
 
@@ -2043,7 +2042,6 @@ static void* detectionThreadFunc( void* _data )
 			new_artvert_requested_lock.lock();
 			if ( new_artvert_requested )
 			{
-				load_or_train_complete = false;
 				// no longer draw
 				printf("new_artvert_requested:frame not ok\n" );
 				frame_ok = false;
@@ -2054,9 +2052,7 @@ static void* detectionThreadFunc( void* _data )
 				{
 					geomCalibStart( !redo_geom );
 				}
-				
 				load_or_train_succeeded = res;
-				load_or_train_complete = true;
 			}
 			new_artvert_requested_lock.unlock();
 			if ( geom_calib_in_progress )
@@ -2237,14 +2233,17 @@ void Artvertiser::update()
 	{
 		control_panel_timer -= ofGetLastFrameTime();
 		if ( control_panel_timer <= 0 )
+		{
+			control_panel.setMinimized(true);
 			control_panel.hide();
+		}
 	}
 	
-	
+	// update the control panel current model file text
 	if ( new_artvert_requested_lock.tryLock() )
 	{
 		// update current model file label
-		if ( current_artvert_index == -1 || !load_or_train_complete )
+		if ( current_artvert_index == -1 )
 		{
 			current_modelfile_label->setText( "<none>" );
 		}
@@ -2259,7 +2258,6 @@ void Artvertiser::update()
 			else
 				current_modelfile_label->setText( "<none>" );
 		}
-		
 		
 		// re-train current?
 		if ( retrain_current_toggle->value.getValueB(0) )
@@ -2277,14 +2275,8 @@ void Artvertiser::update()
 				new_artvert_requested = true;
 				new_artvert_requested_index = current_artvert_index;
 				current_artvert_index = -1;
-				
 			}
-			
-			
 		}
-
-		
-		
 		new_artvert_requested_lock.unlock();
 	}
 	
