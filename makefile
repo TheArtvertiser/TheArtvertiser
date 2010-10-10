@@ -25,7 +25,7 @@
 # edit the following  vars to customize the makefile
 
 EXCLUDE_FROM_SOURCE="bin,.xcodeproj,obj"
-USER_CFLAGS = -Istarter -Igarfeild -Iartvertiser -Isrc/ofxThread -Iartvertiser/FProfiler -Iartvertiser/MatrixTracker
+USER_CFLAGS = -Istarter -Igarfeild -Iartvertiser -Isrc/ofxThread -Isrc/ofxControlPanel -Iartvertiser/FProfiler -Iartvertiser/MatrixTracker
 USER_LD_FLAGS = 
 USER_LIBS = 
 
