@@ -83,7 +83,7 @@ private:
 	const char *win;
 	const char *modelfile;
 
-	enum State { TAKE_SHOT, CORNERS, ARTVERT_CORNERS };
+	enum State { TAKE_SHOT, CORNERS, KEYPOINT_PRUNE, ARTVERT_CORNERS };
 	State state;
 	//int grab;
 	//static void onMouseStatic(int event, int x, int y, int flags, void* param);
@@ -99,6 +99,9 @@ private:
 	bool learn_running;
 
 
+	void trashCurrentTrainingSet();
+	
+	
 	bool debounce_green, debounce_redblue;
 	int x, y;
 	int corner_index;

@@ -109,6 +109,34 @@ void CalibModel::mouseDragged( int x, int y )
 	}
 }
 */
+
+
+
+void CalibModel::trashCurrentTrainingSet()
+{
+	// delete image
+	string model_file = modelfile;
+	remove( model_file.c_str() );
+	remove( (model_file+"_stable_points.bmp").c_str() );
+	remove( (model_file+".artvertroi").c_str() );
+	remove( (model_file+".roi").c_str() );
+	// drop into the classifier directory + remove all files
+	string classifier = model_file+".classifier/";
+	DIR* dir = opendir( classifier.c_str() );
+	if ( dir != NULL )
+	{
+		struct dirent* entry;
+		while( (entry = readdir( dir )) != NULL )
+		{
+			remove( (classifier+entry->d_name).c_str() );
+		}
+	}	
+	remove( classifier.c_str() );
+}
+
+
+
+
 bool CalibModel::buildCached(int nbcam, ofBaseVideo *capture,
                              bool cache, planar_object_recognizer &detector,
                              bool running_on_binoculars )
@@ -228,6 +256,9 @@ bool CalibModel::buildCached(int nbcam, ofBaseVideo *capture,
 		{
 			printf("interactiveTrain succeeded\n");
 		}
+		
+		// first trash existing model set
+		trashCurrentTrainingSet();
 
         image_width = image->width;
 		image_height = image->height;
@@ -317,7 +348,9 @@ bool CalibModel::buildCached(int nbcam, ofBaseVideo *capture,
         string initial_points_new_filename = string(modelfile)+"_initial_points.bmp";
         printf("renaming %s to %s\n", initial_points_filename, initial_points_new_filename.c_str() );
         rename(initial_points_filename, initial_points_new_filename.c_str() );
-
+		
+		
+		
         /*printf("dumping trained cache:\n");
         detector.dump();*/
 
@@ -362,9 +395,10 @@ bool CalibModel::interactiveTrain()
     // 5 minute time out
     while ( interactive_train_running && !interactive_train_should_stop && timeout>0 )
     {
-        printf("waiting for interactiveTrainBinoculars to complete .. %i\n", timeout );
-        timeout-=5;
-        sleep(5);
+		if ( timeout %5 == 0 )
+			printf("waiting for interactive training to complete .. %i\n", timeout );
+        timeout-=1;
+        sleep(1);
     }
 
     return train_should_proceed;
@@ -693,6 +727,8 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 	int oldx, oldy;
 	float closest_distance;
 	
+	string model_path = string("data/")+fromOfDataPath( modelfile );
+	
     // update
     switch( state )
     {
@@ -725,7 +761,7 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 			else
 			{
 				cvCopy( frame, train_working_image );
-				putText(train_working_image, modelfile, cvPoint(3,20), &train_font );
+				putText(train_working_image, model_path.c_str(), cvPoint(3,20), &train_font );
 				putText(train_working_image,"Please take a frontal view", cvPoint(3,40), &train_font);
 				putText(train_working_image,"of a textured planar surface", cvPoint(3,60), &train_font);
 				putText(train_working_image,"and press space", cvPoint(3,80), &train_font);
@@ -734,7 +770,7 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 			break;
 		case CORNERS:
 			cvCopy( train_shot, train_working_image );
-			putText(train_working_image, modelfile, cvPoint(3,20), &train_font);
+			putText(train_working_image, model_path.c_str(), cvPoint(3,20), &train_font);
 			putText(train_working_image, "Move green corners to match the", cvPoint(3,40), &train_font);
 			putText(train_working_image, "calibration target", cvPoint(3,60), &train_font);
 			putText(train_working_image, "Press r to restart", cvPoint(3,80), &train_font);
@@ -770,7 +806,7 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 				// accept
 				for ( int i=0; i<4; i++ )
 					artvert_corners[i] = corners[i];
-				state = ARTVERT_CORNERS;
+				state = KEYPOINT_PRUNE;
 			}
 			else if ( key == 'r' )
 			{
@@ -786,12 +822,30 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 			
 			break;
 			
+		case KEYPOINT_PRUNE:
+			/*
+			cvCopy( train_shot, train_working_image );
+			putText(train_working_image, model_path.c_str(), cvPoint(3,20), &train_font);
+			putText(train_working_image, "Select/deselect keypoints to be used", cvPoint(3,40), &train_font);
+			putText(train_working_image, "in the training set (colour=will be used)", cvPoint(3,60), &train_font);
+			putText(train_working_image, "Press r to go back", cvPoint(3,80), &train_font);
+			putText(train_working_image, "Press space when ready", cvPoint(3,100), &train_font);
+			
+			if ( key == ' ' )
+				state = ARTVERT_CORNERS;
+			else if ( key == 'r' )
+				state = CORNERS;
+			 */
+			state = ARTVERT_CORNERS;
+			
+			break;
+			
 		case ARTVERT_CORNERS:
 			cvCopy( train_shot, train_working_image );
-			putText(train_working_image, modelfile, cvPoint(3,20), &train_font);
+			putText(train_working_image, model_path.c_str(), cvPoint(3,20), &train_font);
 			putText(train_working_image, "Move red corners to match the", cvPoint(3,40), &train_font);
 			putText(train_working_image, "artvert target area;", cvPoint(3,60), &train_font);
-			putText(train_working_image, "Press r to restart", cvPoint(3,80), &train_font);
+			putText(train_working_image, "Press r to go back", cvPoint(3,80), &train_font);
 			putText(train_working_image, "Press space when ready", cvPoint(3,100), &train_font);
 
 			// work out which corner is closest to the mouse

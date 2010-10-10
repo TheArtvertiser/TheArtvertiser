@@ -51,6 +51,8 @@
 
 #define ARTVERTISER_VERSION "0.92"
 
+static const float CONTROL_PANEL_SHOW_TIME = 10.0f;
+
 // read from arduino
 #include <stdio.h>    /* Standard input/output definitions */
 #include <stdlib.h>
@@ -180,32 +182,10 @@ int detect_height = DEFAULT_HEIGHT;
 int desired_capture_fps = DEFAULT_CAPTURE_FPS;
 
 // load some images. hard-coded for know until i get the path parsing together.
-IplImage *image1;// = avLoadImage("artvert1.png");
-IplImage *image2;// = avLoadImage("artvert2.png");
-IplImage *image3;// = avLoadImage("artvert3.png");
-IplImage *image4;// = avLoadImage("artvert4.png");
-IplImage *image5;// = avLoadImage("artvert5.png");
-IplImage *fallback_artvert_image;// = avLoadImage("artvert1.png");
+IplImage *fallback_artvert_image;
 
 // matrix tracker
 MatrixTracker matrix_tracker;
-
-// define a container struct for each artvert
-struct artvert_struct
-{
-    const char *artvert;
-    IplImage *image;
-    const char *date;
-    const char *author;
-    const char *advert;
-    const char *street;
-};
-
-typedef vector<artvert_struct> artverts_list;
-artverts_list artverts(5);
-
-// create a vector for the images and initialise it.
-typedef vector<IplImage> imgVec;
 
 bool frame_ok=false;
 bool cache_light=false;
@@ -292,31 +272,21 @@ public:
 			
 			if ( avi_frame == 0 )
 			{
-/*				if ( avi_play_init )
-				{
-					// we know the avi is good, so: rewind!
-        			cvSetCaptureProperty( avi_capture, CV_CAP_PROP_POS_FRAMES, 0 );
-					// try again
-					avi_frame = cvQueryFrame( avi_capture );
-					if ( avi_frame == 0 )
-						return fallback_artvert_image;
-				}
-				else*/
 				printf("failed to load movie '%s'\n", artvert_movie_file.c_str() );
 				return fallback_artvert_image;
 			}
 			if ( avi_image == 0 )
 				avi_image = cvCreateImage( cvGetSize(avi_frame), avi_frame->depth, avi_frame->nChannels );
 			cvCopy( avi_frame, avi_image );
-		    	avi_image->origin = avi_frame->origin;
-		    	GLenum format = IsBGR(avi_image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
+			avi_image->origin = avi_frame->origin;
+			GLenum format = IsBGR(avi_image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
 
 		    if (!avi_play_init)
 		    {
-			glGenTextures(1, &imageID);
-			glBindTexture(GL_TEXTURE_2D, imageID);
-			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-			avi_play_init=true;
+				glGenTextures(1, &imageID);
+				glBindTexture(GL_TEXTURE_2D, imageID);
+				glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+				avi_play_init=true;
 		    }
 			return avi_image;
 		}
@@ -366,6 +336,8 @@ int current_artvert_index=-1;
 ofxMutex new_artvert_requested_lock;
 bool new_artvert_requested = false;
 int new_artvert_requested_index = 0;
+bool load_or_train_succeeded = false;
+bool load_or_train_complete = false;
 vector< bool > model_file_needs_training;
 #include "ofxXmlSettings.h"
 
@@ -482,6 +454,7 @@ void Artvertiser::mousePressed( int x, int y, int button )
 		label = true;
 	mouse_x = x;
 	mouse_y = y;
+	control_panel.mousePressed( x,y, button );
 }
 
 void Artvertiser::mouseReleased( int x, int y, int button )
@@ -499,12 +472,17 @@ void Artvertiser::mouseDragged( int x, int y, int button )
 {
 	mouse_x = x;
 	mouse_y = y;
+	control_panel.show();
+	control_panel_timer = CONTROL_PANEL_SHOW_TIME;
+	control_panel.mouseDragged( x,y, button );
 }
 
 void Artvertiser::mouseMoved( int x, int y )
 {
 	mouse_x = x;
 	mouse_y = y;
+	control_panel.show();
+	control_panel_timer = CONTROL_PANEL_SHOW_TIME;
 }
 
 
@@ -829,61 +807,61 @@ void Artvertiser::keyPressed(int c )
 	// for r/g/b buttons
 	char old_button_state = button_state;
 	
-    last_key = c;
+	last_key = c;
 	
 	const char* filename;
-    switch (c)
-    {
-    case 'n' :
-        if (augment == 1)
-            augment = 0;
-        else
-            augment = 1;
-    case '+' :
-        if (current_cam < multi->cams.size()-1)
-            current_cam++;
-        break;
-    case '-':
-        if (current_cam >= 1)
-            current_cam--;
-        break;
-    case 'q':
-    case 27 /*esc*/:
-        exit(0);
-        break;
-    case 'l':
-        dynamic_light = !dynamic_light;
-        break;
-    case 'd':
-        delay_video = !delay_video;
-        break;
-    case 'a':
-        if (avi_play == true)
-            avi_play = false;
-        else
-            avi_play = true;
-    case 'f':
-        glutFullScreen();
-        break;
-    case 'k':
-        track_kalman = !track_kalman;
-        break;
-    case 'S':
-        show_status = !show_status;
-        break;
-    case 'p':
-        show_profile_results = true;
-        break;
-    case 'P':
-        FProfiler::Clear();
-        break;
-    case 'i':
-        if (cnt >= NUMARTVERTS-1)
-            cnt = 0;
-        else
-            cnt ++;
-        cout << "we are on image " << cnt << endl;
-        break;
+	switch (c)
+	{
+	case 'n' :
+		if (augment == 1)
+			augment = 0;
+		else
+			augment = 1;
+	case '+' :
+		if (current_cam < multi->cams.size()-1)
+			current_cam++;
+		break;
+	case '-':
+		if (current_cam >= 1)
+			current_cam--;
+		break;
+	case 'q':
+	case 27 /*esc*/:
+		exit(0);
+		break;
+	case 'l':
+		dynamic_light = !dynamic_light;
+		break;
+	case 'd':
+		delay_video = !delay_video;
+		break;
+	case 'a':
+		if (avi_play == true)
+			avi_play = false;
+		else
+			avi_play = true;
+	case 'f':
+		glutFullScreen();
+		break;
+	case 'k':
+		track_kalman = !track_kalman;
+		break;
+	case 'S':
+		show_status = !show_status;
+		break;
+	case 'p':
+		show_profile_results = true;
+		break;
+	case 'P':
+		FProfiler::Clear();
+		break;
+	case 'i':
+		if (cnt >= NUMARTVERTS-1)
+			cnt = 0;
+		else
+			cnt ++;
+		cout << "we are on image " << cnt << endl;
+		break;
 	case '[':
 	case '1':
 		button_state |= BUTTON_RED;
@@ -897,98 +875,94 @@ void Artvertiser::keyPressed(int c )
 		button_state |= BUTTON_BLUE;
 		break;
 
-    default:
-        break;
-    }
+	default:
+		break;
+	}
 
-    if ( multi && show_status )
-    {
-        planar_object_recognizer &detector(multi->cams[current_cam]->detector);
-        bool something = true;
-        switch (c)
-        {
-        // detector settings
-        /*case '1':
-            detector.ransac_dist_threshold_ui*=1.02f;
-            break;
-        case '!':
-            detector.ransac_dist_threshold_ui/=1.02f;
-            break;
-        case '2':
-            detector.max_ransac_iterations_ui+=10;
-            break;
-        case '@':
-            detector.max_ransac_iterations_ui-=10;
-            break;
-        case '3':
-            detector.non_linear_refine_threshold_ui*=1.02f;
-            break;
+	if ( multi && show_status )
+	{
+		planar_object_recognizer &detector(multi->cams[current_cam]->detector);
+		bool something = true;
+		switch (c)
+		{
+		// detector settings
+		/*case '1':
+			detector.ransac_dist_threshold_ui*=1.02f;
+			break;
+		case '!':
+			detector.ransac_dist_threshold_ui/=1.02f;
+			break;
+		case '2':
+			detector.max_ransac_iterations_ui+=10;
+			break;
+		case '@':
+			detector.max_ransac_iterations_ui-=10;
+			break;
+		case '3':
+			detector.non_linear_refine_threshold_ui*=1.02f;
+			break;
 			
-        case '#':
-            detector.non_linear_refine_threshold_ui/=1.02f;
-            break;
-        */
+		case '#':
+			detector.non_linear_refine_threshold_ui/=1.02f;
+			break;
+		*/
 		case '4':
-            detector.match_score_threshold_ui*=1.02f;
-            break;
-        case '$':
-            detector.match_score_threshold_ui/=1.02f;
-            break;
-        case '5':
-            detector.best_support_thresh_ui++;
-            break;
-        case '%':
-            detector.best_support_thresh_ui--;
-            break;
-        case '6':
-            detector.point_detector_tau_ui++;
-            break;
-        case '^':
-            detector.point_detector_tau_ui--;
-            break;
-        case '7':
-            matrix_tracker.increasePositionSmoothing();
-            break;
-        case '&':
-            matrix_tracker.decreasePositionSmoothing();
-            break;
-        case '8':
-            matrix_tracker.increasePositionZSmoothing();
-            break;
-        case '*':
-            matrix_tracker.decreasePositionZSmoothing();
-            break;
-        case '9':
-            matrix_tracker.increaseFramesBackRaw();
-            break;
-        case '(':
-            matrix_tracker.decreaseFramesBackRaw();
-            break;
-        case '0':
-            matrix_tracker.increaseFramesBackReturned();
-            break;
-        case ')':
-            matrix_tracker.decreaseFramesBackReturned();
-            break;
+			detector.match_score_threshold_ui*=1.02f;
+			break;
+		case '$':
+			detector.match_score_threshold_ui/=1.02f;
+			break;
+		case '5':
+			detector.best_support_thresh_ui++;
+			break;
+		case '%':
+			detector.best_support_thresh_ui--;
+			break;
+		case '6':
+			detector.point_detector_tau_ui++;
+			break;
+		case '^':
+			detector.point_detector_tau_ui--;
+			break;
+		case '7':
+			matrix_tracker.increasePositionSmoothing();
+			break;
+		case '&':
+			matrix_tracker.decreasePositionSmoothing();
+			break;
+		case '8':
+			matrix_tracker.increasePositionZSmoothing();
+			break;
+		case '*':
+			matrix_tracker.decreasePositionZSmoothing();
+			break;
+		case '9':
+			matrix_tracker.increaseFramesBackRaw();
+			break;
+		case '(':
+			matrix_tracker.decreaseFramesBackRaw();
+			break;
+		case '0':
+			matrix_tracker.increaseFramesBackReturned();
+			break;
+		case ')':
+			matrix_tracker.decreaseFramesBackReturned();
+			break;
 
 
-        default:
-            something = false;
-            break;
-        }
-        if ( something )
-        {
-            printf("%s\n", getSettingsString().c_str());
-        }
+		default:
+			something = false;
+			break;
+		}
+		if ( something )
+		{
+			printf("%s\n", getSettingsString().c_str());
+		}
 
-    }
-
-	glutPostRedisplay();
+	}
 
 	if ( old_button_state != button_state )
 		button_state_changed = true;
-	
-	
 }
 
 void Artvertiser::keyReleased(int c)
@@ -1180,7 +1154,7 @@ void Artvertiser::setup( int argc, char** argv )
             {
                 data.pushTag("advert", i);
 				Artvert a;
-                a.setModelFile( data.getValue( "model_filename", "model.bmp" ) );
+                a.setModelFile( data.getValue( "model_filename", "models/default.bmp" ) );
 				a.advert = data.getValue( "advert", "unknown advert" );
 				int num_artverts = data.getNumTags( "artvert" );
             	printf("   -ml: got advert, model file '%s', advert '%s', %i artverts\n", a.getModelFile().c_str(), a.advert.c_str(), num_artverts );
@@ -1193,12 +1167,12 @@ void Artvertiser::setup( int argc, char** argv )
 					{
 						// load a movie
 						a.artvert_is_movie = true;
-						a.setArtvertMovieFile( data.getValue("movie_filename", "artvertmovie1.mp4" ) );
+						a.setArtvertMovieFile( data.getValue("movie_filename", "artverts/artvertmovie1.mp4" ) );
 					}
 					else
 					{
 						// load an image
-						a.setArtvertImageFile( data.getValue( "image_filename", "artvert1.png" ) );
+						a.setArtvertImageFile( data.getValue( "image_filename", "artverts/artvert1.png" ) );
 					}
                 	printf("     %i: %s:%s:%s\n", j, a.name.c_str(), a.artist.c_str(),
                     	   a.artvert_is_movie?(a.getArtvertMovieFile()+"( movie)").c_str() : a.getArtvertImageFile().c_str() );
@@ -1221,8 +1195,8 @@ void Artvertiser::setup( int argc, char** argv )
     {
         // add default
 		Artvert a;
-		a.setModelFile( "model.bmp" );
-		a.setArtvertImageFile( "artvert1.png" );
+		a.setModelFile( "models/default.bmp" );
+		a.setArtvertImageFile( "artverts/artvert1.png" );
         artvert_list.push_back( a );
     }
 	
@@ -1268,18 +1242,6 @@ void Artvertiser::setup( int argc, char** argv )
     }
 	
 	
-    artvert_struct artvert1 = {"Arrebato, 1980", image1, "Feb, 2009", "Iván Zulueta", "Polo", "Madrid, Spain"};
-    artvert_struct artvert2 = {"name2", image2, "2008", "simon innings", "Helmut Lang", "Parlance Avenue"};
-    artvert_struct artvert3 = {"name3", image3, "2008", "simon innings", "Loreal", "Parlance Avenue"};
-    artvert_struct artvert4 = {"name4", image4, "2008", "simon innings", "Hugo Boss", "Parlance Avenue"};
-    artvert_struct artvert5 = {"name5", image5, "2008", "simon innings", "Burger King", "Parlance Avenue"};
-	
-    artverts[0] = artvert1;
-    artverts[1] = artvert2;
-    artverts[2] = artvert3;
-    artverts[3] = artvert4;
-    artverts[4] = artvert5;
-	
 	
     last_frame_caught_time.SetNow();
     frame_timer.SetNow();
@@ -1293,6 +1255,26 @@ void Artvertiser::setup( int argc, char** argv )
 	font_24.loadFont("fonts/FreeSans.ttf", 24);
 	font_32.loadFont("fonts/FreeSans.ttf", 32);
 
+	
+	// setup control panel
+	control_panel.setup( "controls", 5, 37, 400, 200 );
+	
+	// add main panel
+	main_panel = control_panel.addPanel("main", 1, false );
+	main_panel->setElementSpacing( 10, 0 );
+	control_panel.addLabel( "current modelfile:" );
+	current_modelfile_label = control_panel.addLabel( "<none>" );
+	main_panel->addSpace( 14 );
+	main_panel->setElementSpacing( 10, 14 );
+	//add_model_toggle = control_panel.addToggle( " add new model", "add_new_tgl", false );
+	retrain_current_toggle = control_panel.addToggle( " re-train current model", "retrain_current_tgl", false );
+	
+	
+	control_panel.show();
+	control_panel.setMinimized( true );
+	control_panel_timer = CONTROL_PANEL_SHOW_TIME;
+	
+	
     printf("setup() finished\n");
 
 }
@@ -1741,7 +1723,7 @@ void Artvertiser::drawAugmentation()
 		glVertex3f(0, -60, -.2);
 		glEnd();
 
-		// render the text in the label
+/*		// render the text in the label
 		glColor4f(1.0, 1.0, 1.0, 1);
 		drawTextOnscreen( font_12, artverts[cnt].artvert );
 		glTranslatef(0, -12, 0);
@@ -1752,6 +1734,7 @@ void Artvertiser::drawAugmentation()
 		drawTextOnscreen( font_12, artverts[cnt].advert );
 		glTranslatef(0, -12, 0);
 		drawTextOnscreen( font_12, artverts[cnt].street );
+ */
 	}
 
 
@@ -1781,6 +1764,14 @@ void Artvertiser::drawAugmentation()
  */
 void Artvertiser::draw()
 {
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+	
+	
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_LIGHTING);
 
@@ -1868,7 +1859,7 @@ void Artvertiser::draw()
             glVertex3f(140, 20, 0);
             glEnd();
             glTranslatef(70, 5, 0);
-			drawTextOnscreen( font_16, "tracking" );
+			drawTextOnscreen( font_12, "tracking" );
         }
 
 
@@ -1894,8 +1885,19 @@ void Artvertiser::draw()
         }
 
         drawMenu();
+
+		// restore oF projection + modelview matrices
+		glMatrixMode( GL_PROJECTION );
+		glPopMatrix();
+		glMatrixMode( GL_MODELVIEW );
+		glPopMatrix();
+		
+		control_panel.draw();
+
     }
 
+	
+	
 }
 
 
@@ -2041,16 +2043,20 @@ static void* detectionThreadFunc( void* _data )
 			new_artvert_requested_lock.lock();
 			if ( new_artvert_requested )
 			{
+				load_or_train_complete = false;
 				// no longer draw
 				printf("new_artvert_requested:frame not ok\n" );
 				frame_ok = false;
 				// go with the loading
-				bool res = loadOrTrain(new_artvert_requested_index); 
+				bool res = loadOrTrain(new_artvert_requested_index);
 				new_artvert_requested = false;
 				if ( res )
 				{
 					geomCalibStart( !redo_geom );
 				}
+				
+				load_or_train_succeeded = res;
+				load_or_train_complete = true;
 			}
 			new_artvert_requested_lock.unlock();
 			if ( geom_calib_in_progress )
@@ -2212,8 +2218,7 @@ void Artvertiser::update()
     }
 	// reset last key
 	last_key = 0;
-    glutPostRedisplay();
-
+ 
     PROFILE_SECTION_POP();
 
     if ( show_profile_results )
@@ -2223,6 +2228,68 @@ void Artvertiser::update()
         FProfiler::Display( FProfiler::SORT_TIME/*SORT_EXECUTION*/ );
         show_profile_results = false;
     }
+	
+	
+	
+
+	// show/hide the control panel
+	if ( control_panel_timer > 0 )
+	{
+		control_panel_timer -= ofGetLastFrameTime();
+		if ( control_panel_timer <= 0 )
+			control_panel.hide();
+	}
+	
+	
+	if ( new_artvert_requested_lock.tryLock() )
+	{
+		// update current model file label
+		if ( current_artvert_index == -1 || !load_or_train_complete )
+		{
+			current_modelfile_label->setText( "<none>" );
+		}
+		else
+		{
+			if ( load_or_train_succeeded )
+			{
+				// read modelfile label off current artvert
+				current_modelfile_label->setText( string("data/")+ 
+												 fromOfDataPath( artvert_list.at(current_artvert_index).getModelFile()) );
+			}
+			else
+				current_modelfile_label->setText( "<none>" );
+		}
+		
+		
+		// re-train current?
+		if ( retrain_current_toggle->value.getValueB(0) )
+		{
+			// clear
+			retrain_current_toggle->setValue(false, 0);
+			
+			// trash current classifier
+			if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
+			{
+				// say we want to be trained
+				model_file_needs_training[current_artvert_index] = true;
+
+				// trigger the reload
+				new_artvert_requested = true;
+				new_artvert_requested_index = current_artvert_index;
+				current_artvert_index = -1;
+				
+			}
+			
+			
+		}
+
+		
+		
+		new_artvert_requested_lock.unlock();
+	}
+	
+	
+	control_panel.update();
 }
 
 

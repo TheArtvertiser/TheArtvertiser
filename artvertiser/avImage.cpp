@@ -13,9 +13,7 @@
 
 #include "ofxOpenCv.h"
 
-#ifdef TARGET_OSX
-//#define VIDEO_SWAP_RED_BLUE
-#endif
+#define VIDEO_SWAP_RED_BLUE
 
 typedef map< ofBaseVideo*, IplImage* > WorkingFrames;
 
@@ -79,6 +77,8 @@ IplImage* avGetFrame( ofBaseVideo* video_source )
 		// 24 bit RGB
 		working_frame = cvCreateImage( cvSize( video_source->getWidth(), video_source->getHeight() ), 
 									  IPL_DEPTH_8U, 3 );
+		//strcpy( working_frame->channelSeq, "BGR" );
+		//strcpy( working_frame->channelSeq, "RGB" );
 		working_frames[video_source] = working_frame;
 	}
 	
@@ -105,9 +105,14 @@ IplImage* avGetFrame( ofBaseVideo* video_source )
 		{
 			unsigned char* data = base + j*3;
 			// swap red/blue
+			data[0] ^= data[2];
+			data[2] ^= data[0];
+			data[0] ^= data[2];
+
+			/*
 			unsigned char tmp = data[0];
 			data[0] = data[2];
-			data[2] = data[0];
+			data[2] = tmp;*/
 		}
 	}
 #endif	
@@ -242,5 +247,16 @@ IplImage* avLoadImage( const char* path, int is_color )
 	}
 	
 	return output;
+}
+
+
+string fromOfDataPath( string path )
+{
+	string baseDataFolder = ofToDataPath("");
+	size_t pos = path.find( baseDataFolder );
+	if ( pos == string::npos || baseDataFolder.size() >= path.size() )
+		return path;
+	else
+		return path.substr( pos+baseDataFolder.size() );
 }
 

@@ -176,25 +176,14 @@ void MultiThreadCapture::ThreadedFunction()
     // try to get the frame
     PROFILE_THIS_BLOCK("mtc thread func");
 
-    PROFILE_SECTION_PUSH("grab");
+    PROFILE_SECTION_PUSH("capture->update()");
     //bool grabbed = cvGrabFrame( capture );
 	capture->update();
 	bool grabbed = capture->isFrameNew();
     PROFILE_SECTION_POP();
     if ( grabbed )
     {
-        /*
-        // calculate fps
-        static FTime prev_time;
-        FTime now;
-        now.SetNow();
-        static float capture_fps = 0;
-        capture_fps = 1.0f/(now-prev_time).ToSeconds();
-        printf("capture fps %2.2f\n", capture_fps );
-        prev_time = now;*/
-
-        PROFILE_SECTION_PUSH("retrieve");
-        //IplImage* f = cvRetrieveFrame( capture );
+        PROFILE_SECTION_PUSH("avGetFrame");
 		IplImage* f = avGetFrame( capture );
 		
         PROFILE_SECTION_POP();
@@ -226,20 +215,9 @@ void MultiThreadCapture::ThreadedFunction()
 //			printf("MTC::ThreadedFunction signalling process_thread_semaphore\n", process_thread_semaphore.getValue() );
             process_thread_semaphore.signal();
 
-			// sleep for a little
         }
 
     }
-	else
-	{
-	//	printf("no new frame, sleeping\n");
-	}
-/*    else
-    {
-        printf("cvGrabFrame failed: trying to rewind\n");
-        // try rewinding
-        cvSetCaptureProperty( capture, CV_CAP_PROP_POS_FRAMES, 0 );
-    }*/
 
 	
     PROFILE_SECTION_PUSH("idle sleeping");

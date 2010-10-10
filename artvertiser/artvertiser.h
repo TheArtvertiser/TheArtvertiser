@@ -10,6 +10,7 @@
 #include "ofMain.h"
 #include <cv.h>
 #include "FTime.h"
+#include "ofxControlPanel.h"
 
 class Artvertiser
 {
@@ -47,6 +48,14 @@ private:
 	// delay buffer for frame delay
 	list< pair<IplImage*, FTime> > frameRingBuffer;
 
+
+	guiTypePanel* main_panel;
+	guiTypeLabel* current_modelfile_label;
+	guiTypeToggle* add_model_toggle;
+	guiTypeToggle* retrain_current_toggle;
+	ofxControlPanel control_panel;
+	float control_panel_timer;
+	
 	
 };
 

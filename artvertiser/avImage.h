@@ -12,10 +12,14 @@
 #include <cv.h>
 #include "ofMain.h"
 
+string fromOfDataPath( string path );
+
+
 int avSaveImage( const char* path, CvArr* image );
 
 IplImage* avLoadImage( const char* path, int is_color=1 );
 
+/// return the current frame. DO NOT FREE THE RETURNED IMAGE.
 IplImage* avGetFrame( ofBaseVideo* video_source );
 
 

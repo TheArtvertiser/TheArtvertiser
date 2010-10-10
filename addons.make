@@ -1,4 +1,5 @@
 ofxOpenCv
 ofxXmlSettings
 ofxVectorMath
+ofxDirList
 

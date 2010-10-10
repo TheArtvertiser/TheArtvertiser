@@ -221,7 +221,7 @@ bool MultiGrab::Cam::detect( bool &frame_retrieved, bool &detect_succeeded )
 
     if ( !detector.isReady() )
     {
-		printf("detector is not ready, detect failed\n");
+		//printf("detector is not ready, detect failed\n");
         detect_succeeded = false;
         return false;
     }

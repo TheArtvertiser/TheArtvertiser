@@ -22,12 +22,9 @@ void testApp::update(){
 
 //--------------------------------------------------------------
 void testApp::draw(){
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
 	
 	artvertiser.draw();
+
 }
 
 void testApp::exit()

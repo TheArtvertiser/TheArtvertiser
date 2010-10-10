@@ -1424,6 +1424,8 @@ bool cmp_tmp_model_points(pair<object_keypoint, int> p1, pair<object_keypoint, i
   return p1.second > p2.second;
 }
 
+
+
 // Selection of the interest points from the image model
 void planar_object_recognizer::detect_most_stable_model_points(int max_point_number_on_model,
                                                                int patch_size,
