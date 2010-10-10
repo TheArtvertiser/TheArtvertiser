@@ -132,7 +132,13 @@ int avSaveImage( const char* path, CvArr* image )
 #else
 	bool order_is_rgb = true;
 #endif
-	working.setFromPixels( (unsigned char*)f->imageData, f->width, f->height, OF_IMAGE_COLOR, order_is_rgb );
+	
+	int type = OF_IMAGE_COLOR;
+	if ( f->nChannels == 1 )
+		type = OF_IMAGE_GRAYSCALE;
+	else if ( f->nChannels == 4 )
+		type = OF_IMAGE_COLOR_ALPHA;
+	working.setFromPixels( (unsigned char*)f->imageData, f->width, f->height, type, order_is_rgb );
 	working.saveImage( path );
 	return true;
 }
@@ -156,8 +162,19 @@ IplImage* avLoadImage( const char* path, int is_color )
 		printf("avLoadImage couldn't load '%s'\n", path );
 		return NULL;
 	}
+	else
+		printf("avLoadImage loaded %ix%i %s %s\n", working.width, working.height, working.type==OF_IMAGE_GRAYSCALE?"OF_IMAGE_GRAYSCALE":
+			   (working.type==OF_IMAGE_COLOR?"OF_IMAGE_COLOR":"OF_IMAGE_COLOR_ALPHA"), path );
 		
 	int n_channels;
+	// take care of 'automatic'
+	if ( is_color == -1 )
+	{
+		if ( working.type==OF_IMAGE_GRAYSCALE )
+			is_color = 0;
+		else
+			is_color = 1;
+	}
 	if ( is_color == 1 )
 		n_channels = 3;
 	else if ( is_color == 0 )
@@ -231,17 +248,18 @@ IplImage* avLoadImage( const char* path, int is_color )
 			}
 		}
 	}
-	else // color matches
+	else // pass color through
 	{
+		int bypp = n_channels; 
 		// straight copy
 		if( output->width == output->widthStep ){
-			memcpy( output->imageData,  pixels, w*h*3);
+			memcpy( output->imageData,  pixels, w*h*bypp);
 		}else{
 			for( int i=0; i < h; i++ ) {
 				char* target_line_start = output->imageData + (i*output->widthStep);
 				memcpy( target_line_start,
-					   pixels + (i*w*3),
-					   w*3 );
+					   pixels + (i*w*bypp),
+					   w*bypp );
 			}
 		}
 	}

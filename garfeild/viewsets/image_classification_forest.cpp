@@ -520,6 +520,7 @@ void image_classification_forest::change_class_number_and_reset_probabilities(in
 
 bool image_classification_forest::save(string directory_name)
 {
+	printf("saving image_classification_forest to %s\n", directory_name.c_str() );
     int tree_index = 0;
 
     // trash any old forest, if it exists

@@ -314,7 +314,7 @@ bool CalibModel::buildCached(int nbcam, ofBaseVideo *capture,
 			learn_running = false;
 		    detector.unlock();
 		    detector.clear();
- 		    printf("saving .roi file failed\n");
+ 		    printf("saving .roi file to '%s' failed\n", roifn.c_str() );
             return false;
 		}
 		for (int i=0;i<4; i++)

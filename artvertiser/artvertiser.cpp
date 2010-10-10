@@ -1000,6 +1000,9 @@ void Artvertiser::setup( int argc, char** argv )
 
     // dump opencv version
     printf("built with opencv version %s\n", CV_VERSION );
+	char wd[1024];
+	getcwd( wd, 1024 );
+	printf("cwd is %s\n", wd );
 	
     // more from before init should be moved here
     bool redo_lighting=false;
@@ -1011,7 +1014,7 @@ void Artvertiser::setup( int argc, char** argv )
     char *model_file_list_file = NULL;
 	
 	// load fallback
-	fallback_artvert_image = avLoadImage("fallback_artvert_image.png");
+	fallback_artvert_image = avLoadImage(ofToDataPath("fallback_artvert_image.png").c_str());
 	
     // parse command line
     for (int i=1; i<argc; i++)
@@ -1021,7 +1024,7 @@ void Artvertiser::setup( int argc, char** argv )
             if (i==argc-1)
                 usage(argv[0]);
 			Artvert a;
-			a.setModelFile( argv[i+1], /* don't do data path stuff */ true );
+			a.setModelFile( argv[i+1] );//, /* don't do data path stuff */ true );
 			a.advert = "cmdline "+a.getModelFile();
 			// store
          	artvert_list.push_back( a );
@@ -2086,9 +2089,9 @@ static void* detectionThreadFunc( void* _data )
 				multi->model.augm.AddHomography();
 			}
 
-			printf("trying from frame_ok %c to accomodate model. succeeded? ", frame_ok?'y':'n' );
+			//printf("trying from frame_ok %c to accomodate model. succeeded? ", frame_ok?'y':'n' );
 			frame_ok = multi->model.augm.Accomodate(4, 1e-4);
-			printf("%c\n", frame_ok?'y':'n' );
+			//printf("%c\n", frame_ok?'y':'n' );
 
 			if (frame_ok)
 			{
