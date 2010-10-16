@@ -459,6 +459,8 @@ void planar_object_recognizer::save(string directory_name)
   _mkdir(directory_name.data());
 #endif
 
+	printf("trying to save to %s\n", directory_name.c_str() );
+	
   char image_name[1000];
   sprintf(image_name, "%s/original_image.bmp", directory_name.data());
   mcvSaveImage(image_name, new_images_generator.original_image);

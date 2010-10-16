@@ -727,7 +727,13 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 	int oldx, oldy;
 	float closest_distance;
 	
-	string model_path = string("data/")+fromOfDataPath( modelfile );
+	
+	string model_path = fromOfDataPath( modelfile );
+	// only assume data/ relative if fromOfDataPath returns something different
+	if ( model_path != modelfile )
+		model_path = string("data/")+model_path;
+	else
+		model_path = fromAbsolutePath( modelfile );
 	
     // update
     switch( state )

@@ -224,8 +224,6 @@ vector<int> roi_vec;
 CvPoint2D32f *c1 = new CvPoint2D32f[4];
 vector<int> artvert_roi_vec;
 
-char *image_path;
-
 class Artvert
 {
 public:
@@ -994,7 +992,6 @@ static void emptyWindow()
 }
 
 
-
 void Artvertiser::setup( int argc, char** argv )
 {
 
@@ -1007,11 +1004,12 @@ void Artvertiser::setup( int argc, char** argv )
     // more from before init should be moved here
     bool redo_lighting=false;
     bool redo_training = false;
-    char *avi_bg_path=(char*)"";
+    string avi_bg_path = "";
+	string image_path = "";
     bool got_ds = false;
     bool got_fps = false;
     bool video_source_is_avi = false;
-    char *model_file_list_file = NULL;
+	string model_file_list_file = "";
 	
 	// load fallback
 	fallback_artvert_image = avLoadImage(ofToDataPath("fallback_artvert_image.png").c_str());
@@ -1024,7 +1022,7 @@ void Artvertiser::setup( int argc, char** argv )
             if (i==argc-1)
                 usage(argv[0]);
 			Artvert a;
-			a.setModelFile( argv[i+1] );//, /* don't do data path stuff */ true );
+			a.setModelFile( toAbsolutePath(argv[i+1]) );
 			a.advert = "cmdline "+a.getModelFile();
 			// store
          	artvert_list.push_back( a );
@@ -1045,8 +1043,8 @@ void Artvertiser::setup( int argc, char** argv )
         {
             if ( i==argc-1)
                 usage(argv[0]);
-            model_file_list_file = argv[i+1];
-            printf(" -ml: loading model image list from '%s'\n", argv[i+1] );
+			model_file_list_file = toAbsolutePath( argv[i+1] );
+            printf(" -ml: loading model image list from '%s'\n", model_file_list_file.c_str() );
             i++;
         }
         else if (strcmp(argv[i], "-r")==0)
@@ -1075,19 +1073,15 @@ void Artvertiser::setup( int argc, char** argv )
             avi_capture = player;
             avi_play=true;
         }
-        else if (strcmp(argv[i], "-i")==0)
-        {
-			IplImage *image1 = avLoadImage(argv[i]+1);
-        }
         else if (strcmp(argv[i], "-b")==0)
         {
             video_source_is_avi = true;
-            avi_bg_path=argv[i+1];
-            printf(" -b: loading from avi '%s'\n", avi_bg_path );
+            avi_bg_path=toAbsolutePath(argv[i+1]);
+            printf(" -b: loading from avi '%s'\n", avi_bg_path.c_str() );
         }
         else if (strcmp(argv[i], "-i")==0)
         {
-            image_path=argv[i+1];
+            image_path=toAbsolutePath(argv[i+1]);
         }
         else if ( strcmp(argv[i], "-fps")==0 )
         {
@@ -1141,7 +1135,7 @@ void Artvertiser::setup( int argc, char** argv )
 	
 	
     // read model files from model_file_list_file
-    if ( model_file_list_file != NULL )
+    if ( model_file_list_file.size()>0 )
     {
         // try to open
         ofxXmlSettings data;
@@ -1151,7 +1145,7 @@ void Artvertiser::setup( int argc, char** argv )
         {
             data.pushTag( "artverts" );
             int num_filenames = data.getNumTags( "advert" );
-            printf("   -ml: opened %s, %i adverts\n", model_file_list_file, num_filenames );
+            printf("   -ml: opened %s, %i adverts\n", model_file_list_file.c_str(), num_filenames );
             for ( int i=0; i<num_filenames; i++ )
             {
                 data.pushTag("advert", i);
@@ -1188,7 +1182,7 @@ void Artvertiser::setup( int argc, char** argv )
         }
         else
         {
-            printf("   -ml: error reading '%s': couldn't find 'artverts' tag\n", model_file_list_file );
+            printf("   -ml: error reading '%s': couldn't find 'artverts' tag\n", model_file_list_file.c_str() );
         }
     }
 
@@ -1236,7 +1230,7 @@ void Artvertiser::setup( int argc, char** argv )
 	
     multi = new MultiGrab();
 	
-    if( multi->init(avi_bg_path, video_width, video_height, v4l_device,
+    if( multi->init( avi_bg_path.c_str(), video_width, video_height, v4l_device,
                     detect_width, detect_height, desired_capture_fps ) ==0)
     {
         cerr <<"Initialization error.\n";

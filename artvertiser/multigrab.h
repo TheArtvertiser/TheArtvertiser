@@ -39,7 +39,7 @@ public:
 	MultiGrab() {};
     ~MultiGrab();
 
-	int init( char *avi_bg_path,
+	int init( const char *avi_bg_path,
           int capture_width, int capture_height, int v4l_device, int detect_width, int detect_height,
           int desired_capture_fps );
     /// load or train the cache using the given modelfile. if wants_training is true, train;

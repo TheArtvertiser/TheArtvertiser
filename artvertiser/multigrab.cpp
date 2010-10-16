@@ -38,7 +38,7 @@ MultiGrab::~MultiGrab()
 
 }
 
-int MultiGrab::init( char *avi_bg_path, int width, int height, int v4l_device, int detect_width, int detect_height, int desired_capture_fps )
+int MultiGrab::init( const char *avi_bg_path, int width, int height, int v4l_device, int detect_width, int detect_height, int desired_capture_fps )
 {
 
 	ofBaseVideo *c;

@@ -278,3 +278,31 @@ string fromOfDataPath( string path )
 		return path.substr( pos+baseDataFolder.size() );
 }
 
+
+string toAbsolutePath( string path )
+{
+	if ( path.size()==0 || path[0] == '/' )
+		return path;
+	
+	// prepend CWD to passed-in path
+	char cwd[2048];
+	getcwd( cwd, 2048 );
+	return string(cwd)+"/"+path;
+}
+
+string fromAbsolutePath( string path )
+{
+	if ( path.size()==0 )
+		return path;
+	
+	// search for CWD in passed-in path
+	char cwd[2048];
+	getcwd( cwd, 2048 );
+	size_t pos = path.find( cwd );
+	if ( pos == string::npos || strlen(cwd) >= path.size() )
+		return path;
+	else
+		return path.substr( pos+strlen(cwd)+1 );
+
+}
+
