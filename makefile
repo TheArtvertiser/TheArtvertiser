@@ -72,7 +72,7 @@ CFLAGS += $(INCLUDES_FLAGS)
 CFLAGS += $(CORE_INCLUDE_FLAGS)
 CFLAGS += `pkg-config  gstreamer-0.10 gstreamer-video-0.10 gstreamer-base-0.10 libudev libavcodec libavformat libavutil --cflags`
 
-LDFLAGS = $(LIB_PATHS_FLAGS) 
+LDFLAGS = $(LIB_PATHS_FLAGS) -Wl,-rpath=./libs
 
 LIBS = $(LIB_SHARED)
 LIBS += $(LIB_STATIC)
@@ -196,33 +196,33 @@ depend-Release: $(DEPFILES)
 depend-Debug: $(DEPFILES)
 
 # This is the rule for creating the dependency files
-$(OBJ_OUTPUT)%.d : %.cpp
-	@echo " * "creating dependency file $@ for $<
-	@mkdir -p $(@D)
-	@# dependency creation flags
-	@# -MM: exclude system headers
-	@# -MT: change target name
-	@# -MF: write to file
-	@$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) -MM -MT $(patsubst %.d,%.o,$@) -MF $@ $<
+#$(OBJ_OUTPUT)%.d : %.cpp
+#	@echo " * "creating dependency file $@ for $<
+#	@mkdir -p $(@D)
+#	@# dependency creation flags
+#	@# -MM: exclude system headers
+#	@# -MT: change target name
+#	@# -MF: write to file
+#	@$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) -MM -MT $(patsubst %.d,%.o,$@) -MF $@ $<
 	
-$(OBJ_OUTPUT)%.d : ../../../%.cpp
-	@echo " * "creating addon dependency file $@ for $<
-	@mkdir -p $(@D)
-	@# dependency creation flags
-	@# -MM: exclude system headers
-	@# -MT: change target name
-	@# -MF: write to file
-	@$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) -MM -MT $(patsubst %.d,%.o,$@) -MF $@ $<
+#$(OBJ_OUTPUT)%.d : ../../../%.cpp
+#	@echo " * "creating addon dependency file $@ for $<
+#	@mkdir -p $(@D)
+#	@# dependency creation flags
+#	@# -MM: exclude system headers
+#	@# -MT: change target name
+#	@# -MF: write to file
+#	@$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) -MM -MT $(patsubst %.d,%.o,$@) -MF $@ $<
 
 #This rule does the compilation
 #$(OBJS): $(SOURCES) $(DEPFILES)
-$(OBJ_OUTPUT)%.o : ../../../%.cpp $(OBJ_OUTPUT)%.d
+$(OBJ_OUTPUT)%.o : ../../../%.cpp
 	@echo " * "compiling addon object $@ from $<
 	@mkdir -p $(@D)
 	@# -MMD: update the dependency file
 	$(CXX) $(TARGET_CFLAGS) $(CFLAGS) $(ADDONSCFLAGS) $(USER_CFLAGS) -MMD -o $(patsubst ../../../%.cpp,$(OBJ_OUTPUT)%.o,$<) -c $<
 
-$(OBJ_OUTPUT)%.o : %.cpp $(OBJ_OUTPUT)%.d 
+$(OBJ_OUTPUT)%.o : %.cpp 
 	@echo " * "compiling object $@ from $< 
 	@mkdir -p $(@D)
 	@# -MMD: update the dependency file
@@ -239,24 +239,20 @@ clean:
 	rm -Rf obj
 	rm -f -v $(TARGET)
 	rm -Rf -v bin/libs
-	rm -f -v bin/launch_*
 	
 $(CLEANTARGET):
 	rm -Rf -v $(OBJ_OUTPUT)
 	rm -f -v $(TARGET)
-	rm -f -v bin/launch_$(TARGET_NAME).sh
 
 
 after:
 	@cp -r ../../../export/$(LIBSPATH)/libs bin/
-	@cp ../../../export/$(LIBSPATH)/clickToLaunchApp.sh bin/launch_$(TARGET_NAME).sh
-	@sed -i 's/applicationName/$(APPNAME) "\$$@"/g'  bin/launch_$(TARGET_NAME).sh
 	@echo
 	@echo "     compiling done"
 	@echo "     to launch the application"	
 	@echo
 	@echo "     cd bin"
-	@echo "     ./launch_$(TARGET_NAME).sh"
+	@echo "     ./$(TARGET)"
 	@echo
     
 

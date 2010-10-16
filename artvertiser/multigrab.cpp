@@ -70,15 +70,15 @@ int MultiGrab::init( const char *avi_bg_path, int width, int height, int v4l_dev
 		*/
 		cout << "MultiGrab::init creating camera with device "<<v4l_device<<", capture at " << width << "x" << height << " detect at " << detect_width << "x" << detect_height << endl;
 		ofVideoGrabber* grabber = new ofVideoGrabber();
-		grabber->initGrabber( width, height, false );
+		if (!grabber->initGrabber( width, height, false ) )
+		{
+			printf( "couldn't initialise ofVideoGrabber\n");
+			delete grabber;
+			return 0;
+		}
 		grabber->update();
 		
 		ofBaseVideo *c = grabber;
-		if ( c == 0 )
-		{
-			cerr << "ofBaseVideoFromCam returned null" <<endl;
-			return 0;
-		}
 		cams.push_back(new Cam(false, c, width, height, detect_width, detect_height, desired_capture_fps ));
 	}
 	if (cams.size()==0) {
