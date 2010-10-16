@@ -1015,8 +1015,10 @@ void Artvertiser::setup( int argc, char** argv )
 	fallback_artvert_image = avLoadImage(ofToDataPath("fallback_artvert_image.png").c_str());
 	
     // parse command line
+	printf("argc: %2i\n", argc );
     for (int i=1; i<argc; i++)
-    {
+	{
+		printf("arg %2i: '%s'\n", i, argv[i] );
         if (strcmp(argv[i], "-m") ==0)
         {
             if (i==argc-1)
@@ -1126,8 +1128,16 @@ void Artvertiser::setup( int argc, char** argv )
             got_ds = true;
             i+=2;
         }
+#ifdef TARGET_OSX
+		// skip -psn_xxxxxxxx argument (process number)
+		else if ( strstr( argv[i], "-psn_" ) == argv[i] )
+		{
+			// skip
+		}
+#endif
         else if (argv[i][0]=='-')
         {
+			printf(" unknown argument '%s'\n", argv[i] );
             usage(argv[0]);
         }
 		

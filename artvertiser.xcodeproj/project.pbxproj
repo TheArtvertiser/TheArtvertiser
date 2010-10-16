@@ -52,6 +52,7 @@
 		2D7BAF761262127A002AD5DA /* simpleFileLister.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D7BAF5B1262127A002AD5DA /* simpleFileLister.cpp */; };
 		2D7BAF771262127A002AD5DA /* simpleLogger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D7BAF5D1262127A002AD5DA /* simpleLogger.cpp */; };
 		2D7BAFB01262165D002AD5DA /* guiTypeLabel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D7BAFAF1262165D002AD5DA /* guiTypeLabel.cpp */; };
+		2DCBDEC31269E8A0003B8749 /* artvertiser.icns in Resources */ = {isa = PBXBuildFile; fileRef = 2DCBDEB91269E87C003B8749 /* artvertiser.icns */; };
 		2DFC5364125CA38F00ED1872 /* artvertiser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2DFC52F8125CA38F00ED1872 /* artvertiser.cpp */; };
 		2DFC5365125CA38F00ED1872 /* avImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2DFC52FA125CA38F00ED1872 /* avImage.cpp */; };
 		2DFC5366125CA38F00ED1872 /* calibmodel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2DFC52FC125CA38F00ED1872 /* calibmodel.cpp */; };
@@ -285,6 +286,7 @@
 		2D7BAF5E1262127A002AD5DA /* simpleLogger.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = simpleLogger.h; sourceTree = "<group>"; };
 		2D7BAF7D1262130E002AD5DA /* guiTypeLabel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = guiTypeLabel.h; sourceTree = "<group>"; };
 		2D7BAFAF1262165D002AD5DA /* guiTypeLabel.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = guiTypeLabel.cpp; sourceTree = "<group>"; };
+		2DCBDEB91269E87C003B8749 /* artvertiser.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = artvertiser.icns; sourceTree = "<group>"; };
 		2DFC52F8125CA38F00ED1872 /* artvertiser.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = artvertiser.cpp; sourceTree = "<group>"; };
 		2DFC52F9125CA38F00ED1872 /* artvertiser.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = artvertiser.h; sourceTree = "<group>"; };
 		2DFC52FA125CA38F00ED1872 /* avImage.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = avImage.cpp; sourceTree = "<group>"; };
@@ -403,7 +405,7 @@
 		E45BE9770E8CC7DD009D7055 /* CoreServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreServices.framework; path = /System/Library/Frameworks/CoreServices.framework; sourceTree = "<absolute>"; };
 		E45BE9790E8CC7DD009D7055 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = /System/Library/Frameworks/OpenGL.framework; sourceTree = "<absolute>"; };
 		E45BE97A0E8CC7DD009D7055 /* QuickTime.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuickTime.framework; path = /System/Library/Frameworks/QuickTime.framework; sourceTree = "<absolute>"; };
-		E4B69B5B0A3A1756003C02F2 /* graphicsExampleDebug.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = graphicsExampleDebug.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4B69B5B0A3A1756003C02F2 /* TheArtvertiser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TheArtvertiser.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E4B69E1D0A3A1BDC003C02F2 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = src/main.cpp; sourceTree = SOURCE_ROOT; };
 		E4B6FCAD0C3E899E008CF71C /* openFrameworks-Info.plist */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = text.plist.xml; path = "openFrameworks-Info.plist"; sourceTree = "<group>"; };
 		E4C2421610CC549C004149E2 /* openFrameworksLib.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = openFrameworksLib.xcodeproj; path = ../../../libs/openFrameworksCompiled/project/osx/openFrameworksLib.xcodeproj; sourceTree = SOURCE_ROOT; };
@@ -1132,7 +1134,8 @@
 			isa = PBXGroup;
 			children = (
 				2D3ACEAE125B7FCF00782E83 /* addons */,
-				E4B69B5B0A3A1756003C02F2 /* graphicsExampleDebug.app */,
+				E4B69B5B0A3A1756003C02F2 /* TheArtvertiser.app */,
+				2DCBDEB91269E87C003B8749 /* artvertiser.icns */,
 				E4B6FCAD0C3E899E008CF71C /* openFrameworks-Info.plist */,
 				E4B69E1C0A3A1BDC003C02F2 /* src */,
 				E4C2422310CC54B6004149E2 /* openFrameworks */,
@@ -1241,24 +1244,25 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		E4B69B5A0A3A1756003C02F2 /* graphicsExample */ = {
+		E4B69B5A0A3A1756003C02F2 /* TheArtvertiser */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = E4B69B5F0A3A1757003C02F2 /* Build configuration list for PBXNativeTarget "graphicsExample" */;
+			buildConfigurationList = E4B69B5F0A3A1757003C02F2 /* Build configuration list for PBXNativeTarget "TheArtvertiser" */;
 			buildPhases = (
 				E4B69B580A3A1756003C02F2 /* Sources */,
 				E4B69B590A3A1756003C02F2 /* Frameworks */,
 				E4B6FFFD0C3F9AB9008CF71C /* ShellScript */,
 				E4C2427710CC5ABF004149E2 /* CopyFiles */,
 				E4C2444710CC769B004149E2 /* CopyFiles */,
+				2DCBDEC21269E895003B8749 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				E4C2422810CC54DA004149E2 /* PBXTargetDependency */,
 			);
-			name = graphicsExample;
+			name = TheArtvertiser;
 			productName = myOFApp;
-			productReference = E4B69B5B0A3A1756003C02F2 /* graphicsExampleDebug.app */;
+			productReference = E4B69B5B0A3A1756003C02F2 /* TheArtvertiser.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -1280,7 +1284,7 @@
 			);
 			projectRoot = "";
 			targets = (
-				E4B69B5A0A3A1756003C02F2 /* graphicsExample */,
+				E4B69B5A0A3A1756003C02F2 /* TheArtvertiser */,
 			);
 		};
 /* End PBXProject section */
@@ -1294,6 +1298,17 @@
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 /* End PBXReferenceProxy section */
+
+/* Begin PBXResourcesBuildPhase section */
+		2DCBDEC21269E895003B8749 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2DCBDEC31269E8A0003B8749 /* artvertiser.icns in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		E4B6FFFD0C3F9AB9008CF71C /* ShellScript */ = {
@@ -1733,7 +1748,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		E4B69B5F0A3A1757003C02F2 /* Build configuration list for PBXNativeTarget "graphicsExample" */ = {
+		E4B69B5F0A3A1757003C02F2 /* Build configuration list for PBXNativeTarget "TheArtvertiser" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				E4B69B600A3A1757003C02F2 /* Debug */,
