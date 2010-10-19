@@ -7,10 +7,20 @@
  *
  */
 
+#pragma once
+
 // handle image stuff internally
 
 #include <cv.h>
 #include "ofMain.h"
+
+#ifndef IsRGB
+#define IsRGB(s) ((s[0] == 'R') && (s[1] == 'G') && (s[2] == 'B'))
+#endif
+#ifndef IsBGR
+#define IsBGR(s) ((s[0] == 'B') && (s[1] == 'G') && (s[2] == 'R'))
+#endif
+
 
 /// strip off the base path prepended by ofToDataPath, returning paths relative
 /// to the data/ directory
