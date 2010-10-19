@@ -53,9 +53,11 @@ private:
 	guiTypeLabel* current_modelfile_label;
 	guiTypeToggle* add_model_toggle;
 	guiTypeToggle* retrain_current_toggle;
+	guiTypeTextDropDown* model_selection_dropdown;
 	ofxControlPanel control_panel;
 	float control_panel_timer;
 	
+	void updateModelSelectionDropdown();
 	
 };
 

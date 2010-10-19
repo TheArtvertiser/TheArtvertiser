@@ -76,6 +76,7 @@ static const float CONTROL_PANEL_SHOW_TIME = 10.0f;
 #include <stdio.h>
 #include <time.h>
 
+#include "Artvert.h"
 
 #include <calib/camera.h>
 
@@ -110,9 +111,6 @@ using namespace std;
 
 // matrix tracker
 #include "MatrixTracker/MatrixTracker.h"
-
-#define IsRGB(s) ((s[0] == 'R') && (s[1] == 'G') && (s[2] == 'B'))
-#define IsBGR(s) ((s[0] == 'B') && (s[1] == 'G') && (s[2] == 'R'))
 
 #ifndef GL_CLAMP_TO_BORDER
 #define GL_CLAMP_TO_BORDER 0x812D
@@ -181,9 +179,6 @@ int detect_width = DEFAULT_WIDTH;
 int detect_height = DEFAULT_HEIGHT;
 int desired_capture_fps = DEFAULT_CAPTURE_FPS;
 
-// load some images. hard-coded for know until i get the path parsing together.
-IplImage *fallback_artvert_image;
-
 // matrix tracker
 MatrixTracker matrix_tracker;
 
@@ -224,109 +219,6 @@ vector<int> roi_vec;
 CvPoint2D32f *c1 = new CvPoint2D32f[4];
 vector<int> artvert_roi_vec;
 
-class Artvert
-{
-public:
-	Artvert() { 
-		artvert_image=0; 
-		model_file="<uninitialised>"; 
-		artvert_image_file="<uninitialised>"; 
-		artvert_is_movie= false;
-		artist = "unknown artist";
-		advert = "unknown advert";
-		name = "unnamed artvert";
-		avi_capture = NULL;
-		avi_image = NULL;
-		avi_play_init = false;
-	}
-	~Artvert()
-	{
-		if ( artvert_image )
-			cvReleaseImage( &artvert_image );
-		if ( avi_capture )
-			delete avi_capture;
-		if ( avi_image )
-			cvReleaseImage( &avi_image );
-	}
-
-	IplImage* getArtvertImage()
-	{
-		if ( artvert_is_movie )
-		{
-
-			if ( avi_capture==NULL )
-			{
-				ofVideoPlayer * avi_cap = new ofVideoPlayer();
-				avi_cap->loadMovie( artvert_movie_file.c_str() );
-				avi_cap->setLoopState( OF_LOOP_NORMAL );
-				avi_cap->play();
-				avi_cap->update();
-				avi_capture = avi_cap;
-				avi_play_init = false;
-			}	
-
-			// get the next frame
-			IplImage* avi_frame = avGetFrame( avi_capture );
-			
-			if ( avi_frame == 0 )
-			{
-				printf("failed to load movie '%s'\n", artvert_movie_file.c_str() );
-				return fallback_artvert_image;
-			}
-			if ( avi_image == 0 )
-				avi_image = cvCreateImage( cvGetSize(avi_frame), avi_frame->depth, avi_frame->nChannels );
-			cvCopy( avi_frame, avi_image );
-			avi_image->origin = avi_frame->origin;
-			GLenum format = IsBGR(avi_image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
-
-		    if (!avi_play_init)
-		    {
-				glGenTextures(1, &imageID);
-				glBindTexture(GL_TEXTURE_2D, imageID);
-				glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-				avi_play_init=true;
-		    }
-			return avi_image;
-		}
-		else
-		{
-			if ( !artvert_image )
-			{
-				printf("loading artvert image '%s'\n", artvert_image_file.c_str() );
-				artvert_image = avLoadImage( artvert_image_file.c_str() );
-			}
-			if ( !artvert_image )
-			{
-				fprintf(stderr, "couldn't load artvert image '%s'\n", artvert_image_file.c_str() );
-				artvert_image = fallback_artvert_image;
-			}
-			return artvert_image;
-		}
-	}
-
-	string artist;
-	string advert;
-	string name;
-	bool artvert_is_movie;
-	
-	void setModelFile( string f, bool skip_data_path_stuff=false ) { model_file = skip_data_path_stuff ? f : ofToDataPath( f ); }
-	void setArtvertImageFile( string f ) { artvert_image_file = ofToDataPath( f ); }
-	void setArtvertMovieFile( string f ) { artvert_movie_file = ofToDataPath( f ); }
-	
-	string getModelFile() { return model_file; }
-	string getArtvertImageFile() { return artvert_image_file; }
-	string getArtvertMovieFile() { return artvert_movie_file; }
-private:
-	string model_file;
-	string artvert_image_file;
-	string artvert_movie_file;
-	ofBaseVideo* avi_capture;
-	IplImage* avi_image;
-	bool avi_play_init;
-	GLuint imageID;
-
-	IplImage* artvert_image;
-};
 
 vector< Artvert > artvert_list;
 bool new_artvert_switching_in_progress = false;
@@ -1011,14 +903,10 @@ void Artvertiser::setup( int argc, char** argv )
     bool video_source_is_avi = false;
 	string model_file_list_file = "";
 	
-	// load fallback
-	fallback_artvert_image = avLoadImage(ofToDataPath("fallback_artvert_image.png").c_str());
-	
     // parse command line
 	printf("argc: %2i\n", argc );
     for (int i=1; i<argc; i++)
 	{
-		printf("arg %2i: '%s'\n", i, argv[i] );
         if (strcmp(argv[i], "-m") ==0)
         {
             if (i==argc-1)
@@ -1267,13 +1155,18 @@ void Artvertiser::setup( int argc, char** argv )
 	
 	// add main panel
 	main_panel = control_panel.addPanel("main", 1, false );
+	vector<string> names; 
+	/*names.push_back("<none>");
+	model_selection_dropdown = control_panel.addTextDropDown( "current model", "current_model", 0, names );
+	updateModelSelectionDropdown();*/
 	main_panel->setElementSpacing( 10, 0 );
 	control_panel.addLabel( "current modelfile:" );
 	current_modelfile_label = control_panel.addLabel( "<none>" );
 	main_panel->addSpace( 14 );
 	main_panel->setElementSpacing( 10, 14 );
-	//add_model_toggle = control_panel.addToggle( " add new model", "add_new_tgl", false );
 	retrain_current_toggle = control_panel.addToggle( " re-train current model", "retrain_current_tgl", false );
+	main_panel->addSpace( 14 );
+	//add_model_toggle = control_panel.addToggle( " add new model", "add_new_tgl", false );
 	
 	
 	control_panel.show();
@@ -1283,6 +1176,11 @@ void Artvertiser::setup( int argc, char** argv )
 	
     printf("setup() finished\n");
 
+}
+
+void Artvertiser::updateModelSelectionDropdown()
+{
+	
 }
 
 //!\brief  Draw a frame contained in an IplTexture object on an OpenGL viewport.
@@ -2284,6 +2182,17 @@ void Artvertiser::update()
 				current_artvert_index = -1;
 			}
 		}
+		
+		/*
+		// add new model?
+		if ( add_model_toggle->value.getValueB(0) )
+		{
+			// clear
+			add_model_toggle->setValue( false, 0 );
+
+			// something...
+		}*/
+		
 		new_artvert_requested_lock.unlock();
 	}
 	
