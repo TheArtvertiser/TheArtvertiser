@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2D2EB002126DC61300043AF6 /* Artvert.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D2EB001126DC61300043AF6 /* Artvert.cpp */; };
 		2D3ACF11125B7FEA00782E83 /* openCV.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D3ACECF125B7FEA00782E83 /* openCV.a */; };
 		2D3ACF1B125B7FEB00782E83 /* ofxCvColorImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D3ACEE0125B7FEA00782E83 /* ofxCvColorImage.cpp */; };
 		2D3ACF1C125B7FEB00782E83 /* ofxCvContourFinder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D3ACEE3125B7FEA00782E83 /* ofxCvContourFinder.cpp */; };
@@ -165,6 +166,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		2D2EB000126DC61300043AF6 /* Artvert.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Artvert.h; sourceTree = "<group>"; };
+		2D2EB001126DC61300043AF6 /* Artvert.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Artvert.cpp; sourceTree = "<group>"; };
 		2D3ACEB5125B7FEA00782E83 /* cv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = cv.h; sourceTree = "<group>"; };
 		2D3ACEB6125B7FEA00782E83 /* cv.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = cv.hpp; sourceTree = "<group>"; };
 		2D3ACEB7125B7FEA00782E83 /* cvaux.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = cvaux.h; sourceTree = "<group>"; };
@@ -752,6 +755,8 @@
 		2DFC52F7125CA38F00ED1872 /* artvertiser */ = {
 			isa = PBXGroup;
 			children = (
+				2D2EB000126DC61300043AF6 /* Artvert.h */,
+				2D2EB001126DC61300043AF6 /* Artvert.cpp */,
 				2DFC52F8125CA38F00ED1872 /* artvertiser.cpp */,
 				2DFC52F9125CA38F00ED1872 /* artvertiser.h */,
 				2DFC52FA125CA38F00ED1872 /* avImage.cpp */,
@@ -1418,6 +1423,7 @@
 				2D7BAF761262127A002AD5DA /* simpleFileLister.cpp in Sources */,
 				2D7BAF771262127A002AD5DA /* simpleLogger.cpp in Sources */,
 				2D7BAFB01262165D002AD5DA /* guiTypeLabel.cpp in Sources */,
+				2D2EB002126DC61300043AF6 /* Artvert.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
