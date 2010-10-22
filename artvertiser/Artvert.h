@@ -21,6 +21,9 @@ public:
 	Artvert();
 	~Artvert();
 	
+	void activate();
+	void deactivate();
+	
 	IplImage* getArtvertImage();
 	
 	bool artvert_is_movie;
@@ -44,7 +47,6 @@ public:
 	void setAdvertName( string n ) { advert_name = n; }
 	
 	bool artvertIsMovie() { return artvert_is_movie; }
-	void stopMovie();
 	void setVolume( float vol );
 	
 	string getDescription();
@@ -72,6 +74,8 @@ private:
 	static vector<IplImage*> fallback_artvert_images;
 	
 	friend class ArtvertDrawer;
+	
+	IplImage* fallback();
 	
 };
 

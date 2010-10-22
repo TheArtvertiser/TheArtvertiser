@@ -6,17 +6,17 @@
             <title>Your Art Here</title>
             <image_filename>artverts/your_art_here.png</image_filename>
             <artist>The Artvertiser Team</artist>
-		</artvert>
-		<artvert>
-			<title>A Tui Movie Instead</title>
-			<movie_filename>artverts/tui.mp4</movie_filename>
-			<artist>Damian</artist>
-		</artvert>
-     </advert>
+        </artvert>
+        <artvert>
+            <title>A Tui Movie Instead</title>
+            <movie_filename>artverts/tui.mp4</movie_filename>
+            <artist>Damian</artist>
+        </artvert>
+    </advert>
     <advert>
-       <name>CHANGEME</name>
-       <model_filename>models/CHANGEME.bmp</model_filename>
-       <artvert>
+        <name>CHANGEME</name>
+        <model_filename>models/CHANGEME.bmp</model_filename>
+        <artvert>
             <title>USB Bomb</title>
             <image_filename>artverts/usb_bomb.png</image_filename>
             <artist>us</artist>
@@ -26,5 +26,5 @@
             <image_filename>artverts/spider.png</image_filename>
             <artist>Earth</artist>
         </artvert>
-  </advert>
+    </advert>
 </artverts>

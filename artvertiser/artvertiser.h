@@ -54,6 +54,7 @@ private:
 	guiTypePanel* main_panel;
 
 	guiTypeTextDropDown* model_selection_dropdown;
+	guiTypeLabel* model_status_label;
 
 	guiTypeLabel* current_modelfile_label;
 	guiTypeDrawable* current_modelfile_image_drawer;

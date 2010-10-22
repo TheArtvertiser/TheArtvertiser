@@ -46,9 +46,10 @@ Artvert::Artvert()
 	which_fallback_image = -1;
 }
 
+
 Artvert::~Artvert()
 {
-	if ( artvert_image )
+	if ( artvert_image && which_fallback_image == -1 )
 		cvReleaseImage( &artvert_image );
 	if ( avi_capture )
 		delete avi_capture;
@@ -56,7 +57,8 @@ Artvert::~Artvert()
 		cvReleaseImage( &avi_image );
 }
 
-IplImage* Artvert::getArtvertImage()
+
+void Artvert::activate()
 {
 	if ( artvert_is_movie )
 	{
@@ -67,24 +69,59 @@ IplImage* Artvert::getArtvertImage()
 			if ( avi_capture->loadMovie( artvert_movie_file.c_str() ) )
 			{
 				avi_capture->setLoopState( OF_LOOP_NORMAL );
-				avi_capture->play();
-				avi_capture->update();
 				avi_storage_initialised = false;
 			}
 			else
 				ofLog( OF_LOG_ERROR, "failed to load movie '%s'", artvert_movie_file.c_str() );
-
 		}	
 		
-		if ( avi_capture->width == 0 )
+		if ( avi_capture->width != 0 )
 		{
-			if ( which_fallback_image == -1 )
-				which_fallback_image = ofRandom( 0, 0.9999f * fallback_artvert_images.size() );
-			return fallback_artvert_images[which_fallback_image];
+			avi_capture->play();
+			avi_capture->setVolume(0);
 		}
 
-		// to make sure
-		avi_capture->play();
+	}
+	else
+	{
+		if ( !artvert_image )
+		{
+			printf("loading artvert image '%s'\n", artvert_image_file.c_str() );
+			artvert_image = avLoadImage( artvert_image_file.c_str() );
+		}
+		if ( !artvert_image )
+		{
+			fprintf(stderr, "couldn't load artvert image '%s'\n", artvert_image_file.c_str() );
+			artvert_image = fallback();
+		}
+	}
+}
+
+void Artvert::deactivate()
+{
+	if ( artvert_is_movie && avi_capture != NULL && avi_capture->width != 0 )
+	{
+		avi_capture->setVolume(0);
+		avi_capture->stop();
+	}
+}
+
+IplImage* Artvert::fallback()
+{
+	if ( which_fallback_image == -1 )
+		which_fallback_image = ofRandom( 0, 0.9999f * fallback_artvert_images.size() );
+	return fallback_artvert_images[which_fallback_image];
+}	
+
+
+IplImage* Artvert::getArtvertImage()
+{
+	if ( artvert_is_movie )
+	{
+		if ( !avi_capture || avi_capture->width == 0 )
+		{
+			return fallback();
+		}
 
 		// get the next frame
 		IplImage* avi_frame = avGetFrame( avi_capture );
@@ -106,26 +143,8 @@ IplImage* Artvert::getArtvertImage()
 	}
 	else
 	{
-		if ( !artvert_image )
-		{
-			printf("loading artvert image '%s'\n", artvert_image_file.c_str() );
-			artvert_image = avLoadImage( artvert_image_file.c_str() );
-		}
-		if ( !artvert_image )
-		{
-			fprintf(stderr, "couldn't load artvert image '%s'\n", artvert_image_file.c_str() );
-			if ( which_fallback_image == -1 )
-				which_fallback_image = ofRandom( 0, 0.9999f * fallback_artvert_images.size() );
-			artvert_image = fallback_artvert_images[which_fallback_image];
-		}
 		return artvert_image;
 	}
-}
-
-void Artvert::stopMovie()
-{
-	if ( artvert_is_movie && avi_capture != NULL && avi_capture->width != 0 )
-		avi_capture->stop();
 }
 
 void Artvert::setVolume( float volume )
@@ -133,7 +152,6 @@ void Artvert::setVolume( float volume )
 	if ( artvert_is_movie && avi_capture != NULL && avi_capture->width != 0 )
 	{
 		int passed_volume = volume*255;
-		printf("setting volume to %f -> %i\n", volume, passed_volume );
 		avi_capture->setVolume( passed_volume );
 	}
 }

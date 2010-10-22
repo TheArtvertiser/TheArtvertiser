@@ -601,8 +601,6 @@ int serialport_read_until(int fd, char* buf, char until, int bufsize)
 
 void setCurrentArtvertIndex( int new_index )
 {
-	if ( current_artvert_index >=0 && current_artvert_index < artvert_list.size() )
-		artvert_list.at(current_artvert_index).stopMovie();
 	current_artvert_index = new_index;
 }
 
@@ -1149,16 +1147,21 @@ void Artvertiser::setup( int argc, char** argv )
 
 	
 	// setup control panel
-	control_panel.setup( "controls", 5, 5, ofGetWidth()-10, 350 , /* do save/restore */ false );
-	control_panel.setBackgroundColor( simpleColor(0, 0, 0, 32) );
+	control_panel.setup( "controls", 5, 5, ofGetWidth()-10, 370 , /* do save/restore */ false );
+	control_panel.setBackgroundColor( simpleColor(0, 0, 0, 16) );
 	// add main panel
-	main_panel = control_panel.addPanel("main", 2, false );
-	main_panel->setBackgroundColor( 0,0,0,32 );
+	main_panel = control_panel.addPanel("main", 0, false );
+	main_panel->addColumn( ofGetWidth()/2 - 40 );
+	main_panel->addColumn( ofGetWidth()/2 - 40 );
+	main_panel->setBackgroundColor( 0,0,0,16 );
 	// drop-down for models
 	vector<string> names; 
 	names.push_back("<none>");
+	main_panel->setElementSpacing( 10, 0 );
 	model_selection_dropdown = control_panel.addTextDropDown( "current artvert:", "current_artvert", 0, names );
 	updateModelSelectionDropdown();
+	model_status_label = control_panel.addLabel( "" );
+	main_panel->addSpace( 14 );
 	
 	// left column: current modelfile
 	control_panel.setWhichColumn( 0 );
@@ -1176,7 +1179,7 @@ void Artvertiser::setup( int argc, char** argv )
 	// right column: current artvert
 	control_panel.setWhichColumn( 1 );
 	main_panel->addSpace( model_selection_dropdown->getHeight() );
-	main_panel->addSpace( 34 );
+	main_panel->addSpace( 50 );
 	// current artvert label
 	main_panel->setElementSpacing( 10, 0 );
 	current_artvertfile_image_drawer = control_panel.addDrawableRect( "artvert:", &current_artvert_drawer, 160, 120 );
@@ -2192,12 +2195,19 @@ void Artvertiser::update()
 		}
 	}
 	
-	// update the control panel current model file text
+	// update things around artvert switching
 	if ( new_artvert_requested_lock.tryLock() )
 	{
-		// update current model file label
+		// we've just changed artverts
 		if ( old_artvert_index != current_artvert_index )
 		{
+			for ( int i=0; i<artvert_list.size(); i++ )
+				artvert_list[i].deactivate();
+			if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
+			{
+				artvert_list.at(current_artvert_index).activate();
+			}
+			
 			if ( current_artvert_index == -1 )
 			{
 				current_modelfile_label->setText( "<none>" );
@@ -2251,14 +2261,14 @@ void Artvertiser::update()
 			{
 				// say we want to be trained
 				model_file_needs_training[current_artvert_index] = true;
-
+				
 				// trigger the reload
 				new_artvert_requested = true;
 				new_artvert_requested_index = current_artvert_index;
 				setCurrentArtvertIndex( -1 );
 			}
 		}
-
+		
 		
 		// check for interaction on the drop-down
 		if ( model_selection_dropdown->hasValueChanged() )
@@ -2274,7 +2284,7 @@ void Artvertiser::update()
 			model_selection_dropdown->value.clearChangedFlag();
 		}
 		
-
+		
 		// add new model?
 		if ( add_model_toggle->value.getValueB(0) )
 		{
@@ -2469,6 +2479,7 @@ void Artvertiser::drawMenu()
 	        		glTranslatef(0, -26, 0 );
 					ptr = strtok( NULL, "\n" );
 				}
+				model_status_label->setText( multi->model.getLearnProgressMessage() );
 			}
 			else if ( geom_calib_in_progress )
 			{
@@ -2476,12 +2487,18 @@ void Artvertiser::drawMenu()
 				sprintf(buf, "geometric calibration: %.2f%%\n", 
 						100.0f*geom_calib_nb_homography/150.0f );
 				drawTextOnscreen( font_24, buf );
+				model_status_label->setText( buf );
 			}
 			else
+			{
+				model_status_label->setText( "changing_artvert..." );
 				drawTextOnscreen (font_24, "changing artvert..." );
+			}
 			
 
 		}
+		else
+			model_status_label->setText("" );
 
 		return;
 	}
