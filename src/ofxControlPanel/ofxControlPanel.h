@@ -38,7 +38,7 @@ class ofxControlPanel: public guiBaseObject{
         ofxControlPanel();
         ~ofxControlPanel();
 
-        void setup(string controlPanelName, float panelX, float panelY, float width, float height);
+        void setup(string controlPanelName, float panelX, float panelY, float width, float height, bool doSaveRestore = true );
         void loadFont( string fontName, int fontsize );
 
         guiTypePanel * addPanel(string panelName, int numColumns, bool locked = false);
@@ -49,6 +49,8 @@ class ofxControlPanel: public guiBaseObject{
         void setWhichPanel(int whichPanel);
         void setWhichPanel(string panelName);
         void setWhichColumn(int column);
+	
+	void setWidth( int new_width );
 
 		string getCurrentPanelName();
 
@@ -195,6 +197,8 @@ class ofxControlPanel: public guiBaseObject{
 		bool incrementSave;
 		bool restoreDown;
 		bool bDraggable;
+	
+	bool bDoSaveRestore;
 
 		int selectedPanel;
         int currentPanel;

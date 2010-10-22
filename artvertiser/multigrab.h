@@ -45,6 +45,8 @@ public:
     /// load or train the cache using the given modelfile. if wants_training is true, train;
     /// otherwise try to load and if load files, train
     bool loadOrTrainCache( bool wants_training, const char* modelfile, bool train_on_binoculars );
+	/// clear things
+	void clear();
 
 	void allocLightCollector();
 

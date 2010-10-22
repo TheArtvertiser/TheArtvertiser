@@ -71,6 +71,20 @@ void testApp::mouseReleased(int x, int y, int button){
 
 //--------------------------------------------------------------
 void testApp::windowResized(int w, int h){
-
+	// ensure 4:3 ratio
+	float aspect = float(w)/float(h);
+	static const float desired_aspect = (4.0f/3.0f);
+	if ( (aspect - desired_aspect) > 0.05f )
+	{
+		// less wide
+		ofSetWindowShape( float(h)*desired_aspect, h );
+	}
+	else if ( (aspect-desired_aspect) < -0.05f )
+	{
+		// less high
+		ofSetWindowShape( w, w/desired_aspect );
+	}
+	else
+		artvertiser.windowResized( w, h );
 }
 

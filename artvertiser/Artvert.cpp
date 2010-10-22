@@ -18,8 +18,8 @@ Artvert::Artvert()
 	artvert_image_file="<uninitialised>"; 
 	artvert_is_movie= false;
 	artist = "unknown artist";
-	advert = "unknown advert";
-	name = "unnamed artvert";
+	advert_name = "unknown advert";
+	title = "untitled artvert";
 	avi_capture = NULL;
 	avi_image = NULL;
 	avi_play_init = false;
@@ -114,4 +114,70 @@ IplImage* Artvert::getArtvertImage()
 		return artvert_image;
 	}
 }
+
+
+string Artvert::getDescription()
+{
+	return advert_name + " '" + title + "' [" + artist + "]";
+}
+
+void Artvert::loadArtvertsFromXml( ofxXmlSettings& data, vector<Artvert>& results )
+{
+	Artvert a;
+	a.setModelFile( data.getValue( "model_filename", "models/default.bmp" ) );
+	// can use either 'advert' or 'name' for the name of this model/advert
+	if ( data.getNumTags("advert") != 0 )
+		a.advert_name = data.getValue( "advert", "unknown advert" );
+	else 
+		a.advert_name = data.getValue( "name", "unknown advert" );
+	int num_artverts = data.getNumTags( "artvert" );
+	printf("   -ml: got advert, model file '%s', advert '%s', %i artverts\n", a.getModelFile().c_str(), a.getAdvertName().c_str(), num_artverts );
+	for ( int j=0; j<num_artverts; j++ )
+	{
+		data.pushTag("artvert", j );
+		// can use either 'name' or 'title' here
+		if ( data.getNumTags( "name" ) != 0 )
+			a.title = data.getValue( "name", "untitled" );
+		else
+			a.title = data.getValue( "title", "untitled" );
+		a.artist = data.getValue( "artist", "unknown artist" );
+		if ( data.getNumTags("movie_filename") != 0 )
+		{
+			// load a movie
+			a.artvert_is_movie = true;
+			a.setArtvertMovieFile( data.getValue("movie_filename", "artverts/artvertmovie1.mp4" ) );
+		}
+		else
+		{
+			// load an image
+			a.setArtvertImageFile( data.getValue( "image_filename", "artverts/artvert1.png" ) );
+		}
+		printf("     %i: %s:%s:%s\n", j, a.title.c_str(), a.artist.c_str(),
+			   a.artvert_is_movie?(a.getArtvertMovieFile()+"( movie)").c_str() : a.getArtvertImageFile().c_str() );
+		
+		results.push_back( a );
+		data.popTag();
+	}
+}	
+
+
+void Artvert::saveArtvertToXml( ofxXmlSettings& data, Artvert& a )
+{
+	data.addValue( "model_filename", fromOfDataPath( a.model_file ) );
+	// can use either 'advert' or 'name' for the name of this model/advert
+	data.addValue( "name", a.advert_name );
+	int index = data.addTag( "artvert" );
+	data.pushTag( "artvert", index );
+	data.addValue( "title", a.title );
+	data.addValue( "artist", a.artist );
+	if ( a.artvert_is_movie )
+	{
+		data.addValue( "movie_filename", fromOfDataOrAbsolutePath( a.getArtvertMovieFile() ) );
+	}
+	else
+	{
+		data.addValue( "image_filename", fromOfDataOrAbsolutePath( a.getArtvertImageFile() ) );
+	}
+	data.popTag();
+}	
 

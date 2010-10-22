@@ -31,7 +31,8 @@ public:
 	void mouseDragged( int x, int y, int button );
 	void mousePressed( int x, int y, int button );
 	void mouseReleased( int x, int y, int button );
-	
+
+	void windowResized( int new_w, int new_h ) { control_panel.setWidth( new_w-10  ); }
 private:
 	// draw the menu
 	void drawMenu();
@@ -50,10 +51,15 @@ private:
 
 
 	guiTypePanel* main_panel;
-	guiTypeLabel* current_modelfile_label;
-	guiTypeToggle* add_model_toggle;
-	guiTypeToggle* retrain_current_toggle;
+
 	guiTypeTextDropDown* model_selection_dropdown;
+
+	guiTypeLabel* current_modelfile_label;
+	guiTypeToggle* retrain_current_toggle;
+	guiTypeToggle* add_model_toggle;
+	
+	guiTypeLabel* current_artvertfile_label;
+
 	ofxControlPanel control_panel;
 	float control_panel_timer;
 	

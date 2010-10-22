@@ -70,8 +70,9 @@ ofxControlPanel * ofxControlPanel::getPanelInstance(string panelName){
 }	
 		
 //-----------------------------
-void ofxControlPanel::setup(string controlPanelName, float panelX, float panelY, float width, float height){
+void ofxControlPanel::setup(string controlPanelName, float panelX, float panelY, float width, float height, bool doSaveRestore){
 	
+	bDoSaveRestore = doSaveRestore;
 	name = controlPanelName;
 
 	setPosition(panelX, panelY);
@@ -101,6 +102,20 @@ void ofxControlPanel::loadFont(string fontName, int fontsize ){
 		printf("ahhhhhh why does my font no work!\n");
 	}
 }
+
+//---------------------------------------------
+
+void ofxControlPanel::setWidth( int new_width )
+{
+	// set width
+	setDimensions( new_width, getHeight() );
+	// set underlying panel widths
+	for ( int i=0; i<panels.size(); i++ )
+	{
+		panels[i]->setDimensions( (boundingBox.width - borderWidth*2) -1, boundingBox.height - topSpacing*3);
+	}
+}
+
 
 //---------------------------------------------
 guiTypePanel * ofxControlPanel::addPanel(string panelName, int numColumns, bool locked){
@@ -1113,8 +1128,16 @@ void ofxControlPanel::update(){
 
     topBar           = ofRectangle(boundingBox.x, boundingBox.y, boundingBox.width, MAX(20, displayText.getTextSingleLineHeight() * 1.2 ) );
     minimizeButton   = ofRectangle(boundingBox.x + boundingBox.width - 24, boundingBox.y + 4, 20, 10 );
-    saveButton       = ofRectangle(boundingBox.x + displayText.getTextWidth() + 20, boundingBox.y + 4, MAX(40, 8 + displayText.getTextWidth("save")) , MAX(12, displayText.getTextSingleLineHeight()) );
-    restoreButton    = ofRectangle(saveButton.x + saveButton.width + 15, boundingBox.y + 4,  MAX(60, 8 + displayText.getTextWidth("restore")) , MAX(12, displayText.getTextSingleLineHeight()) );
+	if ( !bDoSaveRestore )
+	{
+		saveButton		= ofRectangle( boundingBox.x, boundingBox.y, 0, 0 );
+		restoreButton	= ofRectangle( boundingBox.x, boundingBox.y, 0, 0 );
+	}
+	else
+	{
+		saveButton       = ofRectangle(boundingBox.x + displayText.getTextWidth() + 20, boundingBox.y + 4, MAX(40, 8 + displayText.getTextWidth("save")) , MAX(12, displayText.getTextSingleLineHeight()) );
+		restoreButton    = ofRectangle(saveButton.x + saveButton.width + 15, boundingBox.y + 4,  MAX(60, 8 + displayText.getTextWidth("restore")) , MAX(12, displayText.getTextSingleLineHeight()) );
+	}
 
 	ofxControlPanel::topSpacing = MAX(20, topBar.height);
 
@@ -1188,6 +1211,8 @@ void ofxControlPanel::draw(){
 
         ofRect(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height);
 
+	if ( bDoSaveRestore )
+	{
         ofPushStyle();
             ofFill();
 
@@ -1219,8 +1244,8 @@ void ofxControlPanel::draw(){
 		else {
 			ofDrawBitmapString("restore", restoreButton.x + 3, restoreButton.y + restoreButton.height -3);
 		}
-        ofPopStyle();
-
+		ofPopStyle();
+	}
 
         ofPushMatrix();
             ofTranslate(2,0,0);

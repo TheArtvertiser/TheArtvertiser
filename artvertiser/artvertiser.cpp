@@ -220,15 +220,16 @@ CvPoint2D32f *c1 = new CvPoint2D32f[4];
 vector<int> artvert_roi_vec;
 
 
+string model_file_list_file = "";
 vector< Artvert > artvert_list;
 bool new_artvert_switching_in_progress = false;
-int current_artvert_index=-1;
+int current_artvert_index = -1;
+int old_artvert_index = current_artvert_index;
 ofxMutex new_artvert_requested_lock;
 bool new_artvert_requested = false;
 int new_artvert_requested_index = 0;
 bool load_or_train_succeeded = false;
 vector< bool > model_file_needs_training;
-#include "ofxXmlSettings.h"
 
 // detection thread
 pthread_t detection_thread;
@@ -344,6 +345,7 @@ void Artvertiser::mousePressed( int x, int y, int button )
 	mouse_x = x;
 	mouse_y = y;
 	control_panel.mousePressed( x,y, button );
+	control_panel_timer = CONTROL_PANEL_SHOW_TIME;
 }
 
 void Artvertiser::mouseReleased( int x, int y, int button )
@@ -355,6 +357,7 @@ void Artvertiser::mouseReleased( int x, int y, int button )
 		label = false;
 	mouse_x = x;
 	mouse_y = y;
+	control_panel_timer = CONTROL_PANEL_SHOW_TIME;
 }
 
 void Artvertiser::mouseDragged( int x, int y, int button )
@@ -601,6 +604,12 @@ bool loadOrTrain( int new_index )
 {
 	printf("entered loadOrTrain(%i)\n", new_index );
     // fetch data
+	if ( new_index == -1 )
+	{
+		multi->clear();
+		current_artvert_index = -1;
+		return false;
+	}
     if ( new_index < 0 || new_index >= artvert_list.size() )
     {
         fprintf(stderr,"loadOrTrain: invalid index %i (artvert_list has %i members)\n", new_index, (int)artvert_list.size() );
@@ -901,7 +910,6 @@ void Artvertiser::setup( int argc, char** argv )
     bool got_ds = false;
     bool got_fps = false;
     bool video_source_is_avi = false;
-	string model_file_list_file = "";
 	
     // parse command line
 	printf("argc: %2i\n", argc );
@@ -913,7 +921,7 @@ void Artvertiser::setup( int argc, char** argv )
                 usage(argv[0]);
 			Artvert a;
 			a.setModelFile( toAbsolutePath(argv[i+1]) );
-			a.advert = "cmdline "+a.getModelFile();
+			a.setAdvertName( string("cmdline ")+a.getModelFile() );
 			// store
          	artvert_list.push_back( a );
             printf(" -m: adding model image '%s'\n", argv[i+1] );
@@ -1031,9 +1039,17 @@ void Artvertiser::setup( int argc, char** argv )
 		
     }
 	
-	
-    // read model files from model_file_list_file
-    if ( model_file_list_file.size()>0 )
+#ifdef TARGET_OSX
+	// OSX: default to always load data/models.xml
+    if ( model_file_list_file.size()==0 )
+	{
+		// default: load models.xml
+		model_file_list_file = ofToDataPath( "models.xml" );
+	}
+#endif
+
+	// read model files from model_file_list_file
+	if ( model_file_list_file.size()>0 )
     {
         // try to open
         ofxXmlSettings data;
@@ -1047,33 +1063,7 @@ void Artvertiser::setup( int argc, char** argv )
             for ( int i=0; i<num_filenames; i++ )
             {
                 data.pushTag("advert", i);
-				Artvert a;
-                a.setModelFile( data.getValue( "model_filename", "models/default.bmp" ) );
-				a.advert = data.getValue( "advert", "unknown advert" );
-				int num_artverts = data.getNumTags( "artvert" );
-            	printf("   -ml: got advert, model file '%s', advert '%s', %i artverts\n", a.getModelFile().c_str(), a.advert.c_str(), num_artverts );
-				for ( int j=0; j<num_artverts; j++ )
-				{
-					data.pushTag("artvert", j );
-					a.name = data.getValue( "name", "unnamed" );
-					a.artist = data.getValue( "artist", "unknown artist" );
-					if ( data.getNumTags("movie_filename") != 0 )
-					{
-						// load a movie
-						a.artvert_is_movie = true;
-						a.setArtvertMovieFile( data.getValue("movie_filename", "artverts/artvertmovie1.mp4" ) );
-					}
-					else
-					{
-						// load an image
-						a.setArtvertImageFile( data.getValue( "image_filename", "artverts/artvert1.png" ) );
-					}
-                	printf("     %i: %s:%s:%s\n", j, a.name.c_str(), a.artist.c_str(),
-                    	   a.artvert_is_movie?(a.getArtvertMovieFile()+"( movie)").c_str() : a.getArtvertImageFile().c_str() );
-					
-	                artvert_list.push_back( a );
-					data.popTag();
-				}
+				Artvert::loadArtvertsFromXml( data, artvert_list );
                 data.popTag();
             }
             data.popTag();
@@ -1151,23 +1141,41 @@ void Artvertiser::setup( int argc, char** argv )
 
 	
 	// setup control panel
-	control_panel.setup( "controls", 5, 37, 400, 200 );
-	
+	control_panel.setup( "controls", 5, 5, ofGetWidth()-10, 350 , /* do save/restore */ false );
+	control_panel.setBackgroundColor( simpleColor(0, 0, 0, 32) );
 	// add main panel
-	main_panel = control_panel.addPanel("main", 1, false );
+	main_panel = control_panel.addPanel("main", 2, false );
+	main_panel->setBackgroundColor( 0,0,0,32 );
+	// drop-down for models
 	vector<string> names; 
-	/*names.push_back("<none>");
-	model_selection_dropdown = control_panel.addTextDropDown( "current model", "current_model", 0, names );
-	updateModelSelectionDropdown();*/
+	names.push_back("<none>");
+	model_selection_dropdown = control_panel.addTextDropDown( "current artvert:", "current_artvert", 0, names );
+	updateModelSelectionDropdown();
+	
+	// left column: current modelfile
+	control_panel.setWhichColumn( 0 );
+	// current modelfile label
 	main_panel->setElementSpacing( 10, 0 );
-	control_panel.addLabel( "current modelfile:" );
+	control_panel.addLabel( "model file:" );
 	current_modelfile_label = control_panel.addLabel( "<none>" );
 	main_panel->addSpace( 14 );
 	main_panel->setElementSpacing( 10, 14 );
-	retrain_current_toggle = control_panel.addToggle( " re-train current model", "retrain_current_tgl", false );
+	// re-train current
+	retrain_current_toggle = control_panel.addToggle( " re-train model", "retrain_current_tgl", false );
+	// add new
+	add_model_toggle = control_panel.addToggle( " add new model", "add_new_tgl", false );
+
+	// right column: current artvert
+	control_panel.setWhichColumn( 1 );
+	main_panel->addSpace( model_selection_dropdown->getHeight() );
+	main_panel->addSpace( 34 );
+	// current artvert label
+	main_panel->setElementSpacing( 10, 0 );
+	control_panel.addLabel( "artvert file:" );
+	current_artvertfile_label = control_panel.addLabel( "<none>" );
 	main_panel->addSpace( 14 );
-	//add_model_toggle = control_panel.addToggle( " add new model", "add_new_tgl", false );
-	
+	main_panel->setElementSpacing( 10, 14 );
+
 	
 	control_panel.show();
 	control_panel.setMinimized( true );
@@ -1180,6 +1188,21 @@ void Artvertiser::setup( int argc, char** argv )
 
 void Artvertiser::updateModelSelectionDropdown()
 {
+	model_selection_dropdown->vecDropList.clear();
+	model_selection_dropdown->vecDropList.push_back( "<none>" );
+	for ( int i=0; i<artvert_list.size(); i++ )
+	{
+		model_selection_dropdown->vecDropList.push_back( artvert_list[i].getDescription() );
+	}
+	
+	model_selection_dropdown->value.setValue( current_artvert_index+1 );
+
+	// ensure we are not out of bounds on the selection list
+	if ( model_selection_dropdown->value.getValueI() >= artvert_list.size() )
+	{
+		model_selection_dropdown->value.setValue(0);
+	}
+	model_selection_dropdown->update();
 	
 }
 
@@ -1745,7 +1768,7 @@ void Artvertiser::draw()
         glLoadIdentity();
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
-        glTranslatef(-.98, 0.9, 0.0);
+        glTranslatef(-.98, 0.79, 0.0);
         glScalef(.003, .003, .003);
         glColor4f(1.0, 1.0, 1.0, 1);
 		drawTextOnscreen( font_32, "the artvertiser " ARTVERTISER_VERSION);
@@ -1957,6 +1980,8 @@ static void* detectionThreadFunc( void* _data )
 				{
 					geomCalibStart( !redo_geom );
 				}
+				else
+					old_artvert_index = -2;
 				load_or_train_succeeded = res;
 			}
 			new_artvert_requested_lock.unlock();
@@ -2139,6 +2164,7 @@ void Artvertiser::update()
 		control_panel_timer -= ofGetLastFrameTime();
 		if ( control_panel_timer <= 0 )
 		{
+			model_selection_dropdown->hideDropDown();
 			control_panel.setMinimized(true);
 			control_panel.hide();
 		}
@@ -2148,26 +2174,37 @@ void Artvertiser::update()
 	if ( new_artvert_requested_lock.tryLock() )
 	{
 		// update current model file label
-		if ( current_artvert_index == -1 )
+		if ( old_artvert_index != current_artvert_index )
 		{
-			current_modelfile_label->setText( "<none>" );
-		}
-		else
-		{
-			if ( load_or_train_succeeded )
+			if ( current_artvert_index == -1 )
 			{
-				// read modelfile label off current artvert
-				current_modelfile_label->setText( string("data/")+ 
-												 fromOfDataPath( artvert_list.at(current_artvert_index).getModelFile()) );
+				current_modelfile_label->setText( "<none>" );
+				current_artvertfile_label->setText( "<none>" );
+				model_selection_dropdown->value.setValue( 0 );
 			}
 			else
-				current_modelfile_label->setText( "<none>" );
+			{
+				if ( load_or_train_succeeded )
+				{
+					// read modelfile label off current artvert
+					current_modelfile_label->setText( fromOfDataOrAbsolutePath( artvert_list.at(current_artvert_index).getModelFile() ) );
+					current_artvertfile_label->setText( fromOfDataOrAbsolutePath( artvert_list.at(current_artvert_index).getArtvertFile() ) );
+					model_selection_dropdown->value.setValue( current_artvert_index + 1 );
+				}
+				else
+				{
+					current_modelfile_label->setText( "<none>" );
+					current_artvertfile_label->setText( "<none>" );
+					model_selection_dropdown->value.setValue( 0 );
+				}
+			}
+			old_artvert_index = current_artvert_index;
 		}
 		
 		// re-train current?
 		if ( retrain_current_toggle->value.getValueB(0) )
 		{
-			// clear
+			// clearo
 			retrain_current_toggle->setValue(false, 0);
 			
 			// trash current classifier
@@ -2182,16 +2219,92 @@ void Artvertiser::update()
 				current_artvert_index = -1;
 			}
 		}
+
 		
-		/*
+		// check for interaction on the drop-down
+		if ( model_selection_dropdown->hasValueChanged() )
+		{
+			int new_index = model_selection_dropdown->value.getValueI()-1;
+			// ok then!
+			if ( new_index != current_artvert_index )
+			{
+				new_artvert_requested = true;
+				new_artvert_requested_index = new_index;
+			}
+			
+			model_selection_dropdown->value.clearChangedFlag();
+		}
+		
+
 		// add new model?
 		if ( add_model_toggle->value.getValueB(0) )
 		{
 			// clear
 			add_model_toggle->setValue( false, 0 );
-
-			// something...
-		}*/
+			
+			// calculate a new name for the model
+			int count = 0;
+			string new_name;
+			// do we have it?
+			while ( true )
+			{
+				// try a new new_name
+				char buf[256];
+				sprintf( buf, "new_model_%02i.bmp", count );
+				new_name = buf;
+				// check if we already have a model called this
+				bool have_already = false;
+				string new_name_fullpath = ofToDataPath( new_name );
+				for ( int i=0; i<artvert_list.size(); i++ )
+				{
+					if ( new_name_fullpath == artvert_list[i].getModelFile() )
+					{
+						have_already = true;
+						break;
+					}
+				}
+				if ( !have_already )
+					// finished
+					break;
+				
+				// try a new one
+				count++;
+				
+			}
+			
+			printf("new model has name data/%s\n", new_name.c_str() );
+			// so add as a new artvert
+			
+			Artvert a;
+			a.setModelFile( new_name );
+			a.setAdvertName( string("new model ")+ofToString( count ) );
+			a.setArtvertImageFile( "artverts/your_art_here.png" );
+			a.setTitle( "your art here" );
+			a.setArtist( "The Artvertiser Team" );
+			// store
+         	artvert_list.push_back( a );
+			
+			if( model_file_list_file.size() > 0 )
+			{
+				// update xml
+				ofxXmlSettings data;
+				data.loadFile( model_file_list_file );
+				if ( data.getNumTags( "artverts" ) < 1 )
+					data.addTag( "artverts" );
+				data.pushTag( "artverts" );
+				// add the new model to the end
+				int index = data.addTag( "advert" );
+				printf("adding new artvert to xml, index %i\n", index );
+				data.pushTag( "advert", index );
+				Artvert::saveArtvertToXml( data, a );
+				data.popTag();
+				data.popTag();
+				data.saveFile( model_file_list_file );
+			}
+			
+			// update dropdown
+			updateModelSelectionDropdown();
+		}
 		
 		new_artvert_requested_lock.unlock();
 	}
@@ -2347,12 +2460,9 @@ void Artvertiser::drawMenu()
 
 	for ( int i=0; i<artvert_list.size(); i++ )
 	{
-		string advert = artvert_list[i].advert;
-		string name = artvert_list[i].name;
-		string artist = artvert_list[i].artist;
 		char buf[32];
 		sprintf(buf, "%2i ", i );
-		string line = buf + advert + " : '" + name + "' by " + artist;
+		string line = buf + artvert_list[i].getDescription();
 
         if ( i == menu_index )
         {

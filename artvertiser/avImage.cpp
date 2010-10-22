@@ -306,3 +306,15 @@ string fromAbsolutePath( string path )
 
 }
 
+
+string fromOfDataOrAbsolutePath( string path )
+{
+	string model_path = fromOfDataPath( path );
+	// only assume data/ relative if fromOfDataPath returns something different
+	if ( model_path != path )
+		model_path = string("data/")+model_path;
+	else
+		model_path = fromAbsolutePath( path );
+	
+	return model_path;
+}

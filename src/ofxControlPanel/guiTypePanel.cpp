@@ -234,7 +234,7 @@ void guiTypePanel::render(){
 		glPushMatrix();
 			glTranslatef(hitArea.x, hitArea.y, 0);
 				for(unsigned int i = 0; i < children.size(); i++){
-					children[i]->render();
+					children[children.size()-(1+i)]->render();
 				}
 		glPopMatrix();
 

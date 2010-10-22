@@ -88,6 +88,11 @@ int MultiGrab::init( const char *avi_bg_path, int width, int height, int v4l_dev
     return 1;
 }
 
+void MultiGrab::clear()
+{
+	cams[0]->detector.clear();
+}
+
 bool MultiGrab::loadOrTrainCache( bool wants_training, const char* modelfile, bool train_on_binoculars )
 {
     cams[0]->detector.clear();

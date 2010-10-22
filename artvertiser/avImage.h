@@ -21,6 +21,8 @@
 #define IsBGR(s) ((s[0] == 'B') && (s[1] == 'G') && (s[2] == 'R'))
 #endif
 
+/// strip off the base absolute or ofDataPath part
+string fromOfDataOrAbsolutePath( string path );
 
 /// strip off the base path prepended by ofToDataPath, returning paths relative
 /// to the data/ directory
