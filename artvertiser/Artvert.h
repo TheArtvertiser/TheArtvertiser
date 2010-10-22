@@ -44,6 +44,7 @@ public:
 	void setAdvertName( string n ) { advert_name = n; }
 	
 	bool artvertIsMovie() { return artvert_is_movie; }
+	void stopMovie();
 	
 	string getDescription();
 
@@ -58,9 +59,10 @@ private:
 	string model_file;
 	string artvert_image_file;
 	string artvert_movie_file;
-	ofBaseVideo* avi_capture;
+	ofVideoPlayer* avi_capture;
 	IplImage* avi_image;
-	bool avi_play_init;
+	bool avi_load_attempted;
+	bool avi_storage_initialised;
 	GLuint imageID;
 	
 	IplImage* artvert_image;
@@ -68,4 +70,29 @@ private:
 	int which_fallback_image;
 	static vector<IplImage*> fallback_artvert_images;
 	
+	friend class ArtvertDrawer;
+	
 };
+
+
+
+class ArtvertDrawer : public ofBaseDraws 
+{
+public:
+	ArtvertDrawer() { artvert = NULL; }
+	
+	void useArtvert( Artvert* the_artvert ) { artvert = the_artvert; local_image.clear(); }
+	
+	
+	void draw( float x, float y ) { draw( x,y,getWidth(),getHeight() ); }
+	void draw( float x, float y, float width, float height );
+	float getWidth() { return local_image.getWidth(); }
+	float getHeight() { return local_image.getHeight(); }
+	
+private:
+	
+	Artvert* artvert;
+	ofImage local_image;
+	
+};
+

@@ -22,7 +22,7 @@ Artvert::Artvert()
 	title = "untitled artvert";
 	avi_capture = NULL;
 	avi_image = NULL;
-	avi_play_init = false;
+	avi_storage_initialised = false;
 	
 	printf("loading fallback artvert images from data/...\n");
 	if ( fallback_artvert_images.size()==0 )
@@ -61,39 +61,46 @@ IplImage* Artvert::getArtvertImage()
 	if ( artvert_is_movie )
 	{
 		
-		if ( avi_capture==NULL )
+		if ( avi_capture == NULL )
 		{
-			ofVideoPlayer * avi_cap = new ofVideoPlayer();
-			avi_cap->loadMovie( artvert_movie_file.c_str() );
-			avi_cap->setLoopState( OF_LOOP_NORMAL );
-			avi_cap->play();
-			avi_cap->update();
-			avi_capture = avi_cap;
-			avi_play_init = false;
+			avi_capture = new ofVideoPlayer();
+			if ( avi_capture->loadMovie( artvert_movie_file.c_str() ) )
+			{
+				avi_capture->setLoopState( OF_LOOP_NORMAL );
+				avi_capture->play();
+				avi_capture->update();
+				avi_storage_initialised = false;
+			}
+			else
+				ofLog( OF_LOG_ERROR, "failed to load movie '%s'", artvert_movie_file.c_str() );
+
 		}	
 		
-		// get the next frame
-		IplImage* avi_frame = avGetFrame( avi_capture );
-		
-		if ( avi_frame == 0 )
+		if ( avi_capture->width == 0 )
 		{
-			printf("failed to load movie '%s'\n", artvert_movie_file.c_str() );
 			if ( which_fallback_image == -1 )
 				which_fallback_image = ofRandom( 0, 0.9999f * fallback_artvert_images.size() );
 			return fallback_artvert_images[which_fallback_image];
 		}
+
+		// to make sure
+		avi_capture->play();
+
+		// get the next frame
+		IplImage* avi_frame = avGetFrame( avi_capture );
+		
 		if ( avi_image == 0 )
 			avi_image = cvCreateImage( cvGetSize(avi_frame), avi_frame->depth, avi_frame->nChannels );
 		cvCopy( avi_frame, avi_image );
 		avi_image->origin = avi_frame->origin;
 		GLenum format = IsBGR(avi_image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
 		
-		if (!avi_play_init)
+		if (!avi_storage_initialised)
 		{
 			glGenTextures(1, &imageID);
 			glBindTexture(GL_TEXTURE_2D, imageID);
 			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-			avi_play_init=true;
+			avi_storage_initialised=true;
 		}
 		return avi_image;
 	}
@@ -113,6 +120,13 @@ IplImage* Artvert::getArtvertImage()
 		}
 		return artvert_image;
 	}
+}
+
+void Artvert::stopMovie()
+{
+	if ( artvert_is_movie )
+		if ( avi_capture != NULL && avi_capture->width != 0 )
+			avi_capture->stop();
 }
 
 
@@ -180,4 +194,21 @@ void Artvert::saveArtvertToXml( ofxXmlSettings& data, Artvert& a )
 	}
 	data.popTag();
 }	
+
+
+
+void ArtvertDrawer::draw( float x, float y, float w, float h )
+{
+	if ( artvert== NULL )
+		return;
+
+	IplImage* artvert_image = artvert->getArtvertImage();
+	if ( artvert->which_fallback_image != -1 )
+		local_image.clear();
+	else
+		toOfImage( artvert_image, local_image );
+	
+	local_image.draw( x, y, w, h );
+}
+
 

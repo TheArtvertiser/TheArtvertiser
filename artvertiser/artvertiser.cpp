@@ -599,6 +599,14 @@ int serialport_read_until(int fd, char* buf, char until, int bufsize)
 	return 0;
 }
 
+void setCurrentArtvertIndex( int new_index )
+{
+	if ( current_artvert_index >=0 && current_artvert_index < artvert_list.size() )
+		artvert_list.at(current_artvert_index).stopMovie();
+	current_artvert_index = new_index;
+}
+
+
 
 bool loadOrTrain( int new_index )
 {
@@ -607,7 +615,7 @@ bool loadOrTrain( int new_index )
 	if ( new_index == -1 )
 	{
 		multi->clear();
-		current_artvert_index = -1;
+		setCurrentArtvertIndex( -1 );
 		return false;
 	}
     if ( new_index < 0 || new_index >= artvert_list.size() )
@@ -630,7 +638,7 @@ bool loadOrTrain( int new_index )
     	if ( !trained )
 		{
 			// fail
-			current_artvert_index = -1;
+			setCurrentArtvertIndex( -1 );
 			new_artvert_switching_in_progress = false;
         	return false;
 		}
@@ -665,7 +673,7 @@ bool loadOrTrain( int new_index )
 	}
 
 	// update current index
-	current_artvert_index = new_index;
+	setCurrentArtvertIndex( new_index );
 
 	// no longer switching
 	new_artvert_switching_in_progress = false;
@@ -1156,10 +1164,10 @@ void Artvertiser::setup( int argc, char** argv )
 	control_panel.setWhichColumn( 0 );
 	// current modelfile label
 	main_panel->setElementSpacing( 10, 0 );
-	control_panel.addLabel( "model file:" );
+	current_modelfile_image_drawer = control_panel.addDrawableRect( "model:", &current_modelfile_image, 160, 120 );
 	current_modelfile_label = control_panel.addLabel( "<none>" );
-	main_panel->addSpace( 14 );
 	main_panel->setElementSpacing( 10, 14 );
+	model_name_label = control_panel.addLabel( "advert: <none>" );
 	// re-train current
 	retrain_current_toggle = control_panel.addToggle( " re-train model", "retrain_current_tgl", false );
 	// add new
@@ -1171,10 +1179,11 @@ void Artvertiser::setup( int argc, char** argv )
 	main_panel->addSpace( 34 );
 	// current artvert label
 	main_panel->setElementSpacing( 10, 0 );
-	control_panel.addLabel( "artvert file:" );
+	current_artvertfile_image_drawer = control_panel.addDrawableRect( "artvert:", &current_artvert_drawer, 160, 120 );
 	current_artvertfile_label = control_panel.addLabel( "<none>" );
-	main_panel->addSpace( 14 );
+	artvert_title_label = control_panel.addLabel(  "title:  <none>" );
 	main_panel->setElementSpacing( 10, 14 );
+	artvert_artist_label = control_panel.addLabel( "artist: <none>" );
 
 	
 	control_panel.show();
@@ -2180,7 +2189,13 @@ void Artvertiser::update()
 			{
 				current_modelfile_label->setText( "<none>" );
 				current_artvertfile_label->setText( "<none>" );
+				model_name_label->setText( "" );
+				artvert_title_label->setText( "" );
+				artvert_artist_label->setText( "" );
 				model_selection_dropdown->value.setValue( 0 );
+				current_modelfile_image.clear();
+				retrain_current_toggle->lock();
+				current_artvert_drawer.useArtvert( NULL );
 			}
 			else
 			{
@@ -2189,13 +2204,24 @@ void Artvertiser::update()
 					// read modelfile label off current artvert
 					current_modelfile_label->setText( fromOfDataOrAbsolutePath( artvert_list.at(current_artvert_index).getModelFile() ) );
 					current_artvertfile_label->setText( fromOfDataOrAbsolutePath( artvert_list.at(current_artvert_index).getArtvertFile() ) );
+					current_modelfile_image.loadImage( artvert_list.at(current_artvert_index).getModelFile() );
+					current_artvert_drawer.useArtvert( &artvert_list.at(current_artvert_index) );
+					model_name_label->setText( "advert: "+artvert_list.at(current_artvert_index).getAdvertName() );
+					artvert_title_label->setText(  "title:  "+artvert_list.at(current_artvert_index).getTitle() );
+					artvert_artist_label->setText( "artist: "+artvert_list.at(current_artvert_index).getArtist() );
 					model_selection_dropdown->value.setValue( current_artvert_index + 1 );
+					retrain_current_toggle->unlock();
 				}
 				else
 				{
 					current_modelfile_label->setText( "<none>" );
 					current_artvertfile_label->setText( "<none>" );
+					model_name_label->setText( "" );
+					artvert_title_label->setText( "" );
+					artvert_artist_label->setText( "" );
+					current_artvert_drawer.useArtvert( NULL );
 					model_selection_dropdown->value.setValue( 0 );
+					retrain_current_toggle->lock();
 				}
 			}
 			old_artvert_index = current_artvert_index;
@@ -2216,7 +2242,7 @@ void Artvertiser::update()
 				// trigger the reload
 				new_artvert_requested = true;
 				new_artvert_requested_index = current_artvert_index;
-				current_artvert_index = -1;
+				setCurrentArtvertIndex( -1 );
 			}
 		}
 
@@ -2304,6 +2330,10 @@ void Artvertiser::update()
 			
 			// update dropdown
 			updateModelSelectionDropdown();
+			
+			// change to this one
+			new_artvert_requested = true;
+			new_artvert_requested_index = artvert_list.size()-1;
 		}
 		
 		new_artvert_requested_lock.unlock();

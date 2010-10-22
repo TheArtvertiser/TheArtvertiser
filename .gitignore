@@ -2,4 +2,4 @@
 *.pbxuser
 build/*
 bin/*
-
+!data

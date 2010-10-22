@@ -121,12 +121,9 @@ IplImage* avGetFrame( ofBaseVideo* video_source )
 
 
 
-int avSaveImage( const char* path, CvArr* image )
+void toOfImage( IplImage* source, ofImage& dest )
 {
-	static ofImage working;
-	working.setUseTexture( false );
-	IplImage* f = (IplImage*)image;
-	printf("saving image %ix%i to %s\n", f->width, f->height, path );
+	IplImage* f = source;
 #ifdef VIDEO_SWAP_RED_BLUE
 	bool order_is_rgb = false;
 #else
@@ -138,7 +135,16 @@ int avSaveImage( const char* path, CvArr* image )
 		type = OF_IMAGE_GRAYSCALE;
 	else if ( f->nChannels == 4 )
 		type = OF_IMAGE_COLOR_ALPHA;
-	working.setFromPixels( (unsigned char*)f->imageData, f->width, f->height, type, order_is_rgb );
+	dest.setFromPixels( (unsigned char*)f->imageData, f->width, f->height, type, order_is_rgb );
+}
+
+
+int avSaveImage( const char* path, CvArr* image )
+{
+	static ofImage working;
+	working.setUseTexture( false );
+	printf("saving image %ix%i to %s\n", ((IplImage*)image)->width, ((IplImage*)image)->height, path );
+	toOfImage( (IplImage*)image, working );
 	working.saveImage( path );
 	return true;
 }

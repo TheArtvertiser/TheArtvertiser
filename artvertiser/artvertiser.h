@@ -11,6 +11,7 @@
 #include <cv.h>
 #include "FTime.h"
 #include "ofxControlPanel.h"
+#include "Artvert.h"
 
 class Artvertiser
 {
@@ -55,10 +56,17 @@ private:
 	guiTypeTextDropDown* model_selection_dropdown;
 
 	guiTypeLabel* current_modelfile_label;
+	guiTypeDrawable* current_modelfile_image_drawer;
+	ofImage current_modelfile_image;
 	guiTypeToggle* retrain_current_toggle;
 	guiTypeToggle* add_model_toggle;
+	guiTypeLabel* model_name_label;
 	
 	guiTypeLabel* current_artvertfile_label;
+	guiTypeDrawable* current_artvertfile_image_drawer;
+	ArtvertDrawer current_artvert_drawer;
+	guiTypeLabel* artvert_title_label;
+	guiTypeLabel* artvert_artist_label;
 
 	ofxControlPanel control_panel;
 	float control_panel_timer;

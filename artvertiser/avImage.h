@@ -34,8 +34,10 @@ string toAbsolutePath( string path );
 string fromAbsolutePath( string path );
 
 
+/// save the given image to the given absolute path
 int avSaveImage( const char* path, CvArr* image );
 
+/// load the given image from the given absolute path. see cvLoadImage for is_color argument.
 IplImage* avLoadImage( const char* path, int is_color=-1 );
 
 /// return the current frame. YOU MUST NOT FREE THE RETURNED IMAGE.
@@ -43,6 +45,8 @@ IplImage* avGetFrame( ofBaseVideo* video_source );
 
 
 
+/// copy the given IplImage* into the given ofImage
+void toOfImage( IplImage* source, ofImage& destination );
 
 
 
