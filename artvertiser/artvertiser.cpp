@@ -1762,6 +1762,19 @@ void Artvertiser::draw()
             //printf("frame lost: fade %f, elapsed since last caught %f\n", fade, elapsed_since_last_caught );
         }
 
+		// set volume of the movie based on fade
+		if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
+		{
+			if ( artvert_list.at(current_artvert_index).artvertIsMovie() )
+			{
+				float volume = fade;
+				// override lowest volume if we have the control panel open
+				if ( !control_panel.hidden && !control_panel.minimize )
+					volume = max(volume,0.1f);
+				artvert_list.at(current_artvert_index).setVolume( volume );
+			}
+		}
+
         // draw augmentation
         if ( fade > 0 && augment == 1)
         {

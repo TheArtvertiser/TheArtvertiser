@@ -45,6 +45,7 @@ public:
 	
 	bool artvertIsMovie() { return artvert_is_movie; }
 	void stopMovie();
+	void setVolume( float vol );
 	
 	string getDescription();
 

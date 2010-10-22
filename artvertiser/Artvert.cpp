@@ -124,11 +124,19 @@ IplImage* Artvert::getArtvertImage()
 
 void Artvert::stopMovie()
 {
-	if ( artvert_is_movie )
-		if ( avi_capture != NULL && avi_capture->width != 0 )
-			avi_capture->stop();
+	if ( artvert_is_movie && avi_capture != NULL && avi_capture->width != 0 )
+		avi_capture->stop();
 }
 
+void Artvert::setVolume( float volume )
+{
+	if ( artvert_is_movie && avi_capture != NULL && avi_capture->width != 0 )
+	{
+		int passed_volume = volume*255;
+		printf("setting volume to %f -> %i\n", volume, passed_volume );
+		avi_capture->setVolume( passed_volume );
+	}
+}
 
 string Artvert::getDescription()
 {
