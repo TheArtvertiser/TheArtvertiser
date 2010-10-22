@@ -172,11 +172,11 @@ void Artvert::saveArtvertToXml( ofxXmlSettings& data, Artvert& a )
 	data.addValue( "artist", a.artist );
 	if ( a.artvert_is_movie )
 	{
-		data.addValue( "movie_filename", fromOfDataOrAbsolutePath( a.getArtvertMovieFile() ) );
+		data.addValue( "movie_filename", fromOfDataPath( a.getArtvertMovieFile() ) );
 	}
 	else
 	{
-		data.addValue( "image_filename", fromOfDataOrAbsolutePath( a.getArtvertImageFile() ) );
+		data.addValue( "image_filename", fromOfDataPath( a.getArtvertImageFile() ) );
 	}
 	data.popTag();
 }	

@@ -2250,7 +2250,7 @@ void Artvertiser::update()
 			{
 				// try a new new_name
 				char buf[256];
-				sprintf( buf, "new_model_%02i.bmp", count );
+				sprintf( buf, "models/new_model_%02i.bmp", count );
 				new_name = buf;
 				// check if we already have a model called this
 				bool have_already = false;
