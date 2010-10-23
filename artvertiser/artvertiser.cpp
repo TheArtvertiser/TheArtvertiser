@@ -2332,6 +2332,7 @@ void Artvertiser::update()
 			a.setArtist( "The Artvertiser Team" );
 			// store
          	artvert_list.push_back( a );
+			model_file_needs_training.push_back( true );
 			
 			if( model_file_list_file.size() > 0 )
 			{
