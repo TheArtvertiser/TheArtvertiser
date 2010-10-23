@@ -45,7 +45,7 @@ class ls_minimizer2
 public:
 
   typedef double flt_t;
-  typedef void (*callback_function)(flt_t * state, void ** user_data);
+  typedef bool (*callback_function)(flt_t * state, void ** user_data);
 
   ls_minimizer2(int state_size=0);
   ~ls_minimizer2();

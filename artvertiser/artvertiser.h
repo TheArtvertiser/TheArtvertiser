@@ -62,6 +62,7 @@ private:
 	guiTypeToggle* retrain_current_toggle;
 	guiTypeToggle* add_model_toggle;
 	guiTypeLabel* model_name_label;
+	guiTypeToggle* retrain_geometry_toggle;
 	
 	guiTypeLabel* current_artvertfile_label;
 	guiTypeDrawable* current_artvertfile_image_drawer;

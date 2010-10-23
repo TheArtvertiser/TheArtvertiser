@@ -291,7 +291,7 @@ private:
 
   Used by OptimizeCurrentView.
   */
-  static void updateCB(double *params, void **user_data);
+  static bool updateCB(double *params, void **user_data);
 
   /**
   \brief Does nothing.

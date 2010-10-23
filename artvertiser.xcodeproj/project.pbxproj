@@ -53,6 +53,7 @@
 		2D7BAF761262127A002AD5DA /* simpleFileLister.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D7BAF5B1262127A002AD5DA /* simpleFileLister.cpp */; };
 		2D7BAF771262127A002AD5DA /* simpleLogger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D7BAF5D1262127A002AD5DA /* simpleLogger.cpp */; };
 		2D7BAFB01262165D002AD5DA /* guiTypeLabel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D7BAFAF1262165D002AD5DA /* guiTypeLabel.cpp */; };
+		2DBC92EF12731058008CC9C9 /* ThreadSafeString.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2DBC92EE12731058008CC9C9 /* ThreadSafeString.cpp */; };
 		2DCBDEC31269E8A0003B8749 /* artvertiser.icns in Resources */ = {isa = PBXBuildFile; fileRef = 2DCBDEB91269E87C003B8749 /* artvertiser.icns */; };
 		2DFC5364125CA38F00ED1872 /* artvertiser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2DFC52F8125CA38F00ED1872 /* artvertiser.cpp */; };
 		2DFC5365125CA38F00ED1872 /* avImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2DFC52FA125CA38F00ED1872 /* avImage.cpp */; };
@@ -289,6 +290,8 @@
 		2D7BAF5E1262127A002AD5DA /* simpleLogger.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = simpleLogger.h; sourceTree = "<group>"; };
 		2D7BAF7D1262130E002AD5DA /* guiTypeLabel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = guiTypeLabel.h; sourceTree = "<group>"; };
 		2D7BAFAF1262165D002AD5DA /* guiTypeLabel.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = guiTypeLabel.cpp; sourceTree = "<group>"; };
+		2DBC92ED12731058008CC9C9 /* ThreadSafeString.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ThreadSafeString.h; sourceTree = "<group>"; };
+		2DBC92EE12731058008CC9C9 /* ThreadSafeString.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ThreadSafeString.cpp; sourceTree = "<group>"; };
 		2DCBDEB91269E87C003B8749 /* artvertiser.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = artvertiser.icns; sourceTree = "<group>"; };
 		2DFC52F8125CA38F00ED1872 /* artvertiser.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = artvertiser.cpp; sourceTree = "<group>"; };
 		2DFC52F9125CA38F00ED1872 /* artvertiser.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = artvertiser.h; sourceTree = "<group>"; };
@@ -755,6 +758,8 @@
 		2DFC52F7125CA38F00ED1872 /* artvertiser */ = {
 			isa = PBXGroup;
 			children = (
+				2DBC92ED12731058008CC9C9 /* ThreadSafeString.h */,
+				2DBC92EE12731058008CC9C9 /* ThreadSafeString.cpp */,
 				2D2EB000126DC61300043AF6 /* Artvert.h */,
 				2D2EB001126DC61300043AF6 /* Artvert.cpp */,
 				2DFC52F8125CA38F00ED1872 /* artvertiser.cpp */,
@@ -1424,6 +1429,7 @@
 				2D7BAF771262127A002AD5DA /* simpleLogger.cpp in Sources */,
 				2D7BAFB01262165D002AD5DA /* guiTypeLabel.cpp in Sources */,
 				2D2EB002126DC61300043AF6 /* Artvert.cpp in Sources */,
+				2DBC92EF12731058008CC9C9 /* ThreadSafeString.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

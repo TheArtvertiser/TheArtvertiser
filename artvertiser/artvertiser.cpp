@@ -103,6 +103,9 @@ static const float CONTROL_PANEL_SHOW_TIME = 10.0f;
 
 #include "FProfiler/FProfiler.h"
 
+
+#include "ThreadSafeString.h"
+
 // framerate counter
 #include "framerate.h"
 
@@ -210,6 +213,9 @@ int have_proj = 0;
 int nb_light_measures=0;
 int geom_calib_nb_homography;
 bool geom_calib_in_progress=false;
+
+ThreadSafeString geom_calib_message;
+
 int current_cam = 0;
 int avi_init = 0;
 int augment = 1;
@@ -229,6 +235,7 @@ ofxMutex new_artvert_requested_lock;
 bool new_artvert_requested = false;
 int new_artvert_requested_index = 0;
 bool load_or_train_succeeded = false;
+bool redo_geometry_requested = false;
 vector< bool > model_file_needs_training;
 
 // detection thread
@@ -254,6 +261,7 @@ GLuint imageID;
 
 // interface
 bool show_status = false;
+bool show_points = false;
 bool show_profile_results = false;
 string status_string = "";
 
@@ -1147,7 +1155,7 @@ void Artvertiser::setup( int argc, char** argv )
 
 	
 	// setup control panel
-	control_panel.setup( "controls", 5, 5, ofGetWidth()-10, 370 , /* do save/restore */ false );
+	control_panel.setup( "controls", 5, 5, ofGetWidth()-10, 400 , /* do save/restore */ false );
 	control_panel.setBackgroundColor( simpleColor(0, 0, 0, 16) );
 	// add main panel
 	main_panel = control_panel.addPanel("main", 0, false );
@@ -1175,6 +1183,8 @@ void Artvertiser::setup( int argc, char** argv )
 	retrain_current_toggle = control_panel.addToggle( " re-train model", "retrain_current_tgl", false );
 	// add new
 	add_model_toggle = control_panel.addToggle( " add new model", "add_new_tgl", false );
+	// geometry training
+	retrain_geometry_toggle = control_panel.addToggle(" calibrate camera geometry", "retrain_geometry_tgl", false );
 
 	// right column: current artvert
 	control_panel.setWhichColumn( 1 );
@@ -1366,9 +1376,20 @@ static void geomCalibDraw(void)
 
 }
 */
-static void geomCalibEnd()
+
+static bool old_delay_video;
+
+static bool geomCalibEnd()
 {
-	if (calib->Calibrate(
+	printf("geomCalibEnd: going to calibrate; %u cameras\n", multi->cams.size() );
+	char buf[256];
+	sprintf(buf, "calculating calibration, please wait", 
+			100.0f*geom_calib_nb_homography/150.0f );
+	geom_calib_message = buf;
+
+	show_points = false;
+
+	bool success = calib->Calibrate(
 						 50, // max hom
 						 (multi->cams.size() > 1 ? 1:2),   // padding or random
 						 (multi->cams.size() > 1 ? 0:3),
@@ -1380,13 +1401,17 @@ static void geomCalibEnd()
 						 0.001953125,//gamma
 						 10,	  // iter
 						 0.05, //eps
-						 3   //postfilter eps
-						 ))
+						 3,   //postfilter eps
+									&detection_thread_should_exit,
+									&geom_calib_message
+									);
+	if ( success )
 	{
 		calib->PrintOptimizedResultsToFile1(ofToDataPath("camera_c.txt").c_str(),
 											ofToDataPath("camera_r_t.txt").c_str(),
 											ofToDataPath("view_r_t.txt").c_str());
 	}
+	
 	if (!multi->model.augm.LoadOptimalStructureFromFile(ofToDataPath("camera_c.txt").c_str(), ofToDataPath("camera_r_t.txt").c_str()))
 	{
 		cout << "failed to load camera calibration.\n";
@@ -1395,6 +1420,9 @@ static void geomCalibEnd()
     delete calib;
     calib=0;
 	geom_calib_in_progress = false;
+	delay_video = old_delay_video;
+	
+	return success;
 }
 
 /// returns true when done
@@ -1427,6 +1455,7 @@ static bool geomCalibIdle(void)
         {
             if (multi->cams[i]->detector.object_is_detected)
             {
+				printf("cam %i: detector.object_is_detected\n");
                 add_detected_homography(i, multi->cams[i]->detector, *calib);
             }
             else
@@ -1435,8 +1464,15 @@ static bool geomCalibIdle(void)
             }
         }
         geom_calib_nb_homography++;
+		
+		char buf[256];
+		sprintf(buf, "capturing data (%.2f%%)", 
+				100.0f*geom_calib_nb_homography/150.0f );
+		geom_calib_message = buf;
     }
 
+	
+	
     printf("geom calib: %.2f%%\n", 100.0f*geom_calib_nb_homography/150.0f );
 
     if (geom_calib_nb_homography>=150)
@@ -1459,7 +1495,13 @@ static void geomCalibStart(bool cache)
     {
         return;
     }
+	geom_calib_in_progress = true;
+	show_points = true;
+	old_delay_video = delay_video;
+	delay_video = false;
 
+	geom_calib_message = "please show current model to camera";
+	
     // construct a CamCalibration object and register all the cameras
     calib = new CamCalibration();
 
@@ -1470,7 +1512,6 @@ static void geomCalibStart(bool cache)
 
     geom_calib_nb_homography=0;
 	
-	geom_calib_in_progress = true;
 }
 
 
@@ -1816,7 +1857,7 @@ void Artvertiser::draw()
 
 
 
-        if ( show_status || geom_calib_in_progress )
+        if ( show_status || show_points )
         {
             drawDetectedPoints( raw_frame_texture->getIm()->width, raw_frame_texture->getIm()->height );
 		}
@@ -1985,7 +2026,13 @@ static void* detectionThreadFunc( void* _data )
 			bool finished = geomCalibIdle();
 			if ( finished )
 			{
-				geomCalibEnd();
+				bool win = geomCalibEnd();
+				if ( !win )
+				{
+					// try again..?
+					geom_calib_message = "calibration failed, please try again";
+					redo_geometry_requested = true;
+				}
 			}
 			if ( detection_thread_should_exit )
 				break;
@@ -1995,6 +2042,7 @@ static void* detectionThreadFunc( void* _data )
 			new_artvert_requested_lock.lock();
 			if ( new_artvert_requested )
 			{
+				fade = 0;
 				// no longer draw
 				printf("new_artvert_requested:frame not ok\n" );
 				frame_ok = false;
@@ -2008,6 +2056,22 @@ static void* detectionThreadFunc( void* _data )
 				else
 					old_artvert_index = -2;
 				load_or_train_succeeded = res;
+			}
+			if ( redo_geometry_requested )
+			{
+				fade = 0;
+				redo_geometry_requested = false;
+				if ( !geom_calib_in_progress && current_artvert_index >=0 && current_artvert_index < artvert_list.size() )
+				{
+					printf("redoing geom_calib because redo_geometry_requested was true\n");
+					int index = current_artvert_index;
+					// clear
+					loadOrTrain( -1 );
+					// load
+					loadOrTrain( index );
+					// calibrate
+					geomCalibStart( false );
+				}
 			}
 			new_artvert_requested_lock.unlock();
 			if ( geom_calib_in_progress )
@@ -2253,7 +2317,7 @@ void Artvertiser::update()
 		// re-train current?
 		if ( retrain_current_toggle->value.getValueB(0) )
 		{
-			// clearo
+			// clear
 			retrain_current_toggle->setValue(false, 0);
 			
 			// trash current classifier
@@ -2360,6 +2424,20 @@ void Artvertiser::update()
 			new_artvert_requested_index = artvert_list.size()-1;
 		}
 		
+		// retrain geometry?
+		if ( !new_artvert_requested && retrain_geometry_toggle->value.getValueB() )
+		{
+			// clear
+			retrain_geometry_toggle->setValue( false, 0 );
+			// hide UI
+			control_panel.setMinimized( true );
+			control_panel.hide();
+			
+			// request
+			printf("retrain_geometry_toggle was true\n");
+			redo_geometry_requested = true;
+		}
+		
 		new_artvert_requested_lock.unlock();
 	}
 	
@@ -2458,7 +2536,7 @@ void Artvertiser::drawMenu()
 	if ( !menu_is_showing )
 	{
 		// draw switching text?
-		if ( new_artvert_switching_in_progress || geom_calib_in_progress )
+		if ( new_artvert_switching_in_progress || geom_calib_in_progress || detection_thread_should_exit )
 		{
 			glMatrixMode(GL_PROJECTION);
 			glLoadIdentity();
@@ -2467,35 +2545,43 @@ void Artvertiser::drawMenu()
 			glTranslatef(-.8, 0.65, 0.0);
 			glScalef(.003, .003, .003);
 			glColor4f(0.0, 1.0, 0.0, 1);
-
-			if ( multi->model.isLearnInProgress() )
-			{	
-				// must manually tokenize
-				char message[2048];
-			    strncpy( message, multi->model.getLearnProgressMessage(), 2048 );
-				char* ptr = strtok( message,"\n");
-				while( ptr != NULL) 
-				{
-        			drawTextOnscreen( font_24, ptr );
-	        		glTranslatef(0, -26, 0 );
-					ptr = strtok( NULL, "\n" );
-				}
-				model_status_label->setText( multi->model.getLearnProgressMessage() );
-			}
-			else if ( geom_calib_in_progress )
+			
+			if ( detection_thread_should_exit )
 			{
-				char buf[256];
-				sprintf(buf, "geometric calibration: %.2f%%\n", 
-						100.0f*geom_calib_nb_homography/150.0f );
-				drawTextOnscreen( font_24, buf );
-				model_status_label->setText( buf );
+				drawTextOnscreen( font_24, "shutting down..." );
+				model_status_label->setText("shutting down..." );
 			}
 			else
 			{
-				model_status_label->setText( "changing_artvert..." );
-				drawTextOnscreen (font_24, "changing artvert..." );
-			}
-			
+
+				if ( multi->model.isLearnInProgress() )
+				{	
+					// must manually tokenize
+					char message[2048];
+					strncpy( message, multi->model.getLearnProgressMessage(), 2048 );
+					char* ptr = strtok( message,"\n");
+					while( ptr != NULL) 
+					{
+						drawTextOnscreen( font_24, ptr );
+						glTranslatef(0, -26, 0 );
+						ptr = strtok( NULL, "\n" );
+					}
+					model_status_label->setText( multi->model.getLearnProgressMessage() );
+				}
+				else if ( geom_calib_in_progress )
+				{
+					drawTextOnscreen( font_24, "calibrating camera" );
+					glTranslatef(0, -26, 0 );
+					string message = geom_calib_message.getText();
+					drawTextOnscreen( font_24, message.c_str() );
+					model_status_label->setText( string("calibrating camera: ")+message );
+				}
+				else
+				{
+					model_status_label->setText( "changing_artvert..." );
+					drawTextOnscreen (font_24, "changing artvert..." );
+				}
+			}			
 
 		}
 		else

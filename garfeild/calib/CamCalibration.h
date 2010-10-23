@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <cv.h>
 #include <geometry/homography.h>
+class ThreadSafeString;
 
 struct ProjObs;
 
@@ -165,7 +166,7 @@ public:
   */
   bool Calibrate( int p_HomographyNum, int p_PreFilter, int p_Solutions, double p_PreFilter_a, double p_PreFilter_b, double p_PreFilter_c,
     double p_InitialGuess_a, double p_InitialGuess_b, double p_InitialGuess_c,
-    int p_Iterations, double p_Epsilon, double p_PostFilter );
+    int p_Iterations, double p_Epsilon, double p_PostFilter, bool* should_abort, ThreadSafeString* message=NULL );
 
   /**
   \brief Prints resulting matrices seperated to 3 files.
@@ -716,7 +717,7 @@ private:
   improvements could be observed. Results are stored in the s_struct_optimal \b s_optimal
   structure.
   */
-  bool OptimizeCalibrationByMinimalParameterMethod( int iter, double eps, double p_PostFilter );
+  bool OptimizeCalibrationByMinimalParameterMethod( int iter, double eps, double p_PostFilter, bool* should_abort, ThreadSafeString* message = NULL );
 
   /**
   \brief Creates connection matrix.
@@ -833,7 +834,7 @@ private:
 
   Used by OptimizeCalibrationByMinimalParameterMethod.
   */
-  static void updateCB(double *params, void **user_data);
+  static bool updateCB(double *params, void **user_data);
 
   /**
   \brief Projects point x and calculates gradient.
@@ -852,7 +853,7 @@ private:
   /**
   \brief Prints optimized result errors after each iteration as well as an error histogram.
   */
-  void PrintOptimizedResultErrors(  double *params );
+  bool PrintOptimizedResultErrors(  double *params );
 
   /**
   \brief Appends time needed for optimization to stat.txt.

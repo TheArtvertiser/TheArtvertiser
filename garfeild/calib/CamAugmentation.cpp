@@ -342,7 +342,7 @@ int CamAugmentation::GetObservationNumber(){
   return num*2; //TODO: ohne 2 mit neuem LM-optimizer!
 }
 
-void CamAugmentation::updateCB( double *params, void **user_data ){
+bool CamAugmentation::updateCB( double *params, void **user_data ){
   CamAugmentation *cam = (CamAugmentation*) user_data[0];
 
   // Pass parameters to global parameter array:
@@ -352,6 +352,8 @@ void CamAugmentation::updateCB( double *params, void **user_data ){
 
   // Update the structure:
   cam->SetParameterSet();
+	
+	return true;
 }
 
 void CamAugmentation::GetParameterSet(){

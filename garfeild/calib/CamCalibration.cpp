@@ -18,7 +18,7 @@
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
  
- You should have received a copy of the GNU Lesser General Public License
+ You should have received a copy of the GNU General Public License
  along with The Artvertiser.  If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -27,6 +27,7 @@
 #include "CamCalibration.h"
 #include <optimization/ls_minimizer2.h>
 #include "avImage.h"
+#include "ThreadSafeString.h"
 
 /**
 \brief Calculates gradient.
@@ -602,7 +603,8 @@ bool CamCalibration::FilterBestHomographiesRandomMethod( int num, int p_Solution
 
 bool CamCalibration::Calibrate( int p_HomographyNum, int p_PreFilter, int p_Solutions, double p_PreFilter_a, double p_PreFilter_b, double p_PreFilter_c,
                                double p_InitialGuess_a, double p_InitialGuess_b, double p_InitialGuess_c,
-                               int p_Iterations, double p_Epsilon, double p_PostFilter ){
+                               int p_Iterations, double p_Epsilon, double p_PostFilter,
+							   bool * should_abort, ThreadSafeString* message ){
 
                                  // Starting values for statistics:
                                  stat_HomographyNum = p_HomographyNum;
@@ -620,6 +622,8 @@ bool CamCalibration::Calibrate( int p_HomographyNum, int p_PreFilter, int p_Solu
                                    printf("ERROR: Homography filtering process failed!\n");
                                    return false;
                                  }
+	if (message )
+		message->setText( "calculating initial guess" );
 
                                  // Perform initial guess:
                                  for( int c = 0; c < (int)v_camera.size(); c++ ){
@@ -633,7 +637,7 @@ bool CamCalibration::Calibrate( int p_HomographyNum, int p_PreFilter, int p_Solu
                                  }
 
                                  // Do optimization:
-                                 if( OptimizeCalibrationByMinimalParameterMethod( p_Iterations, p_Epsilon, p_PostFilter ) ){
+                                 if( OptimizeCalibrationByMinimalParameterMethod( p_Iterations, p_Epsilon, p_PostFilter, should_abort, message ) ){
                                    return true;
                                  } else
                                    return false;
@@ -1616,7 +1620,7 @@ struct ProjObs : ls_minimizer2::observation
 
 int ProjObs::parameterNumber=0;
 
-void CamCalibration::updateCB( double *params , void **user_data){
+bool CamCalibration::updateCB( double *params , void **user_data){
   CamCalibration *cam = (CamCalibration*) *user_data;
 
   // Pass parameters to global parameter array:
@@ -1626,7 +1630,8 @@ void CamCalibration::updateCB( double *params , void **user_data){
 
   // Update the optimization structure:
   cam->SetParameterSetToOptimalStructure();
-  cam->PrintOptimizedResultErrors(params);
+	bool success = cam->PrintOptimizedResultErrors(params);
+	return success;
 }
 
 //void CamCalibration::projFunc( double *x, double *params, int na, double *f, double *grad, int *ind, LsqData *Data ){
@@ -2060,185 +2065,229 @@ avSaveImage( file_name, image1 );
 }*/
 
 
-void CamCalibration::PrintOptimizedResultErrors( double *params){
-  CamCalibration *cam = this;
-
-  double total_error_opt = 0;
-  double total_error_org = 0;
-  double chi_error_opt   = 0;
-  double chi_error_org   = 0;
-  float  error_opt[50000]; //!TODO: Max 50.000 observations for this check!
-  float  error_org[50000]; //!TODO: Max 50.000 observations for this check!
-  float  error_gra[10][3000]; //!TODO: Das hier dynamischer gestalten!!!
-  int    obs = 0;
-
-  // Calculate errors:
-  for( int c = 0; c < (int)cam->v_camera.size(); c++ )         // ... cameras
-    for( int h = 0; h < (int)cam->v_camera[c]->v_homography.size(); h++ ){    // ... homographies
-      error_gra[c][h] = 0;
-      if( cam->v_camera[c]->v_homography[h]->m_homography ){
-        int points = cam->v_camera[c]->v_homography[h]->s_plane_object->p;
-        for( int point = 0; point < points; point++ ){
-
-          // Original point on the screen:
-          cam->HomogenousNormalizeVector( cam->v_camera[c]->v_homography[h]->s_plane_object->v_m_pp[point] );
-          double u1 = cvmGet( cam->v_camera[c]->v_homography[h]->s_plane_object->v_m_pp[point], 0, 0 );
-          double v1 = cvmGet( cam->v_camera[c]->v_homography[h]->s_plane_object->v_m_pp[point], 1, 0 );
-
-          // Projected point on the screen:
-          double a_p[4];  double a_p3[3]; double a_p4[3];
-          double a_RT[12]; CvMat m_RT = cvMat( 3, 4, CV_64FC1, a_RT );
-          a_p[0] = cam->v_camera[c]->v_homography[h]->s_plane_object->px[point]; a_p[2] = 0;
-          a_p[1] = cam->v_camera[c]->v_homography[h]->s_plane_object->py[point]; a_p[3] = 1;
-          CvMat m_p  = cvMat( 4, 1, CV_64FC1, a_p );  // plane point (flat)
-          CvMat m_p3 = cvMat( 3, 1, CV_64FC1, a_p3 ); // eye point 2
-          CvMat m_p4 = cvMat( 3, 1, CV_64FC1, a_p4 ); // image point
-          cam->Mat3x4Mul( cam->s_optimal.v_camera_r_t[c], cam->s_optimal.v_homography_r_t[h], &m_RT );
-          cvMatMul( &m_RT, &m_p, &m_p3 );
-          cvMatMul( cam->s_optimal.v_camera_c[c], &m_p3, &m_p4 );
-          cam->HomogenousNormalizeVector( &m_p4 );
-          double u2 = cvmGet( &m_p4, 0, 0 );
-          double v2 = cvmGet( &m_p4, 1, 0 );
-
-          // Projected points with original homography:
-          double u3,v3;
-          cam->v_camera[c]->v_homography[h]->m_homography->transform_point(
-            cam->v_camera[c]->v_homography[h]->s_plane_object->px[point],
-            cam->v_camera[c]->v_homography[h]->s_plane_object->py[point],
-            &u3,&v3 );
-
-          // Calculate error:
-          double current_error_opt = sqrt( pow(u1-u2,2) + pow(v1-v2,2) );
-          double current_error_org = sqrt( pow(u1-u3,2) + pow(v1-v3,2) );
-          chi_error_opt += pow(u1-u2,2) + pow(v1-v2,2);
-          chi_error_org += pow(u1-u3,2) + pow(v1-v3,2);
-          error_opt[obs]    = (float)current_error_opt;
-          total_error_opt  += current_error_opt;
-          error_org[obs]    = (float)current_error_org;
-          total_error_org  += current_error_org;
-          obs++;
-
-          // For error graphic:
-          error_gra[c][h] += (float)( current_error_opt/(double)points );
-        }
-      }
-    }
-
-    // Print results to screen if more than one observation has been found:
-    if( obs > 0 ){
-      chi_error_opt /= (double)obs * 2.0;
-      chi_error_org /= (double)obs * 2.0;
-      double avg_error_opt = total_error_opt / (double)obs;
-      double avg_error_org = total_error_org / (double)obs;
-      double std_dev_opt   = 0;
-      double std_dev_org   = 0;
-      double max_error_opt = 0;
-      double max_error_org = 0;
-      double min_error_opt = total_error_opt;
-      double min_error_org = total_error_org;
-      for( int j = 0; j < obs; j++ ){
-        if( error_opt[j] > max_error_opt ) max_error_opt = error_opt[j];
-        if( error_org[j] > max_error_org ) max_error_org = error_org[j];
-        if( error_opt[j] < min_error_opt ) min_error_opt = error_opt[j];
-        if( error_org[j] < min_error_org ) min_error_org = error_org[j];
-        std_dev_opt += pow( error_opt[j]-avg_error_opt, 2 );
-        std_dev_org += pow( error_org[j]-avg_error_org, 2 );
-      }
-      std_dev_opt = sqrt(std_dev_opt/(double)obs);
-      std_dev_org = sqrt(std_dev_org/(double)obs);
-
-      // Plot cameras:
-      printf("\n                  Focal   Aspect      u_0      v_0  Hnum\n");
-      for( int c = 0; c < (int)cam->v_camera.size(); c++ )
-        if( params[c*4+1] != 0 ){
-          int hom = 0;
-          for( int h = 0; h < (int)cam->v_camera[c]->v_homography.size(); h++ )
-            if( cam->v_camera[c]->v_homography[h]->m_homography )
-              hom++;
-          printf( "Camera %02d:     %8.3f %8.3f %8.3f %8.3f %5d\n",
-            c, 
-            params[c*4+1], params[c*4]/params[c*4+1] ,  params[c*4+2], params[c*4+3],
-            hom );
-        }
-
-        // Plot Errors:
-        printf("\n                                 Optimal  Original\n");
-        printf("Maximal error in observations:  %8.3f  %8.3f\n", max_error_opt, max_error_org );
-        printf("Minimal error in observations:  %8.3f  %8.3f\n", min_error_opt, min_error_org );
-        printf("Average error in observations:  %8.3f  %8.3f\n", avg_error_opt, avg_error_org );
-        printf("Chi^2 error in observations:    %8.3f  %8.3f\n", chi_error_opt, chi_error_org );
-        printf("Standard deviation of error:    %8.3f  %8.3f\n", std_dev_opt,   std_dev_org   );
-        printf("Number of observations:         %8i  %8i\n", obs, obs);
-
-        // Init error histogram graphic:
-        int width  = 1024; //TODO: Hier groesse aus Parametern!
-        int height = 768;
-        IplImage *im = cvCreateImage( cvSize( width, height ), IPL_DEPTH_8U, 3 );
-        CvFont font;
-        cvInitFont( &font, CV_FONT_HERSHEY_PLAIN, 1, 1, 0, 2, 8 );
-
-        // Get maximal error for scaling:
-        double max_error = 0;
-        for( int c = 0; c < (int)cam->v_camera.size(); c++ )        // ... cameras
-          for( int h = (int)cam->v_camera[c]->v_homography.size()-1; h >= 0 ; h-- )  // ... homographies
-            if( cam->v_camera[c]->v_homography[h]->m_homography )
-              if( error_gra[c][h] > max_error )
-                max_error = error_gra[c][h];
-        max_error *= 1.2;
-
-        // Draw background:
-        double cut_error = 1; //TODO: Hier Parameter wert!
-        int y_cut = (int)((double)height-(double)height*cut_error/max_error);
-        cvRectangle( im, cvPoint( 0,     0 ), cvPoint( width,  y_cut ), CV_RGB ( 100,100,100 ), CV_FILLED, 8, 0 );
-        cvRectangle( im, cvPoint( 0, y_cut ), cvPoint( width, height ), CV_RGB ( 0,    0,  0 ), CV_FILLED, 8, 0 );
-
-        // Draw error histogram:
-        char info[200];
-        for( int c = 0; c < (int)cam->v_camera.size(); c++ )        // ... cameras
-          for( int h = (int)cam->v_camera[c]->v_homography.size()-1; h >= 0 ; h-- )  // ... homographies
-            if( cam->v_camera[c]->v_homography[h]->m_homography ){
-              int x = (int)((double)width*(double)h/(double)cam->v_camera[c]->v_homography.size());
-              int y = (int)((double)height-(double)height*error_gra[c][h]/max_error);
-              cvLine( im, cvPoint( x,y ), cvPoint( x,height ), CV_RGB ( 255,255,255 ), 2, CV_AA, 0 );
-              cvCircle( im, cvPoint( x,y ), 2, CV_RGB ( 255,200,0 ), 2, CV_AA, 0 );
-              if( error_gra[c][h]/max_error > 0.3 ){
-                sprintf( info, "%i", h );
-                cvPutText( im, info, cvPoint( x+1,y-1 ), &font, CV_RGB ( 255,200,0 ) );
-              }
-            }
-
+bool CamCalibration::PrintOptimizedResultErrors( double *params){
+	CamCalibration *cam = this;
+	
+	bool failed = false;
+	
+	double total_error_opt = 0;
+	double total_error_org = 0;
+	double chi_error_opt   = 0;
+	double chi_error_org   = 0;
+	int max_obs = 0;
+	for( int c = 0; c < (int)cam->v_camera.size(); c++ )         // ... cameras
+		for( int h = 0; h < (int)this->v_camera[c]->v_homography.size(); h++ )    // ... homographies
+			if( cam->v_camera[c]->v_homography[h]->m_homography )
+				max_obs += cam->v_camera[c]->v_homography[h]->s_plane_object->p;
+	printf("%i observations\n", max_obs );
+	
+	float* error_opt = (float*)malloc( sizeof(float)*max_obs );
+	float* error_org = (float*)malloc( sizeof(float)*max_obs );
+	float* error_gra[10];
+	for ( int i=0; i<10; i++ )
+		error_gra[i] = (float*)malloc( sizeof(float)*3000 );
+	
+	int    obs = 0;
+	
+	// Calculate errors:
+	for( int c = 0; c < (int)cam->v_camera.size(); c++ )         // ... cameras
+	{
+		for( int h = 0; h < (int)this->v_camera[c]->v_homography.size(); h++ )    // ... homographies
+		{
+			error_gra[c][h] = 0;
+			if( cam->v_camera[c]->v_homography[h]->m_homography ){
+				int points = cam->v_camera[c]->v_homography[h]->s_plane_object->p;
+				for( int point = 0; point < points; point++ ){
+					
+					// Original point on the screen:
+					cam->HomogenousNormalizeVector( cam->v_camera[c]->v_homography[h]->s_plane_object->v_m_pp[point] );
+					double u1 = cvmGet( cam->v_camera[c]->v_homography[h]->s_plane_object->v_m_pp[point], 0, 0 );
+					double v1 = cvmGet( cam->v_camera[c]->v_homography[h]->s_plane_object->v_m_pp[point], 1, 0 );
+					
+					// Projected point on the screen:
+					double a_p[4];  
+					double a_p3[3]; 
+					double a_p4[3];
+					double a_RT[12]; 
+					CvMat m_RT = cvMat( 3, 4, CV_64FC1, a_RT );
+					a_p[0] = cam->v_camera[c]->v_homography[h]->s_plane_object->px[point]; a_p[2] = 0;
+					a_p[1] = cam->v_camera[c]->v_homography[h]->s_plane_object->py[point]; a_p[3] = 1;
+					CvMat m_p  = cvMat( 4, 1, CV_64FC1, a_p );  // plane point (flat)
+					CvMat m_p3 = cvMat( 3, 1, CV_64FC1, a_p3 ); // eye point 2
+					CvMat m_p4 = cvMat( 3, 1, CV_64FC1, a_p4 ); // image point
+					cam->Mat3x4Mul( cam->s_optimal.v_camera_r_t[c], cam->s_optimal.v_homography_r_t[h], &m_RT );
+					cvMatMul( &m_RT, &m_p, &m_p3 );
+					cvMatMul( cam->s_optimal.v_camera_c[c], &m_p3, &m_p4 );
+					//printf("m_p4: before homogenousNormalizeVector: ");
+					//printf(" ( %7.3f %7.3f %7.3f )\n", cvmGet( &m_p4, 0, 0 ), cvmGet( &m_p4, 1, 0 ), cvmGet( &m_p4, 2, 0 ) );
+					cam->HomogenousNormalizeVector( &m_p4 );
+					//printf("m_p4: after homogenousNormalizeVector: ");
+					//printf(" ( %7.3f %7.3f %7.3f )\n", cvmGet( &m_p4, 0, 0 ), cvmGet( &m_p4, 1, 0 ), cvmGet( &m_p4, 2, 0 ) );
+					double u2 = cvmGet( &m_p4, 0, 0 );
+					double v2 = cvmGet( &m_p4, 1, 0 );
+					
+					// Projected points with original homography:
+					double u3,v3;
+					cam->v_camera[c]->v_homography[h]->m_homography->transform_point(
+																					 cam->v_camera[c]->v_homography[h]->s_plane_object->px[point],
+																					 cam->v_camera[c]->v_homography[h]->s_plane_object->py[point],
+																					 &u3,&v3 );
+					
+					// Calculate error:
+					double current_error_opt = sqrt( pow(u1-u2,2) + pow(v1-v2,2) );
+					double current_error_org = sqrt( pow(u1-u3,2) + pow(v1-v3,2) );
+					if ( isnan( current_error_opt ) )
+					{
+						failed = true;
+						break;
+					}
+					if( isnan( current_error_org ) )
+					{
+						failed = true;
+						break;
+					}
+					chi_error_opt += pow(u1-u2,2) + pow(v1-v2,2);
+					chi_error_org += pow(u1-u3,2) + pow(v1-v3,2);
+					assert ( obs < 50000 );
+					error_opt[obs]    = (float)current_error_opt;
+					total_error_opt  += current_error_opt;
+					error_org[obs]    = (float)current_error_org;
+					total_error_org  += current_error_org;
+					obs++;
+					
+					// For error graphic:
+					assert( c < 10 );
+					assert( h < 30000 );
+					error_gra[c][h] += (float)( current_error_opt/(double)points );
+				}
+			}
+		}
+		if ( failed )
+			break;
+		
+		// Print results to screen if more than one observation has been found:
+		if( obs > 0 ){
+			chi_error_opt /= (double)obs * 2.0;
+			chi_error_org /= (double)obs * 2.0;
+			double avg_error_opt = total_error_opt / (double)obs;
+			double avg_error_org = total_error_org / (double)obs;
+			double std_dev_opt   = 0;
+			double std_dev_org   = 0;
+			double max_error_opt = 0;
+			double max_error_org = 0;
+			double min_error_opt = total_error_opt;
+			double min_error_org = total_error_org;
+			for( int j = 0; j < obs; j++ ){
+				if( error_opt[j] > max_error_opt ) max_error_opt = error_opt[j];
+				if( error_org[j] > max_error_org ) max_error_org = error_org[j];
+				if( error_opt[j] < min_error_opt ) min_error_opt = error_opt[j];
+				if( error_org[j] < min_error_org ) min_error_org = error_org[j];
+				std_dev_opt += pow( error_opt[j]-avg_error_opt, 2 );
+				std_dev_org += pow( error_org[j]-avg_error_org, 2 );
+			}
+			std_dev_opt = sqrt(std_dev_opt/(double)obs);
+			std_dev_org = sqrt(std_dev_org/(double)obs);
+			
+			// Plot cameras:
+			printf("\n                  Focal   Aspect      u_0      v_0  Hnum\n");
+			for( int c = 0; c < (int)cam->v_camera.size(); c++ )
+				if( params[c*4+1] != 0 ){
+					int hom = 0;
+					for( int h = 0; h < (int)cam->v_camera[c]->v_homography.size(); h++ )
+						if( cam->v_camera[c]->v_homography[h]->m_homography )
+							hom++;
+					printf( "Camera %02d:     %8.3f %8.3f %8.3f %8.3f %5d\n",
+						   c, 
+						   params[c*4+1], params[c*4]/params[c*4+1] ,  params[c*4+2], params[c*4+3],
+						   hom );
+				}
+			
+			// Plot Errors:
+			printf("\n                                 Optimal  Original\n");
+			printf("Maximal error in observations:  %8.3f  %8.3f\n", max_error_opt, max_error_org );
+			printf("Minimal error in observations:  %8.3f  %8.3f\n", min_error_opt, min_error_org );
+			printf("Average error in observations:  %8.3f  %8.3f\n", avg_error_opt, avg_error_org );
+			printf("Chi^2 error in observations:    %8.3f  %8.3f\n", chi_error_opt, chi_error_org );
+			printf("Standard deviation of error:    %8.3f  %8.3f\n", std_dev_opt,   std_dev_org   );
+			printf("Number of observations:         %8i  %8i\n", obs, obs);
+			
+			// Init error histogram graphic:
+			int width  = 1024; //TODO: Hier groesse aus Parametern!
+			int height = 768;
+			IplImage *im = cvCreateImage( cvSize( width, height ), IPL_DEPTH_8U, 3 );
+			CvFont font;
+			cvInitFont( &font, CV_FONT_HERSHEY_PLAIN, 1, 1, 0, 2, 8 );
+			
+			// Get maximal error for scaling:
+			double max_error = 0;
+			for( int c = 0; c < (int)cam->v_camera.size(); c++ )        // ... cameras
+				for( int h = (int)cam->v_camera[c]->v_homography.size()-1; h >= 0 ; h-- )  // ... homographies
+					if( cam->v_camera[c]->v_homography[h]->m_homography )
+						if( error_gra[c][h] > max_error )
+							max_error = error_gra[c][h];
+			max_error *= 1.2;
+			
+			// Draw background:
+			double cut_error = 1; //TODO: Hier Parameter wert!
+			int y_cut = (int)((double)height-(double)height*cut_error/max_error);
+			cvRectangle( im, cvPoint( 0,     0 ), cvPoint( width,  y_cut ), CV_RGB ( 100,100,100 ), CV_FILLED, 8, 0 );
+			cvRectangle( im, cvPoint( 0, y_cut ), cvPoint( width, height ), CV_RGB ( 0,    0,  0 ), CV_FILLED, 8, 0 );
+			
+			// Draw error histogram:
+			char info[200];
+			for( int c = 0; c < (int)cam->v_camera.size(); c++ )        // ... cameras
+				for( int h = (int)cam->v_camera[c]->v_homography.size()-1; h >= 0 ; h-- )  // ... homographies
+					if( cam->v_camera[c]->v_homography[h]->m_homography ){
+						int x = (int)((double)width*(double)h/(double)cam->v_camera[c]->v_homography.size());
+						int y = (int)((double)height-(double)height*error_gra[c][h]/max_error);
+						cvLine( im, cvPoint( x,y ), cvPoint( x,height ), CV_RGB ( 255,255,255 ), 2, CV_AA, 0 );
+						cvCircle( im, cvPoint( x,y ), 2, CV_RGB ( 255,200,0 ), 2, CV_AA, 0 );
+						if( error_gra[c][h]/max_error > 0.3 ){
+							sprintf( info, "%i", h );
+							cvPutText( im, info, cvPoint( x+1,y-1 ), &font, CV_RGB ( 255,200,0 ) );
+						}
+					}
+			
             // Titles:
             sprintf( info, "%.3f", max_error );
             cvPutText( im, info, cvPoint( 10,30 ), &font, CV_RGB ( 255,0,0 ) );
             sprintf( info, "%.3f", 0 );
             cvPutText( im, info, cvPoint( 10,height-10 ), &font, CV_RGB ( 255,0,0 ) );
             if( cut_error > 0.1*max_error && cut_error < 0.9*max_error ){  
-              sprintf( info, "%.3f", cut_error );
-              cvPutText( im, info, cvPoint( 10,y_cut-5 ), &font, CV_RGB ( 255,0,0 ) );
+				sprintf( info, "%.3f", cut_error );
+				cvPutText( im, info, cvPoint( 10,y_cut-5 ), &font, CV_RGB ( 255,0,0 ) );
             }
             sprintf( info, "Maximal Camera Error in Pixel over homographies", 0 );  
             cvPutText( im, info, cvPoint( 150,30 ), &font, CV_RGB ( 200,255,100 ) );
-
+			
             /*
-            // Print errorgraphic to file:
-            char file_name[200];
-            sprintf( file_name, "error_graphic_%02d.jpg", cam->errorgraphic_counter++ );
-            avSaveImage( file_name, im );
-            */
-		/*
-            IplImage *im2 = cvCreateImage(cvSize(800,600), IPL_DEPTH_8U, 3); //TODO: Hier echte groesse von parametern!
-            cvResize(im, im2, CV_INTER_LINEAR );
-            cvShowImage( "Error Histogram", im2 );
-            cvWaitKey(10);
-            cvReleaseImage( &im );
-            cvReleaseImage( &im2 );
-		 */
+			 // Print errorgraphic to file:
+			 char file_name[200];
+			 sprintf( file_name, "error_graphic_%02d.jpg", cam->errorgraphic_counter++ );
+			 avSaveImage( file_name, im );
+			 */
+			/*
+			 IplImage *im2 = cvCreateImage(cvSize(800,600), IPL_DEPTH_8U, 3); //TODO: Hier echte groesse von parametern!
+			 cvResize(im, im2, CV_INTER_LINEAR );
+			 cvShowImage( "Error Histogram", im2 );
+			 cvWaitKey(10);
+			 cvReleaseImage( &im );
+			 cvReleaseImage( &im2 );
+			 */
             //printf( "File error_graphic_%02d.jpg successfully stored!\n\n", cam->errorgraphic_counter );
             printf( "==================================================\n" );
-    } else {
-      printf("\n\n----------   Calibration results:   ----------\n");
-      printf("ERROR: No observations found!\n\n");
-    }
+		} else {
+			printf("\n\n----------   Calibration results:   ----------\n");
+			printf("ERROR: No observations found!\n\n");
+		}
+	}
+	
+	free( error_opt );
+	free( error_org );
+	for ( int i=0; i<10; i++ )
+		free(error_gra[i]);
+	
+	return !failed;
 }
 
 bool CamCalibration::FilterHomographiesAfterOptimization( double p_PostFilter ){
@@ -2298,92 +2347,127 @@ bool CamCalibration::FilterHomographiesAfterOptimization( double p_PostFilter ){
     return filtered;
 }
 
-bool CamCalibration::OptimizeCalibrationByMinimalParameterMethod( int iter, double eps, double p_PostFilter ){
-
-  // Create optimal camera structure for the first time:
-  if( !CreateOptimalCameraStructure() ){
-    printf("ERROR: Optial camera structure estimation failed!\n");
-    return false;
-  }
-
-  // Reset counter for error histogram and create an output window:
-  errorgraphic_counter = 0;
-  static bool created_window = false;
-/*  if ( !created_window )
-  {
-	cvNamedWindow( "Error Histogram", CV_WINDOW_AUTOSIZE );
-	created_window = true;
-  }
-  cvWaitKey(10);*/
-
-  // Start calibration:
-  //double post_filter_offset = 20;
-  do {
-
-    // Get number parameters and observations:
-    int parameter_number   = GetParameterNumber();
-    /* int observation_number = GetObservationNumber(); */ 
-
-    ls_minimizer2 minimizer(parameter_number);
-    minimizer.set_state_change_callback(updateCB);
-    minimizer.set_user_data(0, this);
-    minimizer.lm_set_max_iterations(iter);
-    //minimizer.set_verbose_level(3);
-    ProjObs::parameterNumber = parameter_number;
-
-    // Feed with initial parameters:
-    GetParameterSetFromOptimalStructure();
-
-    /*
-    LsqData *lsqData = AllocateLsqData( parameter_number, observation_number );
-    SetLsqGlobals( lsqData, iter, eps, GAUSS_JORDAN, updateCB, true );
-    LsqObs *obs      = AllocateLsqObs( lsqData, sizeof(LsqObs), observation_number, 4 );
-    lsqData->slot1   = this;
-
-    // Feed with initial parameters:
-    GetParameterSetFromOptimalStructure();
-    FillLsqParams( lsqData, &v_opt_param[0], 0, 0 );
-    lsqData->Dsp.F = PrintOptimizedResultErrors;
-    */
-
-    // Add the observations for ...
-    for( int c = 0; c < (int)v_camera.size(); c++ )         // ... cameras
-      for( int h = 0; h < (int)v_camera[c]->v_homography.size(); h++ )   // ... homographies
-        if( v_camera[c]->v_homography[h]->m_homography ){     
-          int points = v_camera[c]->v_homography[h]->s_plane_object->p;
-          for( int point = 0; point < points; point++ ) { // ... points 
-
-            // Add homography number and point:
-            ProjObs *o = new ProjObs();
-            o->cam = c;
-            o->hom = h;
-            o->point = point;
-
-            // Add screen plane point (reference!):
-            s_struct_plane* s_plane_object = v_camera[c]->v_homography[h]->s_plane_object;
-            HomogenousNormalizeVector( (*s_plane_object).v_m_pp[point] );
-            o->target[0] = cvmGet( (*s_plane_object).v_m_pp[point], 0, 0 );
-            o->target[1] = cvmGet( (*s_plane_object).v_m_pp[point], 1, 0 );
-
-            minimizer.add_observation(o, true, false);
-          }
-        }
-
-        minimizer.minimize_using_levenberg_marquardt_from(&v_opt_param[0]);
-        void *ptr=this;
-        updateCB( minimizer.state, &ptr);
-
-        // post filter offset in test phase! remove, please!
-        //if( post_filter_offset > 1 )
-        // post_filter_offset -= 10;
-
-        // Redo calibration if at least one homography was post-filtered:
-  } while( FilterHomographiesAfterOptimization( p_PostFilter/*+post_filter_offset*/ ) );
-
-  // Destroy histogram output window:
-  //cvDestroyAllWindows();
-  //cvDestroyWindow( "Error Histogram" );
-  return true;
+bool CamCalibration::OptimizeCalibrationByMinimalParameterMethod( int iter, double eps, double p_PostFilter, bool* abort, ThreadSafeString* message ){
+	
+	// Create optimal camera structure for the first time:
+	if( !CreateOptimalCameraStructure() ){
+		printf("ERROR: Optial camera structure estimation failed!\n");
+		return false;
+	}
+	
+	bool succeeded = true;
+	
+	// Reset counter for error histogram and create an output window:
+	errorgraphic_counter = 0;
+	static bool created_window = false;
+	/*  if ( !created_window )
+	 {
+	 cvNamedWindow( "Error Histogram", CV_WINDOW_AUTOSIZE );
+	 created_window = true;
+	 }
+	 cvWaitKey(10);*/
+	
+	// Start calibration:
+	//double post_filter_offset = 20;
+	do {
+		
+		// Get number parameters and observations:
+		int parameter_number   = GetParameterNumber();
+		/* int observation_number = GetObservationNumber(); */ 
+		
+		ls_minimizer2 minimizer(parameter_number);
+		minimizer.set_state_change_callback(updateCB);
+		minimizer.set_user_data(0, this);
+		minimizer.lm_set_max_iterations(iter);
+		//minimizer.set_verbose_level(3);
+		ProjObs::parameterNumber = parameter_number;
+		
+		// Feed with initial parameters:
+		GetParameterSetFromOptimalStructure();
+		
+		/*
+		 LsqData *lsqData = AllocateLsqData( parameter_number, observation_number );
+		 SetLsqGlobals( lsqData, iter, eps, GAUSS_JORDAN, updateCB, true );
+		 LsqObs *obs      = AllocateLsqObs( lsqData, sizeof(LsqObs), observation_number, 4 );
+		 lsqData->slot1   = this;
+		 
+		 // Feed with initial parameters:
+		 GetParameterSetFromOptimalStructure();
+		 FillLsqParams( lsqData, &v_opt_param[0], 0, 0 );
+		 lsqData->Dsp.F = PrintOptimizedResultErrors;
+		 */
+		
+		// Add the observations for ...
+		printf("OptimizeCalibrationByMinimalParameterMethod: %i cameras\n", v_camera.size() );
+		for( int c = 0; c < (int)v_camera.size(); c++ )         // ... cameras
+		{
+			for( int h = 0; h < (int)v_camera[c]->v_homography.size(); h++ )   // ... homographies
+			{
+				if ( message )
+				{
+					float each_cam_percent_weighting = 1.0f/v_camera.size();
+					float percent = each_cam_percent_weighting*(float(c) + float(h)/float(v_camera[c]->v_homography.size()));
+					char buf[256];
+					sprintf( buf, "camera %i, homography %2i (%5.2f%%)", c, h, 100.0f*percent );
+					message->setText( buf );
+				}
+				
+				if ( *abort )
+					return false;
+				
+				
+				printf("OptimizeCalibrationByMinimalParameterMethod: camera %i, homography %i\n", c, h );
+				if( v_camera[c]->v_homography[h]->m_homography )
+				{     
+					int points = v_camera[c]->v_homography[h]->s_plane_object->p;
+					for( int point = 0; point < points; point++ )  // ... points 
+					{
+						
+						// Add homography number and point:
+						ProjObs *o = new ProjObs();
+						o->cam = c;
+						o->hom = h;
+						o->point = point;
+						
+						// Add screen plane point (reference!):
+						s_struct_plane* s_plane_object = v_camera[c]->v_homography[h]->s_plane_object;
+						HomogenousNormalizeVector( (*s_plane_object).v_m_pp[point] );
+						o->target[0] = cvmGet( (*s_plane_object).v_m_pp[point], 0, 0 );
+						o->target[1] = cvmGet( (*s_plane_object).v_m_pp[point], 1, 0 );
+						
+						minimizer.add_observation(o, true, false);
+					}
+				}
+				
+				int result = minimizer.minimize_using_levenberg_marquardt_from(&v_opt_param[0]);
+				printf("minimizer returned %i\n", result );
+				void *ptr=this;
+				bool success = updateCB( minimizer.state, &ptr);
+				if ( !success )
+				{
+					succeeded = false;
+					break;
+				}
+				
+				
+				// post filter offset in test phase! remove, please!
+				//if( post_filter_offset > 1 )
+				// post_filter_offset -= 10;
+				
+				// Redo calibration if at least one homography was post-filtered:
+			}
+			
+			if ( !succeeded )
+				break;
+		}
+		if ( !succeeded )
+			break;
+	} while( FilterHomographiesAfterOptimization( p_PostFilter/*+post_filter_offset*/ ) );
+	
+	// Destroy histogram output window:
+	//cvDestroyAllWindows();
+	//cvDestroyWindow( "Error Histogram" );
+	return succeeded;
 }
 
 void CamCalibration::PrintOptimizedResultsToFile1(const char* camera_c_txt, const char* camera_r_t_txt, const char* view_r_t_txt )
