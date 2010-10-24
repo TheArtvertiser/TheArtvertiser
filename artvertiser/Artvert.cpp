@@ -225,16 +225,19 @@ void Artvert::saveArtvertToXml( ofxXmlSettings& data, Artvert& a )
 
 void ArtvertDrawer::draw( float x, float y, float w, float h )
 {
-	if ( artvert== NULL )
+	if ( artvert < 0 || artvert >= artvert_list->size() )
 		return;
 
-	IplImage* artvert_image = artvert->getArtvertImage();
-	if ( artvert->which_fallback_image != -1 )
-		local_image.clear();
-	else
-		toOfImage( artvert_image, local_image );
-	
+	Artvert& a = artvert_list->at(artvert);
+	IplImage* artvert_image = a.getArtvertImage();
+	if ( artvert_image )
+	{
+		if ( a.which_fallback_image != -1 )
+			local_image.clear();
+		else
+			toOfImage( artvert_image, local_image );
+	}	
 	local_image.draw( x, y, w, h );
 }
 
-
+	

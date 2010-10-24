@@ -1192,6 +1192,7 @@ void Artvertiser::setup( int argc, char** argv )
 	main_panel->addSpace( 50 );
 	// current artvert label
 	main_panel->setElementSpacing( 10, 0 );
+	current_artvert_drawer.useArtvertList( &artvert_list );
 	current_artvertfile_image_drawer = control_panel.addDrawableRect( "artvert:", &current_artvert_drawer, 160, 120 );
 	current_artvertfile_label = control_panel.addLabel( "<none>" );
 	artvert_title_label = control_panel.addLabel(  "title:  <none>" );
@@ -1820,7 +1821,7 @@ void Artvertiser::draw()
 		}
 
         // draw augmentation
-        if ( fade > 0 && augment == 1)
+        if ( !geom_calib_in_progress && fade > 0 && augment == 1)
         {
             drawAugmentation();
         }
@@ -1842,7 +1843,7 @@ void Artvertiser::draw()
         glColor4f(1.0, 1.0, 1.0, .6);
         //ftglFont->FaceSize(16);
         //ftglFont->Render(date(now).c_str());
-        if (frame_ok and (now/1000)%2== 0)
+        if ( !geom_calib_in_progress && frame_ok && (now/1000)%2== 0)
         {
             glTranslatef(video_width-295, video_height+35, 0);
             glColor4f(0.0, 1.0, 0.0, .8);
@@ -2059,7 +2060,6 @@ static void* detectionThreadFunc( void* _data )
 			}
 			if ( redo_geometry_requested )
 			{
-				fade = 0;
 				redo_geometry_requested = false;
 				if ( !geom_calib_in_progress && current_artvert_index >=0 && current_artvert_index < artvert_list.size() )
 				{
@@ -2070,6 +2070,7 @@ static void* detectionThreadFunc( void* _data )
 					// load
 					loadOrTrain( index );
 					// calibrate
+					fade = 0;
 					geomCalibStart( false );
 				}
 			}
@@ -2282,7 +2283,7 @@ void Artvertiser::update()
 				model_selection_dropdown->value.setValue( 0 );
 				current_modelfile_image.clear();
 				retrain_current_toggle->lock();
-				current_artvert_drawer.useArtvert( NULL );
+				current_artvert_drawer.useArtvert( -1 );
 			}
 			else
 			{
@@ -2292,7 +2293,7 @@ void Artvertiser::update()
 					current_modelfile_label->setText( fromOfDataOrAbsolutePath( artvert_list.at(current_artvert_index).getModelFile() ) );
 					current_artvertfile_label->setText( fromOfDataOrAbsolutePath( artvert_list.at(current_artvert_index).getArtvertFile() ) );
 					current_modelfile_image.loadImage( artvert_list.at(current_artvert_index).getModelFile() );
-					current_artvert_drawer.useArtvert( &artvert_list.at(current_artvert_index) );
+					current_artvert_drawer.useArtvert( current_artvert_index );
 					model_name_label->setText( "advert: "+artvert_list.at(current_artvert_index).getAdvertName() );
 					artvert_title_label->setText(  "title:  "+artvert_list.at(current_artvert_index).getTitle() );
 					artvert_artist_label->setText( "artist: "+artvert_list.at(current_artvert_index).getArtist() );
@@ -2306,7 +2307,7 @@ void Artvertiser::update()
 					model_name_label->setText( "" );
 					artvert_title_label->setText( "" );
 					artvert_artist_label->setText( "" );
-					current_artvert_drawer.useArtvert( NULL );
+					current_artvert_drawer.useArtvert( -1 );
 					model_selection_dropdown->value.setValue( 0 );
 					retrain_current_toggle->lock();
 				}

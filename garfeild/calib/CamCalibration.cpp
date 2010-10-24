@@ -2408,7 +2408,7 @@ bool CamCalibration::OptimizeCalibrationByMinimalParameterMethod( int iter, doub
 					float each_cam_percent_weighting = 1.0f/v_camera.size();
 					float percent = each_cam_percent_weighting*(float(c) + float(h)/float(v_camera[c]->v_homography.size()));
 					char buf[256];
-					sprintf( buf, "calculating... (%5.2f%%)", c, h, 100.0f*percent );
+					sprintf( buf, "calculating... (%5.2f%%)", 100.0f*percent );
 					message->setText( buf );
 				}
 				

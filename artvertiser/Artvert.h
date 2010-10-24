@@ -86,7 +86,8 @@ class ArtvertDrawer : public ofBaseDraws
 public:
 	ArtvertDrawer() { artvert = NULL; }
 	
-	void useArtvert( Artvert* the_artvert ) { artvert = the_artvert; local_image.clear(); }
+	void useArtvertList( vector<Artvert>* the_list ) { artvert_list = the_list; }
+	void useArtvert( int the_artvert ) { artvert = the_artvert; local_image.clear(); }
 	
 	
 	void draw( float x, float y ) { draw( x,y,getWidth(),getHeight() ); }
@@ -96,8 +97,9 @@ public:
 	
 private:
 	
-	Artvert* artvert;
 	ofImage local_image;
+	vector<Artvert>* artvert_list;
+	int artvert;
 	
 };
 
