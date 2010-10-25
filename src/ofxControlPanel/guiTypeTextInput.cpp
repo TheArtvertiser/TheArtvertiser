@@ -24,10 +24,11 @@ void guiTypeTextInput::setup(string textInputName, string defaultVal, int maxX, 
 
 bool guiTypeTextInput::keyPressed( int k )
 {
-	bool eaten = true;
+	bool eaten = false;
 	text_position = min(max(0, text_position), (int)valueText.textString.length() );
 	if ( value.getValueB() )
 	{
+		eaten = true;
 		if ( k == OF_KEY_BACKSPACE && valueText.textString.length() > 0 && text_position > 0 )
 		{
 			valueText.textString.erase( valueText.textString.begin()+(text_position-1) ) ;
@@ -144,5 +145,6 @@ void guiTypeTextInput::setValueText( string new_text )
 {
 	value.setValue( false );
 	valueText.setText( new_text );
+	changed = false;
 }
 

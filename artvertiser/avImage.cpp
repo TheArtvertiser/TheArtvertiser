@@ -135,7 +135,8 @@ void toOfImage( IplImage* source, ofImage& dest )
 		type = OF_IMAGE_GRAYSCALE;
 	else if ( f->nChannels == 4 )
 		type = OF_IMAGE_COLOR_ALPHA;
-	dest.setFromPixels( (unsigned char*)f->imageData, f->width, f->height, type, order_is_rgb );
+	if ( f->imageData != NULL )
+		dest.setFromPixels( (unsigned char*)f->imageData, f->width, f->height, type, order_is_rgb );
 }
 
 

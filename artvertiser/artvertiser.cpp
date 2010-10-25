@@ -2203,6 +2203,11 @@ void Artvertiser::update()
 
     if ( multi->model.isInteractiveTrainRunning() )
     {
+		if ( !control_panel.minimize )
+			control_panel.setMinimized(true);
+		if ( !control_panel.hidden )
+			control_panel.hide();
+		
 		if ( running_on_binoculars )
 		{
 			bool button_red = button_state   & BUTTON_RED;
@@ -2254,7 +2259,7 @@ void Artvertiser::update()
 		}
 	}
 	
-	// update things around artvert switching
+	// update things to do with control panel, artvert switching
 	if ( new_artvert_requested_lock.tryLock() )
 	{
 		// we've just changed artverts
@@ -2307,6 +2312,19 @@ void Artvertiser::update()
 				}
 			}
 			old_artvert_index = current_artvert_index;
+		}
+		
+		
+		// check for new text input
+		if ( artvert_title_input->valueTextHasChanged() )
+		{
+			// apply?
+			if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
+			{
+				artvert_list[current_artvert_index].setTitle( artvert_title_input->getValueText() );
+			}
+			
+			artvert_title_input->clearValueTextChangedFlag();
 		}
 		
 		// re-train current?
