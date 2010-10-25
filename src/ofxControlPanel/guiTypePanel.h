@@ -31,7 +31,7 @@ class guiTypePanel : public guiBaseObject{
         void drawLocked();
         void drawUnlocked();
         void render();
-
+	
         ofRectangle lockRect;
 
         float currentXPos;

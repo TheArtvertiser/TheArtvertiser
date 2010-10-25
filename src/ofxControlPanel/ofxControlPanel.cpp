@@ -105,10 +105,10 @@ void ofxControlPanel::loadFont(string fontName, int fontsize ){
 
 //---------------------------------------------
 
-void ofxControlPanel::setWidth( int new_width )
+void ofxControlPanel::setSize( int new_width, int new_height )
 {
 	// set width
-	setDimensions( new_width, getHeight() );
+	setDimensions( new_width, new_height );
 	// set underlying panel widths
 	for ( int i=0; i<panels.size(); i++ )
 	{
@@ -360,6 +360,26 @@ guiTypeLabel * ofxControlPanel::addLabel( string text )
 	guiTypeLabel* tmp = new guiTypeLabel();
 	tmp->setup( text );
 	tmp->setDimensions( 200, 0 );
+	
+	panels[currentPanel]->addElement(tmp);
+	
+	guiObjects.push_back( tmp );
+    if( bUseTTFFont ){
+        tmp->setFont(&guiTTFFont);
+    }
+	
+	return tmp;
+	
+}
+
+//---------------------------------------------
+guiTypeTextInput * ofxControlPanel::addTextInput( string name, string text, int maxX, int maxY )
+{
+    if( currentPanel < 0 || currentPanel >= (int) panels.size() )return NULL;
+	
+	guiTypeTextInput* tmp = new guiTypeTextInput();
+	tmp->setup( name, text, maxX, maxY );
+	tmp->setDimensions( 200, 14 );
 	
 	panels[currentPanel]->addElement(tmp);
 	
@@ -1113,6 +1133,20 @@ void ofxControlPanel::mouseReleased(){
     dragging        = false;
     saveDown        = false;
     restoreDown     = false;
+}
+//-------------------------------
+bool ofxControlPanel::keyPressed(int k)
+{
+	if ( hidden ) return false;
+	if ( minimize ) return false;
+	for ( int i=0; i<(int)panels.size(); i++ )
+	{
+		bool eaten = panels[i]->keyPressed( k );
+		if ( eaten )
+			// stop + bail
+			return true;
+	}
+	return false;
 }
 
 

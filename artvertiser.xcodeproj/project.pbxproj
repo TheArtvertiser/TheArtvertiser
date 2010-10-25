@@ -22,6 +22,7 @@
 		2D3ACF25125B7FEB00782E83 /* tinyxmlerror.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D3ACF06125B7FEA00782E83 /* tinyxmlerror.cpp */; };
 		2D3ACF26125B7FEB00782E83 /* tinyxmlparser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D3ACF07125B7FEA00782E83 /* tinyxmlparser.cpp */; };
 		2D3ACF27125B7FEB00782E83 /* ofxXmlSettings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D3ACF09125B7FEA00782E83 /* ofxXmlSettings.cpp */; };
+		2D47705E1275ACC600C08A92 /* guiTypeTextInput.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D47705D1275ACC600C08A92 /* guiTypeTextInput.cpp */; };
 		2D7BAC31125F096A002AD5DA /* ofxBarrier.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D7BAC29125F096A002AD5DA /* ofxBarrier.cpp */; };
 		2D7BAC32125F096A002AD5DA /* ofxMutex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D7BAC2B125F096A002AD5DA /* ofxMutex.cpp */; };
 		2D7BAC33125F096A002AD5DA /* ofxSemaphore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D7BAC2D125F096A002AD5DA /* ofxSemaphore.cpp */; };
@@ -221,6 +222,7 @@
 		2D3ACF07125B7FEA00782E83 /* tinyxmlparser.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tinyxmlparser.cpp; sourceTree = "<group>"; };
 		2D3ACF09125B7FEA00782E83 /* ofxXmlSettings.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ofxXmlSettings.cpp; sourceTree = "<group>"; };
 		2D3ACF0A125B7FEA00782E83 /* ofxXmlSettings.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ofxXmlSettings.h; sourceTree = "<group>"; };
+		2D47705D1275ACC600C08A92 /* guiTypeTextInput.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = guiTypeTextInput.cpp; sourceTree = "<group>"; };
 		2D7BAC29125F096A002AD5DA /* ofxBarrier.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ofxBarrier.cpp; sourceTree = "<group>"; };
 		2D7BAC2A125F096A002AD5DA /* ofxBarrier.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ofxBarrier.h; sourceTree = "<group>"; };
 		2D7BAC2B125F096A002AD5DA /* ofxMutex.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ofxMutex.cpp; sourceTree = "<group>"; };
@@ -733,6 +735,7 @@
 				2D7BAF4A1262127A002AD5DA /* guiTypeTextDropDown.cpp */,
 				2D7BAF4B1262127A002AD5DA /* guiTypeTextDropDown.h */,
 				2D7BAF4C1262127A002AD5DA /* guiTypeTextInput.h */,
+				2D47705D1275ACC600C08A92 /* guiTypeTextInput.cpp */,
 				2D7BAF4D1262127A002AD5DA /* guiTypeToggle.cpp */,
 				2D7BAF4E1262127A002AD5DA /* guiTypeToggle.h */,
 				2D7BAF4F1262127A002AD5DA /* guiTypeVairableLister.cpp */,
@@ -1430,6 +1433,7 @@
 				2D7BAFB01262165D002AD5DA /* guiTypeLabel.cpp in Sources */,
 				2D2EB002126DC61300043AF6 /* Artvert.cpp in Sources */,
 				2DBC92EF12731058008CC9C9 /* ThreadSafeString.cpp in Sources */,
+				2D47705E1275ACC600C08A92 /* guiTypeTextInput.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

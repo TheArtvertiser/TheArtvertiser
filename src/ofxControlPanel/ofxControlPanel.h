@@ -50,7 +50,7 @@ class ofxControlPanel: public guiBaseObject{
         void setWhichPanel(string panelName);
         void setWhichColumn(int column);
 	
-	void setWidth( int new_width );
+		void setSize( int new_width, int new_height );
 
 		string getCurrentPanelName();
 
@@ -122,6 +122,7 @@ class ofxControlPanel: public guiBaseObject{
 		guiTypeLogger * addLogger(string name, simpleLogger * logger, int drawW, int drawH);
 		guiTypeFileLister * addFileLister(string name, simpleFileLister * lister, int drawW, int drawH);
 		guiTypeLabel * addLabel( string text );
+		guiTypeTextInput* addTextInput( string name, string text, int maxX, int maxY );
 		
 		void setupEvents();
 		ofEvent <guiCallbackData> & createEventGroup(string eventGroupName, vector <string> xmlNames);
@@ -164,6 +165,8 @@ class ofxControlPanel: public guiBaseObject{
         bool mousePressed(float x, float y, int button);
         bool mouseDragged(float x, float y, int button);
         void mouseReleased();
+		/// return true if we consume the keypress
+		bool keyPressed( int k );
 
         void updateBoundingBox();
         void update();

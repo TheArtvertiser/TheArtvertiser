@@ -33,9 +33,9 @@ public:
 	void mousePressed( int x, int y, int button );
 	void mouseReleased( int x, int y, int button );
 
-	void windowResized( int new_w, int new_h ) { control_panel.setWidth( new_w-10  ); }
+	void windowResized( int new_w, int new_h ) { control_panel.setSize( new_w-10, new_h-40 ); }
 private:
-	// draw the menu
+	// draw the men
 	void drawMenu();
 	
 	// draw the current augmentation, if any
@@ -68,6 +68,7 @@ private:
 	guiTypeDrawable* current_artvertfile_image_drawer;
 	ArtvertDrawer current_artvert_drawer;
 	guiTypeLabel* artvert_title_label;
+	guiTypeTextInput* artvert_title_input;
 	guiTypeLabel* artvert_artist_label;
 
 	ofxControlPanel control_panel;

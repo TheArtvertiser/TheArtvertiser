@@ -365,6 +365,7 @@ void Artvertiser::mouseReleased( int x, int y, int button )
 		label = false;
 	mouse_x = x;
 	mouse_y = y;
+	control_panel.mouseReleased();
 	control_panel_timer = CONTROL_PANEL_SHOW_TIME;
 }
 
@@ -599,7 +600,6 @@ int serialport_read_until(int fd, char* buf, char until, int bufsize)
 
 	if ( timeout<=0 )
 	{
-		fprintf(stderr, "serialport_read_until timed out\n");
 		return -1;
 	}
 
@@ -630,6 +630,8 @@ bool loadOrTrain( int new_index )
 
         return false;
     }
+	if ( model_file_needs_training.size() != artvert_list.size() )
+		model_file_needs_training.resize( artvert_list.size() );
 
 	// switching model..
 	new_artvert_switching_in_progress = true;
@@ -649,6 +651,7 @@ bool loadOrTrain( int new_index )
         	return false;
 		}
 
+		model_file_needs_training[new_index] = false;
 
 		// copy char model_file before munging with strcat
 		char s[1024];
@@ -676,6 +679,7 @@ bool loadOrTrain( int new_index )
 		c1[2].y = roi_vec[5];
 		c1[3].x = roi_vec[6];
 		c1[3].y = roi_vec[7];
+
 	}
 
 	// update current index
@@ -716,6 +720,12 @@ Artvertiser::~Artvertiser()
  */
 void Artvertiser::keyPressed(int c )
 {
+	if ( control_panel.keyPressed( c ) )
+	{
+		control_panel_timer = CONTROL_PANEL_SHOW_TIME;
+		return;
+	}
+	
 	// for r/g/b buttons
 	char old_button_state = button_state;
 	
@@ -724,23 +734,6 @@ void Artvertiser::keyPressed(int c )
 	const char* filename;
 	switch (c)
 	{
-	case 'n' :
-		if (augment == 1)
-			augment = 0;
-		else
-			augment = 1;
-	case '+' :
-		if (current_cam < multi->cams.size()-1)
-			current_cam++;
-		break;
-	case '-':
-		if (current_cam >= 1)
-			current_cam--;
-		break;
-	case 'q':
-	case 27 /*esc*/:
-		exit(0);
-		break;
 	case 'l':
 		dynamic_light = !dynamic_light;
 		break;
@@ -753,7 +746,7 @@ void Artvertiser::keyPressed(int c )
 		else
 			avi_play = true;
 	case 'f':
-		glutFullScreen();
+		ofToggleFullscreen();
 		break;
 	case 'k':
 		track_kalman = !track_kalman;
@@ -1196,6 +1189,7 @@ void Artvertiser::setup( int argc, char** argv )
 	current_artvertfile_image_drawer = control_panel.addDrawableRect( "artvert:", &current_artvert_drawer, 160, 120 );
 	current_artvertfile_label = control_panel.addLabel( "<none>" );
 	artvert_title_label = control_panel.addLabel(  "title:  <none>" );
+	artvert_title_input = control_panel.addTextInput( "title:", "<none>", 100, 14 );
 	main_panel->setElementSpacing( 10, 14 );
 	artvert_artist_label = control_panel.addLabel( "artist: <none>" );
 
@@ -1940,7 +1934,7 @@ void* serialThreadFunc( void* data )
 			num_timeouts++;
 			if ( num_timeouts > 8 )
 			{
-				printf("serial thread timed out too many times: giving up\n");
+				printf("serialport_read_until timed out too many times: giving up\n");
 				serial_thread_should_exit = true;
 			}
 		}
