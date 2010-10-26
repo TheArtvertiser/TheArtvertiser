@@ -280,10 +280,11 @@ void drawMenu();
 // model loading stuff
 ofx3DModelLoader modelLoader;
 GLfloat lightOnePosition[] = {40.0, 40, 100.0, 0.0};
-GLfloat lightOneColor[] = {0.99, 0.99, 0.99, 1.0};
+GLfloat lightOneColor[] = {0.99, 0.99, 0.99, 0.5};
 GLfloat lightTwoPosition[] = {-40.0, 40, 100.0, 0.0};
-GLfloat lightTwoColor[] = {0.99, 0.99, 0.99, 1.0};
+GLfloat lightTwoColor[] = {0.99, 0.99, 0.99, 0.5};
 bool three_d_model_load = false; 
+bool light_state = true;
 
 /* use this to read paths from the file system
 
@@ -301,12 +302,12 @@ bool three_d_model_load = false;
    }
  */
 
-static void toggleGLLights(int light_state)
+static void glLights(bool state)
 {
 
-    if (!light_state)
+    if (state)
     {
-	    glEnable (GL_LIGHTING);
+	    glEnable(GL_LIGHTING);
     }
     else
     {
@@ -1094,7 +1095,6 @@ void Artvertiser::setup( int argc, char** argv )
         else if (strcmp(argv[i], "-3d")==0)
         {
             three_d_model_load = true;
-	    	toggleGLLights(1);
             three_d_model_path=toAbsolutePath(argv[i+1]);
     	    modelLoader.loadModel(three_d_model_path, 30);
             printf(" -3d: loading 3ds model from '%s'\n", three_d_model_path.c_str() );
@@ -1305,9 +1305,15 @@ void Artvertiser::setup( int argc, char** argv )
 		control_panel.setMinimized( true );
 		control_panel_timer = CONTROL_PANEL_SHOW_TIME;
 	}	
+
+	glLightfv (GL_LIGHT0, GL_POSITION, lightOnePosition);
+	glLightfv (GL_LIGHT0, GL_DIFFUSE, lightOneColor);
+	glEnable (GL_LIGHT0);
+	glLightfv (GL_LIGHT1, GL_POSITION, lightTwoPosition);
+	glLightfv (GL_LIGHT1, GL_DIFFUSE, lightTwoColor);
+	glEnable(GL_LIGHT1);
 	
     printf("setup() finished\n");
-
 }
 
 void Artvertiser::updateModelSelectionDropdown()
@@ -1740,12 +1746,14 @@ void Artvertiser::drawAugmentation()
 	}
 	else if (three_d_model_load) 
 	{
+		glEnable(GL_DEPTH_TEST);
 		glPushMatrix();
 
 		int posx = artvert_roi_vec[6] - artvert_roi_vec[0];
 		int posy = artvert_roi_vec[3] - artvert_roi_vec[1];
 
 		glTranslatef(posx,posy,0);
+	    glLights(true);
 		modelLoader.draw();
 		glPopMatrix();
 		glDisable(GL_DEPTH_TEST);
@@ -1786,28 +1794,6 @@ void Artvertiser::drawAugmentation()
 		glEnd();
 		glDisable(GL_TEXTURE_2D);
 	}
-
-
-	glEnable(GL_TEXTURE_2D);
-
-	glHint(GL_POLYGON_SMOOTH, GL_NICEST);
-	glEnable(GL_POLYGON_SMOOTH);
-
-
-	glColor4f(1.0, 1.0, 1.0, fade);
-
-	glBegin(GL_QUADS);
-	glTexCoord2f(0, 0);
-	glVertex3f(artvert_roi_vec[0], artvert_roi_vec[1], 0);
-	glTexCoord2f(1, 0);
-	glVertex3f(artvert_roi_vec[2], artvert_roi_vec[3], 0);
-	glTexCoord2f(1, 1);
-	glVertex3f(artvert_roi_vec[4], artvert_roi_vec[5], 0);
-	glTexCoord2f(0, 1);
-	glVertex3f(artvert_roi_vec[6], artvert_roi_vec[7], 0);
-	glEnd();
-
-	glDisable(GL_TEXTURE_2D);
 
 	// 'label' is a boolean set by the right mouse button and toggles the
 	//in-scene artvert label.
