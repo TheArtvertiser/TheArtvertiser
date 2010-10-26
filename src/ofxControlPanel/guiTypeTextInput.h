@@ -13,7 +13,7 @@ public:
 	}
 
 	//------------------------------------------------
-	void setup(string textInputName, string defaultVal, int maxX, int maxY);
+	void setup(string textInputName, string defaultVal);
 
 	
 	//--------------------------------------------

@@ -61,15 +61,14 @@ private:
 	ofImage current_modelfile_image;
 	guiTypeToggle* retrain_current_toggle;
 	guiTypeToggle* add_model_toggle;
-	guiTypeLabel* model_name_label;
+	guiTypeTextInput* model_name_input;
 	guiTypeToggle* retrain_geometry_toggle;
 	
 	guiTypeLabel* current_artvertfile_label;
 	guiTypeDrawable* current_artvertfile_image_drawer;
 	ArtvertDrawer current_artvert_drawer;
-	guiTypeLabel* artvert_title_label;
 	guiTypeTextInput* artvert_title_input;
-	guiTypeLabel* artvert_artist_label;
+	guiTypeTextInput* artvert_artist_input;
 
 	ofxControlPanel control_panel;
 	float control_panel_timer;

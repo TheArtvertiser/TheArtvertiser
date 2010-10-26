@@ -122,7 +122,7 @@ class ofxControlPanel: public guiBaseObject{
 		guiTypeLogger * addLogger(string name, simpleLogger * logger, int drawW, int drawH);
 		guiTypeFileLister * addFileLister(string name, simpleFileLister * lister, int drawW, int drawH);
 		guiTypeLabel * addLabel( string text );
-		guiTypeTextInput* addTextInput( string name, string text, int maxX, int maxY );
+		guiTypeTextInput* addTextInput( string name, string text, int width );
 		
 		void setupEvents();
 		ofEvent <guiCallbackData> & createEventGroup(string eventGroupName, vector <string> xmlNames);

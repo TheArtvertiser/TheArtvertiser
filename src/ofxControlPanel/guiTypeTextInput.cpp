@@ -12,7 +12,7 @@
 
 
 //------------------------------------------------
-void guiTypeTextInput::setup(string textInputName, string defaultVal, int maxX, int maxY)
+void guiTypeTextInput::setup(string textInputName, string defaultVal)
 {
 	valueText.setText( defaultVal );
 	value.addValueB(false);
@@ -24,21 +24,27 @@ void guiTypeTextInput::setup(string textInputName, string defaultVal, int maxX, 
 
 bool guiTypeTextInput::keyPressed( int k )
 {
+	if ( isLocked() )
+		return false;
+	
 	bool eaten = false;
 	text_position = min(max(0, text_position), (int)valueText.textString.length() );
 	if ( value.getValueB() )
 	{
 		eaten = true;
+		// handle backspace
 		if ( k == OF_KEY_BACKSPACE && valueText.textString.length() > 0 && text_position > 0 )
 		{
 			valueText.textString.erase( valueText.textString.begin()+(text_position-1) ) ;
 			text_position--;
 			changed = true;
 		}
+		// handle DEL
 		else if ( k == OF_KEY_DEL && valueText.textString.length() > 0 && text_position < valueText.textString.length() )
 		{
 			valueText.textString.erase( valueText.textString.begin()+(text_position) );
 		}
+		// handle arrow keys, home, end
 		else if ( k == OF_KEY_LEFT )
 			text_position--;
 		else if ( k == OF_KEY_RIGHT )
@@ -47,6 +53,7 @@ bool guiTypeTextInput::keyPressed( int k )
 			text_position = 0;
 		else if ( k == OF_KEY_END )
 			text_position = valueText.textString.length();
+		// everything else is text input
 		else if ( k >= 32 /* ' ' */ && k <= 126 /* '~' */ )
 		{
 			char buf[3];
@@ -76,7 +83,7 @@ void guiTypeTextInput::render()
 	glColor4fv(textColor.getColorF());
 	valueText.renderText(boundingBox.x + 2, boundingBox.y + (valueText.getTextSingleLineHeight()*2) + 3);
 	// draw blinking cursor
-	if( value.getValueB() && (ofGetElapsedTimeMillis()%500)>250)
+	if( !isLocked() && value.getValueB() && (ofGetElapsedTimeMillis()%500)>250)
 	{
 		text_position = min(max(0, text_position), (int)valueText.textString.length() );
 		ofRect( hitArea.x+valueText.getTextWidth(valueText.textString.substr(0,text_position))+1, hitArea.y+1, 2, hitArea.height-2 );
@@ -115,6 +122,9 @@ void guiTypeTextInput::updateGui(float x, float y, bool firstHit, bool isRelativ
 {
 	
 	if(!firstHit)
+		return;
+	
+	if ( isLocked() )
 		return;
 	
 	if( state == SG_STATE_SELECTED )

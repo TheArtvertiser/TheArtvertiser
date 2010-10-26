@@ -52,7 +52,8 @@ public:
 	string getDescription();
 
 	static void loadArtvertsFromXml( ofxXmlSettings& data, vector<Artvert>& results );
-	static void saveArtvertToXml( ofxXmlSettings& data, Artvert& artvert_to_save );
+	/// save the artvert and (optionally) model file data to xml. if save_model is true save the model, otherwise jsut save the artvert
+	static void saveArtvertToXml( ofxXmlSettings& data, Artvert& artvert_to_save, bool save_model = true );
 	
 private:
 	string artist;

@@ -373,13 +373,13 @@ guiTypeLabel * ofxControlPanel::addLabel( string text )
 }
 
 //---------------------------------------------
-guiTypeTextInput * ofxControlPanel::addTextInput( string name, string text, int maxX, int maxY )
+guiTypeTextInput * ofxControlPanel::addTextInput( string name, string text, int width )
 {
     if( currentPanel < 0 || currentPanel >= (int) panels.size() )return NULL;
 	
 	guiTypeTextInput* tmp = new guiTypeTextInput();
-	tmp->setup( name, text, maxX, maxY );
-	tmp->setDimensions( 200, 14 );
+	tmp->setup( name, text );
+	tmp->setDimensions( width, 14 );
 	
 	panels[currentPanel]->addElement(tmp);
 	

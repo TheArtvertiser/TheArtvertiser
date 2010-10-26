@@ -201,11 +201,14 @@ void Artvert::loadArtvertsFromXml( ofxXmlSettings& data, vector<Artvert>& result
 }	
 
 
-void Artvert::saveArtvertToXml( ofxXmlSettings& data, Artvert& a )
+void Artvert::saveArtvertToXml( ofxXmlSettings& data, Artvert& a, bool save_model )
 {
-	data.addValue( "model_filename", fromOfDataPath( a.model_file ) );
-	// can use either 'advert' or 'name' for the name of this model/advert
-	data.addValue( "name", a.advert_name );
+	if ( save_model )
+	{
+		data.addValue( "model_filename", fromOfDataPath( a.model_file ) );
+		// can use either 'advert' or 'name' for the name of this model/advert
+		data.addValue( "name", a.advert_name );
+	}
 	int index = data.addTag( "artvert" );
 	data.pushTag( "artvert", index );
 	data.addValue( "title", a.title );
