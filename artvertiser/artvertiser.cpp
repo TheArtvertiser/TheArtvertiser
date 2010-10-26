@@ -749,8 +749,6 @@ bool loadOrTrain( int new_index )
 	}
 	else
 		artvert_list_lock.unlock();
-	
-
 
 	// update current index
 	setCurrentArtvertIndex( new_index );
@@ -1194,7 +1192,8 @@ void Artvertiser::setup( int argc, char** argv )
     frame_timer.SetNow();
 	
     // start serial
-    startSerialThread();
+	if ( running_on_binoculars )
+		startSerialThread();
 	
 
 	font_12.loadFont("fonts/FreeSans.ttf", 12);
@@ -1289,11 +1288,13 @@ void Artvertiser::updateModelSelectionDropdown()
 	model_selection_dropdown->value.setValue( current_artvert_index+1 );
 
 	// ensure we are not out of bounds on the selection list
-	if ( model_selection_dropdown->value.getValueI() >= artvert_list.size() )
+	if ( model_selection_dropdown->value.getValueI() > artvert_list.size() )
 	{
 		model_selection_dropdown->value.setValue(0);
 	}
 	model_selection_dropdown->update();
+
+	model_selection_dropdown->value.clearChangedFlag();
 	
 }
 
@@ -2125,7 +2126,7 @@ static void* detectionThreadFunc( void* _data )
 			{
 				fade = 0;
 				// no longer draw
-				printf("new_artvert_requested:frame not ok\n" );
+				printf("new_artvert_requested (-> %i)\n", new_artvert_requested_index );
 				frame_ok = false;
 				// go with the loading
 				bool res = loadOrTrain(new_artvert_requested_index);
