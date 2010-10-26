@@ -706,12 +706,12 @@ bool loadOrTrain( int new_index )
 	if ( ( current_artvert_index < 0 || current_artvert_index >= artvert_list.size() ) ||
 			model_file != artvert_list[current_artvert_index]->getModelFile() )
 	{
+		artvert_list_lock.unlock();
 		// load
 	    bool trained = multi->loadOrTrainCache( wants_training, model_file.c_str(), running_on_binoculars );
     	if ( !trained )
 		{
 			// fail
-			artvert_list_lock.unlock();
 			setCurrentArtvertIndex( -1 );
 			new_artvert_switching_in_progress = false;
         	return false;
@@ -747,7 +747,10 @@ bool loadOrTrain( int new_index )
 		c1[3].y = roi_vec[7];
 
 	}
-	artvert_list_lock.unlock();
+	else
+		artvert_list_lock.unlock();
+	
+
 
 	// update current index
 	setCurrentArtvertIndex( new_index );
@@ -781,10 +784,6 @@ Artvertiser::~Artvertiser()
 }
 
 
-/*! The keyboard callback: reacts to '+' and '-' to change the viewed cam, 'q' exits.
- * 'd' turns on/off the dynamic lightmap update.
- * 'f' goes fullscreen.
- */
 void Artvertiser::keyPressed(int c )
 {
 	if ( !running_on_binoculars && control_panel.keyPressed( c ) )
@@ -806,6 +805,9 @@ void Artvertiser::keyPressed(int c )
 		break;
 	case 'f':
 		ofToggleFullscreen();
+		break;
+	case 'd':
+		delay_video = !delay_video;
 		break;
 	case 'S':
 		show_status = !show_status;
