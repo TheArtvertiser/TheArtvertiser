@@ -1,5 +1,5 @@
 /*
- * Copyright 2008, 2009, 2010 Julian Oliver <julian@julianoliver.com> and 
+ * Copyright 2008, 2009, 2010 Julian Oliver <julian@julianoliver.com> and
  * Damian Stewart <damian@frey.co.nz>.
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -63,7 +63,9 @@ static const float CONTROL_PANEL_SHOW_TIME = 10.0f;
 #include <fcntl.h>    /* File control definitions */
 #include <errno.h>    /* Error number definitions */
 #include <fcntl.h>    /* File control definitions */
+#ifndef TARGET_WIN32
 #include <termios.h>  /* POSIX terminal control definitions */
+#endif
 
 #include <iostream>
 #include <sstream> // for conv int->str
@@ -80,21 +82,7 @@ static const float CONTROL_PANEL_SHOW_TIME = 10.0f;
 
 #include <calib/camera.h>
 
-#ifdef __APPLE__
-#include <OpenGL/gl.h>
-#include <GLUT/glut.h>
-#define HAVE_GL
-#elif defined WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <GL/gl.h>
-#include <GL/glut.h>
-#define HAVE_GL
-#else
-#include <GL/gl.h>
-#include <GL/glut.h>
-#define HAVE_GL
-#endif
+
 
 /*
 #include "/usr/include/freetype2/freetype/config/ftconfig.h"
@@ -138,7 +126,11 @@ int serialport_init(const char* serialport, int baud);
 int serialport_read_until(int fd, char* buf, char until, int bufsize);
 bool serial_thread_should_exit = false;
 bool serial_thread_is_running = false;
+#ifdef TARGET_WIN32
+HANDLE serial_thread;
+#else
 pthread_t serial_thread;
+#endif
 void startSerialThread();
 void shutdownSerialThread();
 void* serialThreadFunc( void* );
@@ -241,11 +233,17 @@ bool redo_geometry_requested = false;
 vector< bool > model_file_needs_training;
 
 // detection thread
-pthread_t detection_thread;
 double detection_fps = 0.0;
 static void shutdownDetectionThread();
 static void startDetectionThread( int thread_priority = 0 /* only takes effect if root */ );
-static void* detectionThreadFunc( void* _data );
+#ifdef TARGET_WIN32
+HANDLE detection_thread;
+static unsigned int __stdcall
+#else
+pthread_t detection_thread;
+static void*
+#endif
+    detectionThreadFunc( void* _data );
 bool detection_thread_should_exit = false;
 bool detection_thread_running = false;
 
@@ -353,7 +351,7 @@ void saveArtvertXml()
 	artvert_list_needs_saving = false;
 	if ( model_file_list_file.size() == 0 )
 		return;
-	
+
 	ofxXmlSettings data;
 	data.addTag( "artverts" );
 	data.pushTag( "artverts" );
@@ -543,15 +541,15 @@ void Artvertiser::exitHandler()
 		saveArtvertXml();
 		new_artvert_requested_lock.unlock();
 	}
-	
+
 	// shutdown interactive training
 	if ( multi && multi->model.isInteractiveTrainRunning() )
 	{
 		printf("stopping interactive train binoculars\n");
 		multi->model.abortInteractiveTrain();
 	}
-	
-	
+
+
 	// shutdown detection thread
     if ( detection_thread_running )
     {
@@ -564,7 +562,7 @@ void Artvertiser::exitHandler()
         printf("stopping serial\n");
         shutdownSerialThread();
     }
-	
+
     // shutdown capture
     if ( multi )
     {
@@ -583,6 +581,9 @@ void Artvertiser::exitHandler()
 
 int serialport_init(const char* serialport, int baud)
 {
+    #ifdef TARGET_WIN32
+    return 0;
+    #else
     struct termios toptions;
     int fd;
 
@@ -641,12 +642,16 @@ int serialport_init(const char* serialport, int baud)
     }
 
     return fd;
+    #endif
 }
 
 
 // arduino serial port read
 int serialport_read_until(int fd, char* buf, char until, int bufsize)
 {
+    #ifdef TARGET_WIN32
+    return 0;
+    #else
 	char b[1];
 	int i=0;
 	// 1000ms timeout
@@ -668,6 +673,7 @@ int serialport_read_until(int fd, char* buf, char until, int bufsize)
 
 	buf[i] = 0;  // null terminate the string
 	return 0;
+	#endif
 }
 
 void setCurrentArtvertIndex( int new_index )
@@ -792,12 +798,12 @@ void Artvertiser::keyPressed(int c )
 		control_panel_timer = CONTROL_PANEL_SHOW_TIME;
 		return;
 	}
-	
+
 	// for r/g/b buttons
 	char old_button_state = button_state;
-	
+
 	last_key = c;
-	
+
 	const char* filename;
 	switch (c)
 	{
@@ -855,7 +861,7 @@ void Artvertiser::keyPressed(int c )
 		case '3':
 			detector.non_linear_refine_threshold_ui*=1.02f;
 			break;
-			
+
 		case '#':
 			detector.non_linear_refine_threshold_ui/=1.02f;
 			break;
@@ -958,7 +964,7 @@ void Artvertiser::setup( int argc, char** argv )
 	char wd[1024];
 	getcwd( wd, 1024 );
 	printf("cwd is %s\n", wd );
-	
+
     // more from before init should be moved here
     bool redo_lighting=false;
     bool redo_training = false;
@@ -967,7 +973,7 @@ void Artvertiser::setup( int argc, char** argv )
     bool got_ds = false;
     bool got_fps = false;
     bool video_source_is_avi = false;
-	
+
     // parse command line
 	printf("argc: %2i\n", argc );
     for (int i=1; i<argc; i++)
@@ -1095,9 +1101,9 @@ void Artvertiser::setup( int argc, char** argv )
 			printf(" unknown argument '%s'\n", argv[i] );
             usage(argv[0]);
         }
-		
+
     }
-	
+
 #ifdef TARGET_OSX
 	// OSX: default to always load data/models.xml
     if ( model_file_list_file.size()==0 )
@@ -1113,7 +1119,7 @@ void Artvertiser::setup( int argc, char** argv )
         // try to open
         ofxXmlSettings data;
         data.loadFile( model_file_list_file );
-		
+
         if ( data.getNumTags( "artverts" ) == 1 )
         {
             data.pushTag( "artverts" );
@@ -1144,11 +1150,11 @@ void Artvertiser::setup( int argc, char** argv )
         artvert_list.push_back( a );
 		artvert_list_lock.unlock();
     }
-	
+
     // set up training flags
     for ( int i=0; i<artvert_list.size(); i++ )
     	model_file_needs_training.push_back( redo_training );
-	
+
     // check for video size arg if necessary
     if ( video_source_is_avi )
     {
@@ -1171,36 +1177,36 @@ void Artvertiser::setup( int argc, char** argv )
             desired_capture_fps = video_fps;
         }
     }
-	
+
     //cout << avi_bg_path << endl;
     cache_light = !redo_lighting;
-	
+
     glutReshapeWindow( video_width, video_height );
-	
+
     multi = new MultiGrab();
-	
+
     if( multi->init( avi_bg_path.c_str(), video_width, video_height, v4l_device,
                     detect_width, detect_height, desired_capture_fps ) ==0)
     {
         cerr <<"Initialization error.\n";
 		exit(1);
     }
-	
-	
-	
+
+
+
     last_frame_caught_time.SetNow();
     frame_timer.SetNow();
-	
+
     // start serial
     startSerialThread();
-	
+
 
 	font_12.loadFont("fonts/FreeSans.ttf", 12);
 	font_16.loadFont("fonts/FreeSans.ttf", 16);
 	font_24.loadFont("fonts/FreeSans.ttf", 24);
 	font_32.loadFont("fonts/FreeSans.ttf", 32);
 
-	
+
 	// setup control panel
 	if ( !running_on_binoculars )
 	{
@@ -1212,7 +1218,7 @@ void Artvertiser::setup( int argc, char** argv )
 		main_panel->addColumn( ofGetWidth()/2 - 40 );
 		main_panel->setBackgroundColor( 0,0,0,16 );
 		// drop-down for models
-		vector<string> names; 
+		vector<string> names;
 		names.push_back("<none>");
 		main_panel->setElementSpacing( 10, 0 );
 		model_selection_dropdown = control_panel.addTextDropDown( "current artvert:", "current_artvert", 0, names );
@@ -1221,7 +1227,7 @@ void Artvertiser::setup( int argc, char** argv )
 		updateModelSelectionDropdown();
 		artvert_list_lock.unlock();
 		model_status_label = control_panel.addLabel( "" );
-		
+
 		// left column: current modelfile
 		control_panel.setWhichColumn( 0 );
 		// current modelfile label
@@ -1258,17 +1264,17 @@ void Artvertiser::setup( int argc, char** argv )
 		artvertfile_lister.allowExt("mkv");
 		artvertfile_lister.listDir("artverts/");
 		current_artvertfile_lister = control_panel.addFileLister("select new artvert file:", &artvertfile_lister, ofGetWidth()/2-40, 50);
-		
+
 		artvert_title_input = control_panel.addTextInput( "title:", "<none>", ofGetWidth()/2-40 );
 		main_panel->setElementSpacing( 10, 14 );
 		artvert_artist_input = control_panel.addTextInput( "artist:", "<none>", ofGetWidth()/2-40 );
 
-		
+
 		control_panel.show();
 		control_panel.setMinimized( true );
 		control_panel_timer = CONTROL_PANEL_SHOW_TIME;
-	}	
-	
+	}
+
     printf("setup() finished\n");
 
 }
@@ -1276,14 +1282,14 @@ void Artvertiser::setup( int argc, char** argv )
 void Artvertiser::updateModelSelectionDropdown()
 {
 	/// MUST HAVE LOCK FIRST
-	
+
 	model_selection_dropdown->vecDropList.clear();
 	model_selection_dropdown->vecDropList.push_back( "<none>" );
 	for ( int i=0; i<artvert_list.size(); i++ )
 	{
 		model_selection_dropdown->vecDropList.push_back( artvert_list[i]->getDescription() );
 	}
-	
+
 	model_selection_dropdown->value.setValue( current_artvert_index+1 );
 
 	// ensure we are not out of bounds on the selection list
@@ -1292,7 +1298,7 @@ void Artvertiser::updateModelSelectionDropdown()
 		model_selection_dropdown->value.setValue(0);
 	}
 	model_selection_dropdown->update();
-	
+
 }
 
 //!\brief  Draw a frame contained in an IplTexture object on an OpenGL viewport.
@@ -1450,7 +1456,7 @@ static bool geomCalibEnd()
 {
 	printf("geomCalibEnd: going to calibrate; %u cameras\n", multi->cams.size() );
 	char buf[256];
-	sprintf(buf, "calculating calibration, please wait", 
+	sprintf(buf, "calculating calibration, please wait",
 			100.0f*geom_calib_nb_homography/150.0f );
 	geom_calib_message = buf;
 
@@ -1478,7 +1484,7 @@ static bool geomCalibEnd()
 											ofToDataPath("camera_r_t.txt").c_str(),
 											ofToDataPath("view_r_t.txt").c_str());
 	}
-	
+
 	if (!multi->model.augm.LoadOptimalStructureFromFile(ofToDataPath("camera_c.txt").c_str(), ofToDataPath("camera_r_t.txt").c_str()))
 	{
 		cout << "failed to load camera calibration.\n";
@@ -1488,7 +1494,7 @@ static bool geomCalibEnd()
     calib=0;
 	geom_calib_in_progress = false;
 	delay_video = old_delay_video;
-	
+
 	return success;
 }
 
@@ -1515,7 +1521,7 @@ static bool geomCalibIdle(void)
         bool dummy = false;
         if (multi->cams[i]->detect(dummy, dummy)) nbdet++;
     }
-	
+
     if (nbdet>0)
     {
         for (int i=0; i<multi->cams.size(); ++i)
@@ -1531,22 +1537,22 @@ static bool geomCalibIdle(void)
             }
         }
         geom_calib_nb_homography++;
-		
+
 		char buf[256];
-		sprintf(buf, "capturing data (%.2f%%)", 
+		sprintf(buf, "capturing data (%.2f%%)",
 				100.0f*geom_calib_nb_homography/150.0f );
 		geom_calib_message = buf;
     }
 
-	
-	
+
+
     printf("geom calib: %.2f%%\n", 100.0f*geom_calib_nb_homography/150.0f );
 
     if (geom_calib_nb_homography>=150)
     {
 		return true;
     }
-	
+
 	// not finished yet
 	return false;
 }
@@ -1556,8 +1562,8 @@ static void geomCalibStart(bool cache)
 {
 	if ( geom_calib_in_progress )
 		return;
-	
-    if (cache && multi->model.augm.LoadOptimalStructureFromFile(ofToDataPath("camera_c.txt").c_str(), 
+
+    if (cache && multi->model.augm.LoadOptimalStructureFromFile(ofToDataPath("camera_c.txt").c_str(),
 																ofToDataPath("camera_r_t.txt").c_str()))
     {
         return;
@@ -1568,7 +1574,7 @@ static void geomCalibStart(bool cache)
 	delay_video = false;
 
 	geom_calib_message = "please show current model to camera";
-	
+
     // construct a CamCalibration object and register all the cameras
     calib = new CamCalibration();
 
@@ -1578,7 +1584,7 @@ static void geomCalibStart(bool cache)
     }
 
     geom_calib_nb_homography=0;
-	
+
 }
 
 
@@ -1672,7 +1678,7 @@ void Artvertiser::drawAugmentation()
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
  */
-	
+
 	if (avi_play == true)
 	{
 		//IplImage *avi_frame = 0;
@@ -1822,8 +1828,8 @@ void Artvertiser::draw()
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 	glLoadIdentity();
-	
-	
+
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_LIGHTING);
 
@@ -1960,7 +1966,7 @@ void Artvertiser::draw()
 		glPopMatrix();
 		glMatrixMode( GL_MODELVIEW );
 		glPopMatrix();
-		
+
 		if ( !running_on_binoculars )
 		{
 			control_panel.draw();
@@ -1968,14 +1974,15 @@ void Artvertiser::draw()
 
     }
 
-	
-	
+
+
 }
 
 
 
 void startSerialThread()
 {
+    #ifndef TARGET_WIN32
     pthread_attr_t thread_attr;
     pthread_attr_init(&thread_attr);
     pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
@@ -1983,20 +1990,24 @@ void startSerialThread()
     pthread_create( &serial_thread, &thread_attr, serialThreadFunc, NULL );
     serial_thread_is_running = true;
     pthread_attr_destroy( &thread_attr );
+    #endif
 }
 
 void shutdownSerialThread()
 {
+    #ifndef TARGET_WIN32
     // kill the thread
     serial_thread_should_exit = true;
     void* ret;
     pthread_join( serial_thread, &ret );
     serial_thread_is_running = false;
+    #endif
 
 }
 
 void* serialThreadFunc( void* data )
 {
+    #ifndef TARGET_WIN32
     // arduino vars
     int fd = 0;
     char serialport[256];
@@ -2049,10 +2060,14 @@ void* serialThreadFunc( void* data )
     }
 
     close(fd);
+    #endif
 }
 
 static void startDetectionThread( int thread_priority )
 {
+    #ifdef TARGET_WIN32
+    detection_thread = (HANDLE)_beginthreadex(NULL, 0, detectionThreadFunc,  NULL, 0, NULL);
+    #else
     pthread_attr_t thread_attr;
     pthread_attr_init(&thread_attr);
     pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
@@ -2077,25 +2092,35 @@ static void startDetectionThread( int thread_priority )
                    );
         }
     }
-    detection_thread_running = true;
     pthread_attr_destroy( &thread_attr );
+    #endif
+    detection_thread_running = true;
 }
 
 static void shutdownDetectionThread()
 {
     // kill the thread
     detection_thread_should_exit = true;
+    #ifdef TARGET_WIN32
+    WaitForSingleObject( detection_thread, INFINITE );
+    #else
     void* ret;
     pthread_join( detection_thread, &ret );
+    #endif
     detection_thread_running = false;
 }
 
-static void* detectionThreadFunc( void* _data )
+#ifdef TARGET_WIN32
+static unsigned int
+#else
+static void*
+#endif
+    detectionThreadFunc( void* _data )
 {
 
     FTime detection_thread_timer;
     detection_thread_timer.SetNow();
-	
+
     while ( !detection_thread_should_exit )
     {
         PROFILE_THIS_BLOCK("detection_thread");
@@ -2211,7 +2236,9 @@ static void* detectionThreadFunc( void* _data )
 
     printf("detection thread exiting\n");
 
+    #ifndef TARGET_WIN32
     pthread_exit(0);
+    #endif
 }
 
 
@@ -2267,8 +2294,8 @@ void Artvertiser::update()
         multi->cams[current_cam]->getLastDrawFrame( &raw_frame, &raw_frame_timestamp );
         raw_frame_texture->setImage(raw_frame);
     }
-	
-	
+
+
 
     PROFILE_SECTION_POP();
 
@@ -2279,7 +2306,7 @@ void Artvertiser::update()
 		new_artvert_requested = true;
 		// start detection
 		startDetectionThread( 1 /* priority, only if running as root */ );
-		
+
 		frame_count = 0;
 	}
 	else
@@ -2294,7 +2321,7 @@ void Artvertiser::update()
 			if ( !control_panel.hidden )
 				control_panel.hide();
 		}
-		
+
 		if ( running_on_binoculars )
 		{
 			bool button_red = button_state   & BUTTON_RED;
@@ -2306,11 +2333,11 @@ void Artvertiser::update()
 		else
 		{
 			multi->model.interactiveTrainUpdate( raw_frame_texture->getImage(),
-												mouse_x, mouse_y, 
+												mouse_x, mouse_y,
 												lbutton_down, last_key );
-			
+
 			// );
-			
+
 		}
 	}
 	else
@@ -2320,7 +2347,7 @@ void Artvertiser::update()
     }
 	// reset last key
 	last_key = 0;
- 
+
     PROFILE_SECTION_POP();
 
     if ( show_profile_results )
@@ -2330,11 +2357,11 @@ void Artvertiser::update()
         FProfiler::Display( FProfiler::SORT_TIME/*SORT_EXECUTION*/ );
         show_profile_results = false;
     }
-	
-	
-	
 
-	
+
+
+
+
 	// show/hide the control panel
 	if ( !running_on_binoculars && control_panel_timer > 0 )
 	{
@@ -2369,7 +2396,7 @@ void Artvertiser::update()
 				{
 					artvert_list.at(current_artvert_index)->activate();
 				}
-				
+
 				if ( current_artvert_index == -1 )
 				{
 					current_modelfile_label->setText( "<none>" );
@@ -2386,7 +2413,7 @@ void Artvertiser::update()
 					current_modelfile_image.clear();
 					retrain_current_toggle->lock();
 					current_artvert_drawer.useArtvert( NULL );
-					
+
 				}
 				else
 				{
@@ -2427,8 +2454,8 @@ void Artvertiser::update()
 				}
 				old_artvert_index = current_artvert_index;
 			}
-			
-			
+
+
 			// check for new text input
 			if ( artvert_title_input->valueTextHasChanged() )
 			{
@@ -2440,7 +2467,7 @@ void Artvertiser::update()
 					// update drop-down
 					updateModelSelectionDropdown();
 				}
-				
+
 				// clear flag
 				artvert_title_input->clearValueTextChangedFlag();
 			}
@@ -2454,7 +2481,7 @@ void Artvertiser::update()
 					// update drop-down
 					updateModelSelectionDropdown();
 				}
-				
+
 				// clear flag
 				artvert_artist_input->clearValueTextChangedFlag();
 			}
@@ -2472,13 +2499,13 @@ void Artvertiser::update()
 					// update drop-down
 					updateModelSelectionDropdown();
 				}
-				
+
 				// clear flag
 				model_name_input->clearValueTextChangedFlag();
 			}
 			if ( current_artvertfile_lister->hasSelectionChanged() )
 			{
-				
+
 				// apply?
 				if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
 				{
@@ -2488,31 +2515,31 @@ void Artvertiser::update()
 					// update drop-down
 					updateModelSelectionDropdown();
 				}
-				
+
 				current_artvertfile_lister->clearSelectionChangedFlag();
 			}
 
-			
+
 			// re-train current?
 			if ( retrain_current_toggle->value.getValueB(0) )
 			{
 				// clear
 				retrain_current_toggle->setValue(false, 0);
-				
+
 				// trash current classifier
 				if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
 				{
 					// say we want to be trained
 					model_file_needs_training[current_artvert_index] = true;
-					
+
 					// trigger the reload
 					new_artvert_requested = true;
 					new_artvert_requested_index = current_artvert_index;
 					setCurrentArtvertIndex( -1 );
 				}
 			}
-			
-			
+
+
 			// check for interaction on the drop-down
 			if ( model_selection_dropdown->hasValueChanged() )
 			{
@@ -2523,17 +2550,17 @@ void Artvertiser::update()
 					new_artvert_requested = true;
 					new_artvert_requested_index = new_index;
 				}
-				
+
 				model_selection_dropdown->value.clearChangedFlag();
 			}
-			
-			
+
+
 			// add new model?
 			if ( add_model_toggle->value.getValueB(0) )
 			{
 				// clear
 				add_model_toggle->setValue( false, 0 );
-				
+
 				// calculate a new name for the model
 				int count = 0;
 				string new_name;
@@ -2558,15 +2585,15 @@ void Artvertiser::update()
 					if ( !have_already )
 						// finished
 						break;
-					
+
 					// try a new one
 					count++;
-					
+
 				}
-				
+
 				printf("new model has name data/%s\n", new_name.c_str() );
 				// so add as a new artvert
-				
+
 				Artvert* a = new Artvert();
 				a->setModelFile( new_name );
 				a->setAdvertName( string("new model ")+ofToString( count ) );
@@ -2576,18 +2603,18 @@ void Artvertiser::update()
 				// store
 				artvert_list.push_back( a );
 				model_file_needs_training.push_back( true );
-				
+
 				artvert_list_needs_saving = true;
 				// update drop-down
 				updateModelSelectionDropdown();
-				
+
 				// change to this one
 				new_artvert_requested = true;
 				new_artvert_requested_index = artvert_list.size()-1;
 			}
 			artvert_list_lock.unlock();
 		}
-		
+
 		// retrain geometry?
 		if ( !new_artvert_requested && retrain_geometry_toggle->value.getValueB() )
 		{
@@ -2596,17 +2623,17 @@ void Artvertiser::update()
 			// hide UI
 			control_panel.setMinimized( true );
 			control_panel.hide();
-			
+
 			// request
 			printf("retrain_geometry_toggle was true\n");
 			redo_geometry_requested = true;
 		}
 
-		
+
 		new_artvert_requested_lock.unlock();
 	}
-	
-	
+
+
 	control_panel.update();
 }
 
@@ -2639,7 +2666,7 @@ void updateMenu()
 	if ( !button_state_changed || new_artvert_switching_in_progress )
 		return;
 
-	printf("menu sees new button state: %s %s %s\n", 
+	printf("menu sees new button state: %s %s %s\n",
 			button_state&BUTTON_RED?"red":"   ",
 			button_state&BUTTON_GREEN?"green":"     ",
 			button_state&BUTTON_BLUE?"blue":"    ");
@@ -2710,7 +2737,7 @@ void Artvertiser::drawMenu()
 			glTranslatef(-.8, 0.65, 0.0);
 			glScalef(.003, .003, .003);
 			glColor4f(0.0, 1.0, 0.0, 1);
-			
+
 			if ( detection_thread_should_exit )
 			{
 				drawTextOnscreen( font_24, "shutting down..." );
@@ -2720,12 +2747,12 @@ void Artvertiser::drawMenu()
 			{
 
 				if ( multi->model.isLearnInProgress() )
-				{	
+				{
 					// must manually tokenize
 					char message[2048];
 					strncpy( message, multi->model.getLearnProgressMessage(), 2048 );
 					char* ptr = strtok( message,"\n");
-					while( ptr != NULL) 
+					while( ptr != NULL)
 					{
 						drawTextOnscreen( font_24, ptr );
 						glTranslatef(0, -26, 0 );
@@ -2746,7 +2773,7 @@ void Artvertiser::drawMenu()
 					model_status_label->setText( "changing_artvert..." );
 					drawTextOnscreen (font_24, "changing artvert..." );
 				}
-			}			
+			}
 
 		}
 		else

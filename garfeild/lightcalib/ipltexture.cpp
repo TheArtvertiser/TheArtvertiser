@@ -5,19 +5,19 @@
  modifications Copyright 2009, 2010 Damian Stewart <damian@frey.co.nz>.
 
  Distributed under the terms of the GNU General Public License v3.
- 
+
  This file is part of The Artvertiser.
- 
+
  The Artvertiser is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  The Artvertiser is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU Lesser General Public License
  along with The Artvertiser.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -26,14 +26,19 @@
 #include <iostream>
 #include "ipltexture.h"
 
-IplTexture::~IplTexture() 
+// don't look here
+#ifndef GL_BGR_EXT
+#define GL_BGR_EXT 0x80E0
+#endif
+
+IplTexture::~IplTexture()
 {
 	if (downsampled) cvReleaseImage(&downsampled);
 }
 
 void IplTexture::genTexture()
 {
-#ifdef HAVE_GL
+
 	if (im==0) return;
 
 	if (!textureGenerated) {
@@ -62,12 +67,12 @@ void IplTexture::genTexture()
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth,texHeight, 0, GL_RGBA,
 			GL_UNSIGNED_BYTE, buffer);
 	free(buffer);
-#endif
+
 }
 
 void IplTexture::loadTexture()
 {
-#ifdef HAVE_GL
+
 	if (im==0) return;
 	if (!textureGenerated) genTexture();
 
@@ -79,7 +84,7 @@ void IplTexture::loadTexture()
 		im = downsampled;
 	}
 
-	
+
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, texture);
 
@@ -93,7 +98,7 @@ void IplTexture::loadTexture()
 	GLenum type;
 	switch (im->depth) {
 		case IPL_DEPTH_8U: type = GL_UNSIGNED_BYTE; break;
-		case IPL_DEPTH_8S: type = GL_BYTE; break; 
+		case IPL_DEPTH_8S: type = GL_BYTE; break;
 		case IPL_DEPTH_16S: type = GL_SHORT; break;
 		case IPL_DEPTH_32F: type = GL_FLOAT; break;
 		default:
@@ -123,14 +128,14 @@ void IplTexture::loadTexture()
 		vScale = -vScale;
 		vOrigin = double(im->height)/double(texHeight);
 	}
-#endif
+
 }
 
 void IplTexture::disableTexture()
 {
-#ifdef HAVE_GL
+
 	glDisable(GL_TEXTURE_2D);
-#endif
+
 }
 
 void IplTexture::unref()
@@ -148,7 +153,7 @@ void IplTexture::setImage(IplImage *image)
 
 void IplTexture::regen()
 {
-       	update(); 
-	textureGenerated = false; 
+       	update();
+	textureGenerated = false;
 }
 

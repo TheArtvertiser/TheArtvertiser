@@ -5,19 +5,19 @@
  modifications Copyright 2009, 2010 Damian Stewart <damian@frey.co.nz>.
 
  Distributed under the terms of the GNU General Public License v3.
- 
+
  This file is part of The Artvertiser.
- 
+
  The Artvertiser is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  The Artvertiser is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU Lesser General Public License
  along with The Artvertiser.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -686,12 +686,22 @@ yape::RawDetectThreadData::~RawDetectThreadData()
     // kill the thread
     should_stop=true;
     run_semaphore->signal();
+
+    #ifdef TARGET_WIN32
+    WaitForSingleObject( thread, INFINITE );
+    #else
     void* ret;
     pthread_join( thread, &ret );
+    #endif
     delete run_semaphore;
 }
 
-void* yape::raw_detect_thread_func( void* _data )
+#ifdef TARGET_WIN32
+unsigned int
+#else
+void*
+#endif
+    yape::raw_detect_thread_func( void* _data )
 {
     RawDetectThreadData* data = (RawDetectThreadData*)_data;
 
@@ -743,7 +753,9 @@ void* yape::raw_detect_thread_func( void* _data )
 
     }
 
+    #ifndef TARGET_WIN32
     pthread_exit(0);
+    #endif
 }
 
 void yape::raw_detect_mt(IplImage* im)
@@ -757,10 +769,12 @@ void yape::raw_detect_mt(IplImage* im)
         // make shared barrier
         shared_barrier = new ofxBarrier( thread_count+1 );
 
+        #ifndef TARGET_WIN32
         // make threads joinable
         pthread_attr_t thread_attr;
         pthread_attr_init(&thread_attr);
         pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
+        #endif
         printf("creating %i raw_detect threads\n", thread_count);
         for ( int i=0; i<thread_count; i++ )
         {
@@ -771,11 +785,17 @@ void yape::raw_detect_mt(IplImage* im)
             thread_data->barrier = shared_barrier;
             thread_data->should_stop = false;
             // start the thread
+            #ifdef TARGET_WIN32
+            thread_data->thread = (HANDLE)_beginthreadex(NULL, 0, raw_detect_thread_func,  (void *)thread_data, 0, NULL);
+            #else
             pthread_create( &thread_data->thread, &thread_attr, raw_detect_thread_func, (void*)thread_data );
+            #endif
             // store
             raw_detect_thread_data.push_back( thread_data );
         }
+        #ifndef TARGET_WIN32
         pthread_attr_destroy(&thread_attr);
+        #endif
 
     }
 

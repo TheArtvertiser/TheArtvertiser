@@ -1,18 +1,18 @@
 /*
  Copyright 2008, 2009, 2010 Damian Stewart <damian@frey.co.nz>.
- 
+
  This file is part of The Artvertiser.
- 
+
  The Artvertiser is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  The Artvertiser is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU Lesser General Public License
  along with The Artvertiser.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -100,8 +100,9 @@
 //#warning Profiling with FProfiler disabled
 #endif
 
+#include "ofMain.h"
 
-#include "FSemaphore.h"
+#include "ofxMutex.h"
 #include "FTime.h"
 #include "FThread.h"
 #include <map>
@@ -150,7 +151,7 @@ private:
 	typedef std::vector<FProfileContext*> FProfileContexts;
 	static FProfileContexts contexts;
 
-	static FSemaphore lock;
+	static ofxMutex lock;
 };
 
 // one section

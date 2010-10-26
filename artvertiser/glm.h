@@ -1,25 +1,25 @@
 /*
- Copyright 2007, 2008, 2009, 2010 Julian Oliver <julian@julianoliver.com> and 
+ Copyright 2007, 2008, 2009, 2010 Julian Oliver <julian@julianoliver.com> and
  Damian Stewart <damian@frey.co.nz>, based on original code by Nate Robins (1997).
  Distributed under the terms of the GNU General Public License v3.
- 
+
  This file is part of The Artvertiser.
- 
+
  The Artvertiser is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  The Artvertiser is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU Lesser General Public License
  along with The Artvertiser.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/*    
+/*
  *  GLM library.  Wavefront .obj file format reader/writer/manipulator.
  *
  *  Written by Nate Robins, 1997.
@@ -31,6 +31,9 @@
 /* includes */
 #ifdef __APPLE__
 #include <GLUT/glut.h>
+#elif defined __WIN32__ || defined _WIN32
+#include <windows.h>
+#include <glu.h>
 #else
 #include <GL/glut.h>
 #endif
@@ -52,7 +55,7 @@
 
 /* structs */
 
-/* GLMmaterial: Structure that defines a material in a model. 
+/* GLMmaterial: Structure that defines a material in a model.
  */
 typedef struct _GLMmaterial
 {
@@ -121,7 +124,7 @@ typedef struct {
  * scaling it to fit in a unit cube around the origin.  Returns the
  * scalefactor used.
  *
- * model - properly initialized GLMmodel structure 
+ * model - properly initialized GLMmodel structure
  */
 GLfloat
 glmUnitize(GLMmodel* model);
@@ -136,7 +139,7 @@ GLvoid
 glmDimensions(GLMmodel* model, GLfloat* dimensions);
 
 /* glmScale: Scales a model by a given amount.
- * 
+ *
  * model - properly initialized GLMmodel structure
  * scale - scalefactor (0.5 = half as large, 2.0 = twice as large)
  */
@@ -146,8 +149,8 @@ glmScale(GLMmodel* model, GLfloat scale);
 /* glmReverseWinding: Reverse the polygon winding for all polygons in
  * this model.  Default winding is counter-clockwise.  Also changes
  * the direction of the normals.
- * 
- * model - properly initialized GLMmodel structure 
+ *
+ * model - properly initialized GLMmodel structure
  */
 GLvoid
 glmReverseWinding(GLMmodel* model);
@@ -214,9 +217,9 @@ glmDelete(GLMmodel* model);
  * Returns a pointer to the created object which should be free'd with
  * glmDelete().
  *
- * filename - name of the file containing the Wavefront .OBJ format data.  
+ * filename - name of the file containing the Wavefront .OBJ format data.
  */
-GLMmodel* 
+GLMmodel*
 glmReadOBJ(char* filename);
 
 /* glmWriteOBJ: Writes a model description in Wavefront .OBJ format to
@@ -257,7 +260,7 @@ glmDraw(GLMmodel* model, GLuint mode);
  *            GLM_FLAT    -  render with facet normals
  *            GLM_SMOOTH  -  render with vertex normals
  *            GLM_TEXTURE -  render with texture coords
- *            GLM_FLAT and GLM_SMOOTH should not both be specified.  
+ *            GLM_FLAT and GLM_SMOOTH should not both be specified.
  */
 GLuint
 glmList(GLMmodel* model, GLuint mode);

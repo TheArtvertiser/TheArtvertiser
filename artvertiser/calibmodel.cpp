@@ -1,29 +1,36 @@
 /*
- Copyright 2008, 2009, 2010 Julian Oliver <julian@julianoliver.com> 
- and Damian Stewart <damian@frey.co.nz>, based on BazAR which is 
- Copyright 2005, 2006 Computer Vision Lab, 3 Ecole Polytechnique 
+ Copyright 2008, 2009, 2010 Julian Oliver <julian@julianoliver.com>
+ and Damian Stewart <damian@frey.co.nz>, based on BazAR which is
+ Copyright 2005, 2006 Computer Vision Lab, 3 Ecole Polytechnique
  Federale de Lausanne (EPFL), Switzerland.
  Distributed under the terms of the GNU General Public License v3.
- 
+
  This file is part of The Artvertiser.
- 
+
  The Artvertiser is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  The Artvertiser is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU Lesser General Public License
  along with The Artvertiser.  If not, see <http://www.gnu.org/licenses/>.
  */
- 
+
 #include "calibmodel.h"
 #include "multigrab.h"
 #include "avImage.h"
+
+#ifdef TARGET_WIN32
+#include "ofxDirList.h"
+#else
+	#include <dirent.h>
+#endif
+
 
 char CalibModel::progress_string[2048];
 
@@ -68,7 +75,7 @@ CalibModel *objectPtr=0;
         ptr = artvert_corners;
     else
         ptr = corners;
-	
+
 	// try to grab something
 	grab = -1;
 	for (int i=0; i<4; i++)
@@ -86,17 +93,17 @@ CalibModel *objectPtr=0;
 		ptr[grab].x = x;
 		ptr[grab].y = y;
 	}
-	
+
 }
 
-void CalibModel::mouseReleased() 
+void CalibModel::mouseReleased()
 {
 	grab = -1;
 }
 
 void CalibModel::mouseDragged( int x, int y )
 {
-	
+
 	if ( grab != -1 )
 	{
 		CvPoint* ptr;
@@ -130,7 +137,7 @@ void CalibModel::trashCurrentTrainingSet()
 		{
 			remove( (classifier+entry->d_name).c_str() );
 		}
-	}	
+	}
 	remove( classifier.c_str() );
 }
 
@@ -256,7 +263,7 @@ bool CalibModel::buildCached(int nbcam, ofBaseVideo *capture,
 		{
 			printf("interactiveTrain succeeded\n");
 		}
-		
+
 		// first trash existing model set
 		trashCurrentTrainingSet();
 
@@ -276,7 +283,7 @@ bool CalibModel::buildCached(int nbcam, ofBaseVideo *capture,
 
 		printf("about to call detector.build...\n");
 		learn_running = true;
-		strcpy(progress_string, "preparing..");	
+		strcpy(progress_string, "preparing..");
 		if (!detector.build(image,
                 MAX_MODEL_KEYPOINTS, // max keypoints
 				PATCH_SIZE, // patch size
@@ -348,9 +355,9 @@ bool CalibModel::buildCached(int nbcam, ofBaseVideo *capture,
         string initial_points_new_filename = string(modelfile)+"_initial_points.bmp";
         printf("renaming %s to %s\n", initial_points_filename, initial_points_new_filename.c_str() );
         rename(initial_points_filename, initial_points_new_filename.c_str() );
-		
-		
-		
+
+
+
         /*printf("dumping trained cache:\n");
         detector.dump();*/
 
@@ -398,7 +405,7 @@ bool CalibModel::interactiveTrain()
 		if ( timeout %5 == 0 )
 			printf("waiting for interactive training to complete .. %i\n", timeout );
         timeout-=1;
-        sleep(1);
+        ofSleepMillis(1000);
     }
 
     return train_should_proceed;
@@ -434,14 +441,14 @@ void CalibModel::interactiveTrainUpdateBinoculars( IplImage* frame,
     bool R_B = ( button_red&&!button_green&& button_blue);
     bool RGB = ( button_red&& button_green&& button_blue);
 
-	// debounce 
-	
+	// debounce
+
 	// don't allow just green if we're trying to debounce
 	if ( !button_green )
 		debounce_green = false;
 	else if ( debounce_green && _G_ )
 		_G_ = false;
-	
+
 	// don't allow red+blue if we're trying to debounce
 	if ( !button_red || !button_blue )
 		debounce_redblue = false;
@@ -540,7 +547,7 @@ void CalibModel::interactiveTrainUpdateBinoculars( IplImage* frame,
 			{
 				x = corners[corner_index].x;
 				y = corners[corner_index].y;
-			}	
+			}
 
 			debounce_green = true;
 		}
@@ -687,8 +694,8 @@ void CalibModel::interactiveTrainDraw()
 
 //////////////////////////////////////////////////////////////////////////////
 
-void CalibModel::interactiveTrainUpdate( IplImage* frame, 
-											  int mouse_x, int mouse_y, bool mouse_button_down, 
+void CalibModel::interactiveTrainUpdate( IplImage* frame,
+											  int mouse_x, int mouse_y, bool mouse_button_down,
 											  int key )
 {
 	static const float DIST_THRESH = 25.0f;
@@ -698,20 +705,20 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 	bool mouse_just_down = false;
 	if ( mouse_button_down && mouse_button_down != prev_mouse_button_down )
 		mouse_just_down = true;
-	
+
 	if ( !mouse_button_down )
 		corner_index = -1;
-		
-	
+
+
     if ( !interactive_train_running )
         return;
-	
+
 	if ( interactive_train_should_stop )
 	{
 		interactive_train_running =  false;
 		return;
 	}
-	
+
     // copy to training
     if ( train_working_image == 0 )
     {
@@ -720,16 +727,16 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
     }
 
 	//printf("interactiveTrainUpdate: mouse %3i %3i %c key %3i '%c'\n", mouse_x, mouse_y, mouse_button_down?'x':' ', key, key );
-	
+
     // for drawing
     int four = 4;
     CvPoint *ptr;
 	int oldx, oldy;
 	float closest_distance;
-	
+
 
 	string model_path = fromOfDataOrAbsolutePath( modelfile );
-	
+
     // update
     switch( state )
     {
@@ -795,13 +802,13 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 					}
 				}
 			}
-			
+
 			if ( mouse_button_down && corner_index != -1 )
 			{
 				corners[corner_index].x = mouse_x;
 				corners[corner_index].y = mouse_y;
 			}
-			
+
 			if ( key == ' ' )
 			{
 				// accept
@@ -814,15 +821,15 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 				// back
 				state = TAKE_SHOT;
 			}
-			
+
 			ptr = corners;
 			cvPolyLine(train_working_image, &ptr, &four, 1, 1,
 					   cvScalar(0,255,0));
 			if ( corner_index != -1 )
 				cvCircle( train_working_image, corners[corner_index], 10, cvScalar(0,255,0));
-			
+
 			break;
-			
+
 		case KEYPOINT_PRUNE:
 			/*
 			cvCopy( train_shot, train_working_image );
@@ -831,16 +838,16 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 			putText(train_working_image, "in the training set (colour=will be used)", cvPoint(3,60), &train_font);
 			putText(train_working_image, "Press r to go back", cvPoint(3,80), &train_font);
 			putText(train_working_image, "Press space when ready", cvPoint(3,100), &train_font);
-			
+
 			if ( key == ' ' )
 				state = ARTVERT_CORNERS;
 			else if ( key == 'r' )
 				state = CORNERS;
 			 */
 			state = ARTVERT_CORNERS;
-			
+
 			break;
-			
+
 		case ARTVERT_CORNERS:
 			cvCopy( train_shot, train_working_image );
 			putText(train_working_image, model_path.c_str(), cvPoint(3,20), &train_font);
@@ -867,13 +874,13 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 					}
 				}
 			}
-			
+
 			if ( mouse_button_down && corner_index != -1 )
 			{
 				artvert_corners[corner_index].x = mouse_x;
 				artvert_corners[corner_index].y = mouse_y;
 			}
-			
+
 			if ( key == ' ' )
 			{
 				// finished
@@ -889,7 +896,7 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 				// back
 				state = CORNERS;
 			}
-			
+
 			ptr = corners;
 			cvPolyLine(train_working_image, &ptr, &four, 1, 1,
 					   cvScalar(0,255,0));
@@ -898,14 +905,14 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 					   cvScalar(0,0,255));
 			if ( corner_index != -1 )
 				cvCircle( train_working_image, artvert_corners[corner_index], 10, cvScalar(0,0,255));
-			
+
 			break;
 	}
-	
+
 	mouse_just_down = false;
-	
+
 	train_texture.setImage( train_working_image );
-	
+
 }
 
 
@@ -925,7 +932,7 @@ bool CalibModel::interactiveSetup(ofBaseVideo *capture )
 
 	const char* interactive_win = "The Artvertiser training window";
 
-	
+
 	if( !interactive_win_created )
 	{
 		cvNamedWindow(interactive_win, CV_WINDOW_AUTOSIZE);

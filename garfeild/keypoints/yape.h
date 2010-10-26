@@ -5,19 +5,19 @@
  modifications Copyright 2009, 2010 Damian Stewart <damian@frey.co.nz>.
 
  Distributed under the terms of the GNU General Public License v3.
- 
+
  This file is part of The Artvertiser.
- 
+
  The Artvertiser is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  The Artvertiser is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU Lesser General Public License
  along with The Artvertiser.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -31,6 +31,8 @@
 
 #include <starter.h>
 #include "keypoint.h"
+
+#include "ofMain.h"
 
 const int yape_max_radius = 20;
 
@@ -125,7 +127,12 @@ public:
   //! detect interest points and add them to tmp_points.
   void raw_detect(IplImage *im);
   void raw_detect_mt(IplImage* im);
-  static void* raw_detect_thread_func( void* data );
+  #ifdef TARGET_WIN32
+  static unsigned int __stdcall
+  #else
+  static void*
+  #endif
+    raw_detect_thread_func( void* data );
 
   //! sort and select the max_point_number best features.
   int pick_best_points(keypoint * points, unsigned int max_point_number);
@@ -210,7 +217,11 @@ protected:
         RawDetectThreadData();
         ~RawDetectThreadData();
 
-        pthread_t thread;
+	#ifdef TARGET_WIN32
+			HANDLE            thread;
+	#else
+			pthread_t        thread;
+	#endif
 
         yape* y;
         IplImage* im;
