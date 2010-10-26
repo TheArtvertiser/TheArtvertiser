@@ -712,12 +712,12 @@ bool loadOrTrain( int new_index )
 	if ( ( current_artvert_index < 0 || current_artvert_index >= artvert_list.size() ) ||
 			model_file != artvert_list[current_artvert_index]->getModelFile() )
 	{
+		artvert_list_lock.unlock();
 		// load
 	    bool trained = multi->loadOrTrainCache( wants_training, model_file.c_str(), running_on_binoculars );
     	if ( !trained )
 		{
 			// fail
-			artvert_list_lock.unlock();
 			setCurrentArtvertIndex( -1 );
 			new_artvert_switching_in_progress = false;
         	return false;
@@ -753,7 +753,8 @@ bool loadOrTrain( int new_index )
 		c1[3].y = roi_vec[7];
 
 	}
-	artvert_list_lock.unlock();
+	else
+		artvert_list_lock.unlock();
 
 	// update current index
 	setCurrentArtvertIndex( new_index );
@@ -787,10 +788,6 @@ Artvertiser::~Artvertiser()
 }
 
 
-/*! The keyboard callback: reacts to '+' and '-' to change the viewed cam, 'q' exits.
- * 'd' turns on/off the dynamic lightmap update.
- * 'f' goes fullscreen.
- */
 void Artvertiser::keyPressed(int c )
 {
 	if ( !running_on_binoculars && control_panel.keyPressed( c ) )
@@ -812,6 +809,9 @@ void Artvertiser::keyPressed(int c )
 		break;
 	case 'f':
 		ofToggleFullscreen();
+		break;
+	case 'd':
+		delay_video = !delay_video;
 		break;
 	case 'S':
 		show_status = !show_status;
@@ -1198,8 +1198,8 @@ void Artvertiser::setup( int argc, char** argv )
     frame_timer.SetNow();
 
     // start serial
-    startSerialThread();
-
+	if ( running_on_binoculars )
+		startSerialThread();
 
 	font_12.loadFont("fonts/FreeSans.ttf", 12);
 	font_16.loadFont("fonts/FreeSans.ttf", 16);
@@ -1293,12 +1293,14 @@ void Artvertiser::updateModelSelectionDropdown()
 	model_selection_dropdown->value.setValue( current_artvert_index+1 );
 
 	// ensure we are not out of bounds on the selection list
-	if ( model_selection_dropdown->value.getValueI() >= artvert_list.size() )
+	if ( model_selection_dropdown->value.getValueI() > artvert_list.size() )
 	{
 		model_selection_dropdown->value.setValue(0);
 	}
 	model_selection_dropdown->update();
 
+	model_selection_dropdown->value.clearChangedFlag();
+	
 }
 
 //!\brief  Draw a frame contained in an IplTexture object on an OpenGL viewport.
@@ -2148,7 +2150,7 @@ static void*
 			{
 				fade = 0;
 				// no longer draw
-				printf("new_artvert_requested:frame not ok\n" );
+				printf("new_artvert_requested (-> %i)\n", new_artvert_requested_index );
 				frame_ok = false;
 				// go with the loading
 				bool res = loadOrTrain(new_artvert_requested_index);

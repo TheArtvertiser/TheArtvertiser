@@ -54,7 +54,7 @@ int ofxSemaphore::getValue()
 void ofxSemaphore::wait()
 {
 #ifdef TARGET_WIN32
-	WaitForSingleObject( semaphore, 0 );
+	WaitForSingleObject( semaphore, INFINITE );
 #elif defined TARGET_OSX
 	semaphore_wait( semaphore );
 #else
