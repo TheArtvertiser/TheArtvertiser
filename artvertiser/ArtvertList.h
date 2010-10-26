@@ -9,7 +9,7 @@
 
 #include "ofMain.h"
 #include "ofxXmlSettings.h"
-#include "ofxThread.h"
+#include "ofxMutex.h"
 #include "Artvert.h"
 
 class ArtvertList

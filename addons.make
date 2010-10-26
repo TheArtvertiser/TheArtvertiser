@@ -2,4 +2,5 @@ ofxOpenCv
 ofxXmlSettings
 ofxVectorMath
 ofxDirList
+ofx3DModelLoader
 
