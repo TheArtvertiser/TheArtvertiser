@@ -23,6 +23,9 @@ public:
 	
 	void activate();
 	void deactivate();
+	bool isActive() { return active; }
+	
+	void shutdown();
 	
 	IplImage* getArtvertImage();
 	
@@ -30,8 +33,10 @@ public:
 
 	/// if skip_data_path_stuff is true, don't do an ofToDataPath processing on the path f
 	void setModelFile( string f, bool skip_data_path_stuff=false ) { model_file = skip_data_path_stuff ? f : ofToDataPath( f ); }
-	void setArtvertImageFile( string f ) { artvert_image_file = ofToDataPath( f ); }
-	void setArtvertMovieFile( string f ) { artvert_movie_file = ofToDataPath( f ); }
+	/// programatically determine if it's a movie or not
+	void changeArtvertFile( string new_file );
+	void setArtvertImageFile( string f ) { assert(!active); artvert_image_file = ofToDataPath( f ); artvert_is_movie = false; }
+	void setArtvertMovieFile( string f ) { assert(!active); artvert_movie_file = ofToDataPath( f ); artvert_is_movie = true; }
 	
 	string getModelFile() { return model_file; }
 	string getArtvertFile() { if ( artvert_is_movie ) return getArtvertMovieFile(); else return getArtvertImageFile(); }
@@ -51,9 +56,9 @@ public:
 	
 	string getDescription();
 
-	static void loadArtvertsFromXml( ofxXmlSettings& data, vector<Artvert>& results );
+	static void loadArtvertsFromXml( ofxXmlSettings& data, vector<Artvert*>& results );
 	/// save the artvert and (optionally) model file data to xml. if save_model is true save the model, otherwise jsut save the artvert
-	static void saveArtvertToXml( ofxXmlSettings& data, Artvert& artvert_to_save, bool save_model = true );
+	static void saveArtvertToXml( ofxXmlSettings& data, Artvert* artvert_to_save, bool save_model = true );
 	
 private:
 	string artist;
@@ -78,6 +83,7 @@ private:
 	
 	IplImage* fallback();
 	
+	bool active;
 };
 
 
@@ -87,8 +93,7 @@ class ArtvertDrawer : public ofBaseDraws
 public:
 	ArtvertDrawer() { artvert = NULL; }
 	
-	void useArtvertList( vector<Artvert>* the_list ) { artvert_list = the_list; }
-	void useArtvert( int the_artvert ) { artvert = the_artvert; local_image.clear(); }
+	void useArtvert( Artvert* the_artvert ) { artvert = the_artvert; local_image.clear(); }
 	
 	
 	void draw( float x, float y ) { draw( x,y,getWidth(),getHeight() ); }
@@ -99,8 +104,7 @@ public:
 private:
 	
 	ofImage local_image;
-	vector<Artvert>* artvert_list;
-	int artvert;
+	Artvert* artvert;
 	
 };
 

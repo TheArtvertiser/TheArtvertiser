@@ -18,15 +18,23 @@ public:
 	void setup();
 	
 	void loadFromXml( ofxXmlSettings& data );
+	void saveToXml( string xml_path );
 
-
-
-private:
+	vector<string> getDescriptions();
 	
-	vector< Artvert > artverts;
+	int getNumArtverts() { int result; lock(); result = artvert_list.size(); unlock(); return result; }
+	
+private:
+	void lock() { mutex.lock(); }
+	void unlock() { mutex.unlock(); }
+	bool tryLock() { return mutex.tryLock(); }
+	
+	
+	vector< Artvert* > artvert_list;
 
-	ofxMutex lock;
+	ofxMutex mutex;
 
+	bool needs_saving;
 
 
 };

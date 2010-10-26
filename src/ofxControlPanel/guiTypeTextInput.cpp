@@ -106,7 +106,6 @@ void guiTypeTextInput::render()
 
 void guiTypeTextInput::release()
 {
-	printf("guiTypeTextInput::release() called, state %i\n", state );
 	// if we're releasing somewhere else
 	if ( state != SG_STATE_SELECTED )
 	{

@@ -66,6 +66,9 @@ private:
 	
 	guiTypeLabel* current_artvertfile_label;
 	guiTypeDrawable* current_artvertfile_image_drawer;
+	guiTypeFileLister* current_artvertfile_lister;
+	simpleFileLister artvertfile_lister;
+	
 	ArtvertDrawer current_artvert_drawer;
 	guiTypeTextInput* artvert_title_input;
 	guiTypeTextInput* artvert_artist_input;

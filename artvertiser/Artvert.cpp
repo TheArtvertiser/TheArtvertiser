@@ -23,6 +23,7 @@ Artvert::Artvert()
 	avi_capture = NULL;
 	avi_image = NULL;
 	avi_storage_initialised = false;
+	active = false;
 	
 	printf("loading fallback artvert images from data/...\n");
 	if ( fallback_artvert_images.size()==0 )
@@ -49,20 +50,33 @@ Artvert::Artvert()
 
 Artvert::~Artvert()
 {
+	shutdown();
+}
+
+void Artvert::shutdown()
+{	
+	deactivate();
+	
 	if ( artvert_image && which_fallback_image == -1 )
 		cvReleaseImage( &artvert_image );
+	artvert_image = NULL;
 	if ( avi_capture )
 		delete avi_capture;
+	avi_capture = NULL;
 	if ( avi_image )
 		cvReleaseImage( &avi_image );
+	avi_image = NULL;
 }
 
 
 void Artvert::activate()
 {
+	printf("artvert '%s': activate() called\n", getDescription().c_str() );
+	if ( active )
+		return;
+	
 	if ( artvert_is_movie )
 	{
-		
 		if ( avi_capture == NULL )
 		{
 			avi_capture = new ofVideoPlayer();
@@ -95,15 +109,21 @@ void Artvert::activate()
 			artvert_image = fallback();
 		}
 	}
+	printf("artvert '%s': activated (movie:%c)\n", getDescription().c_str(), artvert_is_movie?'y':'n' );
+	active = true;
 }
 
 void Artvert::deactivate()
 {
+	printf("artvert '%s': deactivate() called\n", getDescription().c_str() );
+	if ( !active )
+		return; 
 	if ( artvert_is_movie && avi_capture != NULL && avi_capture->width != 0 )
 	{
 		avi_capture->setVolume(0);
 		avi_capture->stop();
 	}
+	active = false;
 }
 
 IplImage* Artvert::fallback()
@@ -161,39 +181,42 @@ string Artvert::getDescription()
 	return advert_name + " '" + title + "' [" + artist + "]";
 }
 
-void Artvert::loadArtvertsFromXml( ofxXmlSettings& data, vector<Artvert>& results )
+void Artvert::loadArtvertsFromXml( ofxXmlSettings& data, vector<Artvert*>& results )
 {
-	Artvert a;
-	a.setModelFile( data.getValue( "model_filename", "models/default.bmp" ) );
+	string model_file = data.getValue( "model_filename", "models/default.bmp" );
 	// can use either 'advert' or 'name' for the name of this model/advert
+	string advert_name;
 	if ( data.getNumTags("advert") != 0 )
-		a.advert_name = data.getValue( "advert", "unknown advert" );
+		advert_name = data.getValue( "advert", "unknown advert" );
 	else 
-		a.advert_name = data.getValue( "name", "unknown advert" );
+		advert_name = data.getValue( "name", "unknown advert" );
 	int num_artverts = data.getNumTags( "artvert" );
-	printf("   -ml: got advert, model file '%s', advert '%s', %i artverts\n", a.getModelFile().c_str(), a.getAdvertName().c_str(), num_artverts );
+	printf("   -ml: got advert, model file '%s', advert '%s', %i artverts\n", model_file.c_str(), advert_name.c_str(), num_artverts );
 	for ( int j=0; j<num_artverts; j++ )
 	{
+		Artvert* a = new Artvert();
+		a->setModelFile( model_file );
+		a->setAdvertName( advert_name );
 		data.pushTag("artvert", j );
 		// can use either 'name' or 'title' here
 		if ( data.getNumTags( "name" ) != 0 )
-			a.title = data.getValue( "name", "untitled" );
+			a->title = data.getValue( "name", "untitled" );
 		else
-			a.title = data.getValue( "title", "untitled" );
-		a.artist = data.getValue( "artist", "unknown artist" );
+			a->title = data.getValue( "title", "untitled" );
+		a->artist = data.getValue( "artist", "unknown artist" );
 		if ( data.getNumTags("movie_filename") != 0 )
 		{
 			// load a movie
-			a.artvert_is_movie = true;
-			a.setArtvertMovieFile( data.getValue("movie_filename", "artverts/artvertmovie1.mp4" ) );
+			a->artvert_is_movie = true;
+			a->setArtvertMovieFile( data.getValue("movie_filename", "artverts/artvertmovie1.mp4" ) );
 		}
 		else
 		{
 			// load an image
-			a.setArtvertImageFile( data.getValue( "image_filename", "artverts/artvert1.png" ) );
+			a->setArtvertImageFile( data.getValue( "image_filename", "artverts/artvert1.png" ) );
 		}
-		printf("     %i: %s:%s:%s\n", j, a.title.c_str(), a.artist.c_str(),
-			   a.artvert_is_movie?(a.getArtvertMovieFile()+"( movie)").c_str() : a.getArtvertImageFile().c_str() );
+		printf("     %i: %s:%s:%s\n", j, a->title.c_str(), a->artist.c_str(),
+			   a->artvert_is_movie?(a->getArtvertMovieFile()+"( movie)").c_str() : a->getArtvertImageFile().c_str() );
 		
 		results.push_back( a );
 		data.popTag();
@@ -201,45 +224,65 @@ void Artvert::loadArtvertsFromXml( ofxXmlSettings& data, vector<Artvert>& result
 }	
 
 
-void Artvert::saveArtvertToXml( ofxXmlSettings& data, Artvert& a, bool save_model )
+void Artvert::saveArtvertToXml( ofxXmlSettings& data, Artvert* a, bool save_model )
 {
 	if ( save_model )
 	{
-		data.addValue( "model_filename", fromOfDataPath( a.model_file ) );
+		data.addValue( "model_filename", fromOfDataPath( a->model_file ) );
 		// can use either 'advert' or 'name' for the name of this model/advert
-		data.addValue( "name", a.advert_name );
+		data.addValue( "name", a->advert_name );
 	}
 	int index = data.addTag( "artvert" );
 	data.pushTag( "artvert", index );
-	data.addValue( "title", a.title );
-	data.addValue( "artist", a.artist );
-	if ( a.artvert_is_movie )
+	data.addValue( "title", a->title );
+	data.addValue( "artist", a->artist );
+	if ( a->artvert_is_movie )
 	{
-		data.addValue( "movie_filename", fromOfDataPath( a.getArtvertMovieFile() ) );
+		data.addValue( "movie_filename", fromOfDataPath( a->getArtvertMovieFile() ) );
 	}
 	else
 	{
-		data.addValue( "image_filename", fromOfDataPath( a.getArtvertImageFile() ) );
+		data.addValue( "image_filename", fromOfDataPath( a->getArtvertImageFile() ) );
 	}
 	data.popTag();
 }	
+
+void Artvert::changeArtvertFile( string new_filename )
+{
+	bool was_active = active;
+	// clear out the old, if any
+	shutdown();
+	// use FReeImage to tell us what kind of file it is..
+	if ( FreeImage_GetFileType( ofToDataPath( new_filename ).c_str() ) == FIF_UNKNOWN )
+	{
+		// it's a movie
+		setArtvertMovieFile( new_filename );
+	}
+	else
+	{
+		// it's an image
+		setArtvertImageFile( new_filename );
+	}
+	if ( was_active )
+		activate();
+		
+}
 
 
 
 void ArtvertDrawer::draw( float x, float y, float w, float h )
 {
-	if ( artvert < 0 || artvert >= artvert_list->size() )
+	if ( artvert == NULL || !artvert->isActive() ) 
 		return;
 
-	Artvert& a = artvert_list->at(artvert);
-	IplImage* artvert_image = a.getArtvertImage();
+	IplImage* artvert_image = artvert->getArtvertImage();
 	if ( artvert_image )
 	{
-		if ( a.which_fallback_image != -1 )
+		if ( artvert->which_fallback_image != -1 )
 			local_image.clear();
 		else
 			toOfImage( artvert_image, local_image );
-	}	
+	}
 	local_image.draw( x, y, w, h );
 }
 

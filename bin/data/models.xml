@@ -1,30 +1,30 @@
 <artverts>
     <advert>
-        <name>Ships</name>
         <model_filename>models/ships.bmp</model_filename>
+        <name>Ships</name>
         <artvert>
             <title>Your Art Here</title>
-            <image_filename>artverts/your_art_here.png</image_filename>
             <artist>The Artvertiser Team</artist>
+            <image_filename>artverts/artvert1.png</image_filename>
         </artvert>
         <artvert>
             <title>A Tui Movie Instead</title>
-            <movie_filename>artverts/tui.mp4</movie_filename>
             <artist>Damian</artist>
+            <movie_filename>artverts/tui.mp4</movie_filename>
         </artvert>
     </advert>
     <advert>
-        <name>CHANGEME</name>
         <model_filename>models/CHANGEME.bmp</model_filename>
+        <name>CHANGEME</name>
         <artvert>
             <title>USB Bomb</title>
-            <image_filename>artverts/usb_bomb.png</image_filename>
             <artist>us</artist>
+            <image_filename>artverts/usb_bomb.png</image_filename>
         </artvert>
         <artvert>
             <title>Arachne</title>
-            <image_filename>artverts/spider.png</image_filename>
             <artist>Earth</artist>
+            <image_filename>artverts/spider.png</image_filename>
         </artvert>
     </advert>
 </artverts>

@@ -227,7 +227,8 @@ vector<int> artvert_roi_vec;
 
 
 string model_file_list_file = "";
-vector< Artvert > artvert_list;
+vector< Artvert* > artvert_list;
+ofxMutex artvert_list_lock;
 bool artvert_list_needs_saving = false;
 bool new_artvert_switching_in_progress = false;
 int current_artvert_index = -1;
@@ -356,24 +357,30 @@ void saveArtvertXml()
 	ofxXmlSettings data;
 	data.addTag( "artverts" );
 	data.pushTag( "artverts" );
-	// work out which artverts belong with which
+	// work out which artverts belong with which model
 	map< string, vector<int> > artverts_grouped_by_model;
+	artvert_list_lock.lock();
 	for ( int i=0; i<artvert_list.size(); i++ )
 	{
-		artverts_grouped_by_model[artvert_list[i].getModelFile()].push_back( i );
+		artverts_grouped_by_model[artvert_list[i]->getModelFile()].push_back( i );
 	}
 	// preserve the existing order
 	for ( int i=0; i<artvert_list.size(); i++ )
 	{
-		vector<int>& siblings = artverts_grouped_by_model[ artvert_list[i].getModelFile() ];
-		int index = data.addTag("advert");
-		data.pushTag("advert", index );
-		for ( int j=0; j<siblings.size(); ++j )
+		vector<int>& siblings = artverts_grouped_by_model[ artvert_list[i]->getModelFile() ];
+		if ( siblings.size() > 0 )
 		{
-			Artvert::saveArtvertToXml( data, artvert_list[siblings[j]], /*first? then save model file info*/(j==0) );
+			int index = data.addTag("advert");
+			data.pushTag("advert", index );
+			for ( int j=0; j<siblings.size(); ++j )
+			{
+				Artvert::saveArtvertToXml( data, artvert_list[siblings[j]], /*first? then save model file info*/(j==0) );
+			}
+			data.popTag();
+			siblings.clear();
 		}
-		data.popTag();
 	}
+	artvert_list_lock.unlock();
 	data.popTag();
 	data.saveFile( model_file_list_file );
 }
@@ -680,9 +687,11 @@ bool loadOrTrain( int new_index )
 		setCurrentArtvertIndex( -1 );
 		return false;
 	}
+	artvert_list_lock.lock();
     if ( new_index < 0 || new_index >= artvert_list.size() )
     {
         fprintf(stderr,"loadOrTrain: invalid index %i (artvert_list has %i members)\n", new_index, (int)artvert_list.size() );
+		artvert_list_lock.unlock();
 
         return false;
     }
@@ -692,16 +701,17 @@ bool loadOrTrain( int new_index )
 	// switching model..
 	new_artvert_switching_in_progress = true;
     bool wants_training = model_file_needs_training[new_index];
-    string model_file = artvert_list[new_index].getModelFile();
+    string model_file = artvert_list[new_index]->getModelFile();
 	// do we need to switch, or can we use the same model file?
 	if ( ( current_artvert_index < 0 || current_artvert_index >= artvert_list.size() ) ||
-			model_file != artvert_list[current_artvert_index].getModelFile() )
+			model_file != artvert_list[current_artvert_index]->getModelFile() )
 	{
 		// load
 	    bool trained = multi->loadOrTrainCache( wants_training, model_file.c_str(), running_on_binoculars );
     	if ( !trained )
 		{
 			// fail
+			artvert_list_lock.unlock();
 			setCurrentArtvertIndex( -1 );
 			new_artvert_switching_in_progress = false;
         	return false;
@@ -737,6 +747,7 @@ bool loadOrTrain( int new_index )
 		c1[3].y = roi_vec[7];
 
 	}
+	artvert_list_lock.unlock();
 
 	// update current index
 	setCurrentArtvertIndex( new_index );
@@ -965,11 +976,13 @@ void Artvertiser::setup( int argc, char** argv )
         {
             if (i==argc-1)
                 usage(argv[0]);
-			Artvert a;
-			a.setModelFile( toAbsolutePath(argv[i+1]) );
-			a.setAdvertName( string("cmdline ")+a.getModelFile() );
+			Artvert* a = new Artvert();
+			a->setModelFile( toAbsolutePath(argv[i+1]) );
+			a->setAdvertName( string("cmdline ")+a->getModelFile() );
 			// store
+			artvert_list_lock.lock();
          	artvert_list.push_back( a );
+			artvert_list_lock.unlock();
             printf(" -m: adding model image '%s'\n", argv[i+1] );
             i++;
         }
@@ -1124,10 +1137,12 @@ void Artvertiser::setup( int argc, char** argv )
     if ( artvert_list.empty() )
     {
         // add default
-		Artvert a;
-		a.setModelFile( "models/default.bmp" );
-		a.setArtvertImageFile( "artverts/artvert1.png" );
+		Artvert* a = new Artvert();
+		a->setModelFile( "models/default.bmp" );
+		a->setArtvertImageFile( "artverts/artvert1.png" );
+		artvert_list_lock.lock();
         artvert_list.push_back( a );
+		artvert_list_lock.unlock();
     }
 	
     // set up training flags
@@ -1201,9 +1216,11 @@ void Artvertiser::setup( int argc, char** argv )
 		names.push_back("<none>");
 		main_panel->setElementSpacing( 10, 0 );
 		model_selection_dropdown = control_panel.addTextDropDown( "current artvert:", "current_artvert", 0, names );
+		model_selection_dropdown->setForegroundColor( 128, 128, 128, 255);
+		artvert_list_lock.lock();
 		updateModelSelectionDropdown();
+		artvert_list_lock.unlock();
 		model_status_label = control_panel.addLabel( "" );
-		main_panel->addSpace( 14 );
 		
 		// left column: current modelfile
 		control_panel.setWhichColumn( 0 );
@@ -1212,7 +1229,7 @@ void Artvertiser::setup( int argc, char** argv )
 		current_modelfile_image_drawer = control_panel.addDrawableRect( "model:", &current_modelfile_image, 160, 120 );
 		current_modelfile_label = control_panel.addLabel( "<none>" );
 		main_panel->setElementSpacing( 10, 14 );
-		model_name_input = control_panel.addTextInput( "advert:", "<none>", ofGetWidth()/2-40 );
+		model_name_input = control_panel.addTextInput( "advert name:", "<none>", ofGetWidth()/2-40 );
 		// re-train current
 		retrain_current_toggle = control_panel.addToggle( " re-train model", "retrain_current_tgl", false );
 		// add new
@@ -1223,12 +1240,25 @@ void Artvertiser::setup( int argc, char** argv )
 		// right column: current artvert
 		control_panel.setWhichColumn( 1 );
 		main_panel->addSpace( model_selection_dropdown->getHeight() );
-		main_panel->addSpace( 50 );
+		main_panel->addSpace( 36 );
 		// current artvert label
 		main_panel->setElementSpacing( 10, 0 );
-		current_artvert_drawer.useArtvertList( &artvert_list );
 		current_artvertfile_image_drawer = control_panel.addDrawableRect( "artvert:", &current_artvert_drawer, 160, 120 );
 		current_artvertfile_label = control_panel.addLabel( "<none>" );
+		artvertfile_lister.allowExt("png");
+		artvertfile_lister.allowExt("jpg");
+		artvertfile_lister.allowExt("jpeg");
+		artvertfile_lister.allowExt("bmp");
+		artvertfile_lister.allowExt("mov");
+		artvertfile_lister.allowExt("mp4");
+		artvertfile_lister.allowExt("avi");
+		artvertfile_lister.allowExt("mpg");
+		artvertfile_lister.allowExt("mpeg");
+		artvertfile_lister.allowExt("264");
+		artvertfile_lister.allowExt("mkv");
+		artvertfile_lister.listDir("artverts/");
+		current_artvertfile_lister = control_panel.addFileLister("select new artvert file:", &artvertfile_lister, ofGetWidth()/2-40, 50);
+		
 		artvert_title_input = control_panel.addTextInput( "title:", "<none>", ofGetWidth()/2-40 );
 		main_panel->setElementSpacing( 10, 14 );
 		artvert_artist_input = control_panel.addTextInput( "artist:", "<none>", ofGetWidth()/2-40 );
@@ -1245,11 +1275,13 @@ void Artvertiser::setup( int argc, char** argv )
 
 void Artvertiser::updateModelSelectionDropdown()
 {
+	/// MUST HAVE LOCK FIRST
+	
 	model_selection_dropdown->vecDropList.clear();
 	model_selection_dropdown->vecDropList.push_back( "<none>" );
 	for ( int i=0; i<artvert_list.size(); i++ )
 	{
-		model_selection_dropdown->vecDropList.push_back( artvert_list[i].getDescription() );
+		model_selection_dropdown->vecDropList.push_back( artvert_list[i]->getDescription() );
 	}
 	
 	model_selection_dropdown->value.setValue( current_artvert_index+1 );
@@ -1675,9 +1707,14 @@ void Artvertiser::drawAugmentation()
 			glBindTexture(GL_TEXTURE_2D, imageID);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-			IplImage* image = artvert_list.at(current_artvert_index).getArtvertImage();
-			GLenum format = IsBGR(image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->width, image->height, 0, format, GL_UNSIGNED_BYTE, image->imageData);
+			// this lock could cause flickering..
+			if ( artvert_list_lock.tryLock() )
+			{
+				IplImage* image = artvert_list.at(current_artvert_index)->getArtvertImage();
+				GLenum format = IsBGR(image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->width, image->height, 0, format, GL_UNSIGNED_BYTE, image->imageData);
+				artvert_list_lock.unlock();
+			}
 		}
 	}
 
@@ -1842,16 +1879,20 @@ void Artvertiser::draw()
         }
 
 		// set volume of the movie based on fade
-		if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
+		if( artvert_list_lock.tryLock() )
 		{
-			if ( artvert_list.at(current_artvert_index).artvertIsMovie() )
+			if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
 			{
-				float volume = fade;
-				// override lowest volume if we have the control panel open
-				if ( !running_on_binoculars && !control_panel.hidden && !control_panel.minimize )
-					volume = max(volume,0.1f);
-				artvert_list.at(current_artvert_index).setVolume( volume );
+				if ( artvert_list.at(current_artvert_index)->artvertIsMovie() )
+				{
+					float volume = fade;
+					// override lowest volume if we have the control panel open
+					if ( !running_on_binoculars && !control_panel.hidden && !control_panel.minimize )
+						volume = max(volume,0.1f);
+					artvert_list.at(current_artvert_index)->setVolume( volume );
+				}
 			}
+			artvert_list_lock.unlock();
 		}
 
         // draw augmentation
@@ -2294,231 +2335,257 @@ void Artvertiser::update()
 	
 
 	
+	// show/hide the control panel
+	if ( !running_on_binoculars && control_panel_timer > 0 )
+	{
+		control_panel_timer -= ofGetLastFrameTime();
+		if ( control_panel_timer <= 0 )
+		{
+			model_selection_dropdown->hideDropDown();
+			control_panel.setMinimized(true);
+			control_panel.hide();
+		}
+		if ( control_panel_timer < max( CONTROL_PANEL_SHOW_TIME-2.0f, 0.0f ) )
+		{
+			if ( artvert_list_needs_saving )
+			{
+				printf("saving artvert xml..\n");
+				saveArtvertXml();
+			}
+		}
+	}
+
 	// update things to do with control panel, artvert switching
 	if ( new_artvert_requested_lock.tryLock() )
 	{
-		// show/hide the control panel
-		if ( !running_on_binoculars && control_panel_timer > 0 )
+		if ( artvert_list_lock.tryLock() )
 		{
-			control_panel_timer -= ofGetLastFrameTime();
-			if ( control_panel_timer <= 0 )
+			// we've just changed artverts
+			if ( old_artvert_index != current_artvert_index )
 			{
-				model_selection_dropdown->hideDropDown();
-				control_panel.setMinimized(true);
-				control_panel.hide();
-			}
-			if ( control_panel_timer < max( CONTROL_PANEL_SHOW_TIME-2.0f, 0.0f ) )
-			{
-				if ( artvert_list_needs_saving )
+				for ( int i=0; i<artvert_list.size(); i++ )
+					artvert_list[i]->deactivate();
+				if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
 				{
-					printf("saving artvert xml..\n");
-					saveArtvertXml();
+					artvert_list.at(current_artvert_index)->activate();
 				}
-			}
-			
-		}
-
-		// we've just changed artverts
-		if ( old_artvert_index != current_artvert_index )
-		{
-			for ( int i=0; i<artvert_list.size(); i++ )
-				artvert_list[i].deactivate();
-			if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
-			{
-				artvert_list.at(current_artvert_index).activate();
-			}
-			
-			if ( current_artvert_index == -1 )
-			{
-				current_modelfile_label->setText( "<none>" );
-				current_artvertfile_label->setText( "<none>" );
-				model_name_input->setValueText("" );
-				model_name_input->lock();
-				artvert_artist_input->setValueText("" );
-				artvert_artist_input->lock();
-				artvert_title_input->setValueText("");
-				artvert_title_input->lock();
-				model_selection_dropdown->value.setValue( 0 );
-				current_modelfile_image.clear();
-				retrain_current_toggle->lock();
-				current_artvert_drawer.useArtvert( -1 );
-			}
-			else
-			{
-				if ( load_or_train_succeeded )
-				{
-					// read modelfile label off current artvert
-					current_modelfile_label->setText( fromOfDataOrAbsolutePath( artvert_list.at(current_artvert_index).getModelFile() ) );
-					current_artvertfile_label->setText( fromOfDataOrAbsolutePath( artvert_list.at(current_artvert_index).getArtvertFile() ) );
-					current_modelfile_image.loadImage( artvert_list.at(current_artvert_index).getModelFile() );
-					current_artvert_drawer.useArtvert( current_artvert_index );
-					model_name_input->setValueText(artvert_list.at(current_artvert_index).getAdvertName() );
-					model_name_input->unlock();
-					artvert_artist_input->setValueText(artvert_list.at(current_artvert_index).getArtist() );
-					artvert_artist_input->unlock();
-					artvert_title_input->setValueText(artvert_list.at(current_artvert_index).getTitle());
-					artvert_title_input->unlock();
-					model_selection_dropdown->value.setValue( current_artvert_index + 1 );
-					retrain_current_toggle->unlock();
-				}
-				else
+				
+				if ( current_artvert_index == -1 )
 				{
 					current_modelfile_label->setText( "<none>" );
 					current_artvertfile_label->setText( "<none>" );
+					current_artvertfile_lister->clearSelection();
+					current_artvertfile_lister->lock();
 					model_name_input->setValueText("" );
 					model_name_input->lock();
 					artvert_artist_input->setValueText("" );
 					artvert_artist_input->lock();
 					artvert_title_input->setValueText("");
 					artvert_title_input->lock();
-					current_artvert_drawer.useArtvert( -1 );
 					model_selection_dropdown->value.setValue( 0 );
+					current_modelfile_image.clear();
 					retrain_current_toggle->lock();
+					current_artvert_drawer.useArtvert( NULL );
+					
 				}
-			}
-			old_artvert_index = current_artvert_index;
-		}
-		
-		
-		// check for new text input
-		if ( artvert_title_input->valueTextHasChanged() )
-		{
-			// apply?
-			if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
-			{
-				artvert_list[current_artvert_index].setTitle( artvert_title_input->getValueText() );
-				artvert_list_needs_saving = true;
-				// update drop-down
-				updateModelSelectionDropdown();
-			}
-			
-			// clear flag
-			artvert_title_input->clearValueTextChangedFlag();
-		}
-		if ( artvert_artist_input->valueTextHasChanged() )
-		{
-			// apply?
-			if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
-			{
-				artvert_list[current_artvert_index].setArtist( artvert_artist_input->getValueText() );
-				artvert_list_needs_saving = true;
-				// update drop-down
-				updateModelSelectionDropdown();
-			}
-			
-			// clear flag
-			artvert_artist_input->clearValueTextChangedFlag();
-		}
-		if ( model_name_input->valueTextHasChanged() )
-		{
-			// apply?
-			if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
-			{
-				for ( int i=0; i<artvert_list.size(); i++ )
+				else
 				{
-					if ( artvert_list[i].getModelFile() == artvert_list[current_artvert_index].getModelFile() )
-						artvert_list[i].setAdvertName( model_name_input->getValueText() );
-				}
-				artvert_list_needs_saving = true;
-				// update drop-down
-				updateModelSelectionDropdown();
-			}
-			
-			// clear flag
-			model_name_input->clearValueTextChangedFlag();
-		}
-		
-		// re-train current?
-		if ( retrain_current_toggle->value.getValueB(0) )
-		{
-			// clear
-			retrain_current_toggle->setValue(false, 0);
-			
-			// trash current classifier
-			if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
-			{
-				// say we want to be trained
-				model_file_needs_training[current_artvert_index] = true;
-				
-				// trigger the reload
-				new_artvert_requested = true;
-				new_artvert_requested_index = current_artvert_index;
-				setCurrentArtvertIndex( -1 );
-			}
-		}
-		
-		
-		// check for interaction on the drop-down
-		if ( model_selection_dropdown->hasValueChanged() )
-		{
-			int new_index = model_selection_dropdown->value.getValueI()-1;
-			// ok then!
-			if ( new_index != current_artvert_index )
-			{
-				new_artvert_requested = true;
-				new_artvert_requested_index = new_index;
-			}
-			
-			model_selection_dropdown->value.clearChangedFlag();
-		}
-		
-		
-		// add new model?
-		if ( add_model_toggle->value.getValueB(0) )
-		{
-			// clear
-			add_model_toggle->setValue( false, 0 );
-			
-			// calculate a new name for the model
-			int count = 0;
-			string new_name;
-			// do we have it?
-			while ( true )
-			{
-				// try a new new_name
-				char buf[256];
-				sprintf( buf, "models/new_model_%02i.bmp", count );
-				new_name = buf;
-				// check if we already have a model called this
-				bool have_already = false;
-				string new_name_fullpath = ofToDataPath( new_name );
-				for ( int i=0; i<artvert_list.size(); i++ )
-				{
-					if ( new_name_fullpath == artvert_list[i].getModelFile() )
+					if ( load_or_train_succeeded )
 					{
-						have_already = true;
-						break;
+						// read modelfile label off current artvert
+						current_modelfile_label->setText( fromOfDataOrAbsolutePath( artvert_list.at(current_artvert_index)->getModelFile() ) );
+						current_artvertfile_label->setText( fromOfDataOrAbsolutePath( artvert_list.at(current_artvert_index)->getArtvertFile() ) );
+						current_modelfile_image.loadImage( artvert_list.at(current_artvert_index)->getModelFile() );
+						current_artvertfile_lister->clearSelection();
+						current_artvertfile_lister->unlock();
+						current_artvert_drawer.useArtvert( artvert_list.at(current_artvert_index) );
+						model_name_input->setValueText(artvert_list.at(current_artvert_index)->getAdvertName() );
+						model_name_input->unlock();
+						artvert_artist_input->setValueText(artvert_list.at(current_artvert_index)->getArtist() );
+						artvert_artist_input->unlock();
+						artvert_title_input->setValueText(artvert_list.at(current_artvert_index)->getTitle());
+						artvert_title_input->unlock();
+						model_selection_dropdown->value.setValue( current_artvert_index + 1 );
+						retrain_current_toggle->unlock();
+					}
+					else
+					{
+						current_modelfile_label->setText( "<none>" );
+						current_artvertfile_label->setText( "<none>" );
+						current_artvertfile_lister->clearSelection();
+						current_artvertfile_lister->lock();
+						model_name_input->setValueText("" );
+						model_name_input->lock();
+						artvert_artist_input->setValueText("" );
+						artvert_artist_input->lock();
+						artvert_title_input->setValueText("");
+						artvert_title_input->lock();
+						current_artvert_drawer.useArtvert( NULL );
+						model_selection_dropdown->value.setValue( 0 );
+						retrain_current_toggle->lock();
 					}
 				}
-				if ( !have_already )
-					// finished
-					break;
-				
-				// try a new one
-				count++;
-				
+				old_artvert_index = current_artvert_index;
 			}
 			
-			printf("new model has name data/%s\n", new_name.c_str() );
-			// so add as a new artvert
 			
-			Artvert a;
-			a.setModelFile( new_name );
-			a.setAdvertName( string("new model ")+ofToString( count ) );
-			a.setArtvertImageFile( "artverts/your_art_here.png" );
-			a.setTitle( "your art here" );
-			a.setArtist( "The Artvertiser Team" );
-			// store
-         	artvert_list.push_back( a );
-			model_file_needs_training.push_back( true );
+			// check for new text input
+			if ( artvert_title_input->valueTextHasChanged() )
+			{
+				// apply?
+				if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
+				{
+					artvert_list[current_artvert_index]->setTitle( artvert_title_input->getValueText() );
+					artvert_list_needs_saving = true;
+					// update drop-down
+					updateModelSelectionDropdown();
+				}
+				
+				// clear flag
+				artvert_title_input->clearValueTextChangedFlag();
+			}
+			if ( artvert_artist_input->valueTextHasChanged() )
+			{
+				// apply?
+				if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
+				{
+					artvert_list[current_artvert_index]->setArtist( artvert_artist_input->getValueText() );
+					artvert_list_needs_saving = true;
+					// update drop-down
+					updateModelSelectionDropdown();
+				}
+				
+				// clear flag
+				artvert_artist_input->clearValueTextChangedFlag();
+			}
+			if ( model_name_input->valueTextHasChanged() )
+			{
+				// apply?
+				if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
+				{
+					for ( int i=0; i<artvert_list.size(); i++ )
+					{
+						if ( artvert_list[i]->getModelFile() == artvert_list[current_artvert_index]->getModelFile() )
+							artvert_list[i]->setAdvertName( model_name_input->getValueText() );
+					}
+					artvert_list_needs_saving = true;
+					// update drop-down
+					updateModelSelectionDropdown();
+				}
+				
+				// clear flag
+				model_name_input->clearValueTextChangedFlag();
+			}
+			if ( current_artvertfile_lister->hasSelectionChanged() )
+			{
+				
+				// apply?
+				if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
+				{
+					artvert_list[current_artvert_index]->changeArtvertFile( artvertfile_lister.getSelectedPath() );
+					current_artvertfile_label->setText( fromOfDataOrAbsolutePath( artvert_list.at(current_artvert_index)->getArtvertFile() ) );
+					artvert_list_needs_saving = true;
+					// update drop-down
+					updateModelSelectionDropdown();
+				}
+				
+				current_artvertfile_lister->clearSelectionChangedFlag();
+			}
+
 			
-			artvert_list_needs_saving = true;
-			// update drop-down
-			updateModelSelectionDropdown();
+			// re-train current?
+			if ( retrain_current_toggle->value.getValueB(0) )
+			{
+				// clear
+				retrain_current_toggle->setValue(false, 0);
+				
+				// trash current classifier
+				if ( current_artvert_index >= 0 && current_artvert_index < artvert_list.size() )
+				{
+					// say we want to be trained
+					model_file_needs_training[current_artvert_index] = true;
+					
+					// trigger the reload
+					new_artvert_requested = true;
+					new_artvert_requested_index = current_artvert_index;
+					setCurrentArtvertIndex( -1 );
+				}
+			}
 			
-			// change to this one
-			new_artvert_requested = true;
-			new_artvert_requested_index = artvert_list.size()-1;
+			
+			// check for interaction on the drop-down
+			if ( model_selection_dropdown->hasValueChanged() )
+			{
+				int new_index = model_selection_dropdown->value.getValueI()-1;
+				// ok then!
+				if ( new_index != current_artvert_index )
+				{
+					new_artvert_requested = true;
+					new_artvert_requested_index = new_index;
+				}
+				
+				model_selection_dropdown->value.clearChangedFlag();
+			}
+			
+			
+			// add new model?
+			if ( add_model_toggle->value.getValueB(0) )
+			{
+				// clear
+				add_model_toggle->setValue( false, 0 );
+				
+				// calculate a new name for the model
+				int count = 0;
+				string new_name;
+				// do we have it?
+				while ( true )
+				{
+					// try a new new_name
+					char buf[256];
+					sprintf( buf, "models/new_model_%02i.bmp", count );
+					new_name = buf;
+					// check if we already have a model called this
+					bool have_already = false;
+					string new_name_fullpath = ofToDataPath( new_name );
+					for ( int i=0; i<artvert_list.size(); i++ )
+					{
+						if ( new_name_fullpath == artvert_list[i]->getModelFile() )
+						{
+							have_already = true;
+							break;
+						}
+					}
+					if ( !have_already )
+						// finished
+						break;
+					
+					// try a new one
+					count++;
+					
+				}
+				
+				printf("new model has name data/%s\n", new_name.c_str() );
+				// so add as a new artvert
+				
+				Artvert* a = new Artvert();
+				a->setModelFile( new_name );
+				a->setAdvertName( string("new model ")+ofToString( count ) );
+				a->setArtvertImageFile( "artverts/your_art_here.png" );
+				a->setTitle( "your art here" );
+				a->setArtist( "The Artvertiser Team" );
+				// store
+				artvert_list.push_back( a );
+				model_file_needs_training.push_back( true );
+				
+				artvert_list_needs_saving = true;
+				// update drop-down
+				updateModelSelectionDropdown();
+				
+				// change to this one
+				new_artvert_requested = true;
+				new_artvert_requested_index = artvert_list.size()-1;
+			}
+			artvert_list_lock.unlock();
 		}
 		
 		// retrain geometry?
@@ -2534,6 +2601,7 @@ void Artvertiser::update()
 			printf("retrain_geometry_toggle was true\n");
 			redo_geometry_requested = true;
 		}
+
 		
 		new_artvert_requested_lock.unlock();
 	}
@@ -2702,11 +2770,12 @@ void Artvertiser::drawMenu()
     drawTextOnscreen( font_16, "Select artvert:" );
     glTranslatef( 0, -26, 0 );
 
+	artvert_list_lock.lock();
 	for ( int i=0; i<artvert_list.size(); i++ )
 	{
 		char buf[32];
 		sprintf(buf, "%2i ", i );
-		string line = buf + artvert_list[i].getDescription();
+		string line = buf + artvert_list[i]->getDescription();
 
         if ( i == menu_index )
         {
@@ -2720,6 +2789,7 @@ void Artvertiser::drawMenu()
         glTranslatef(0, -18, 0 );
 
     }
+	artvert_list_lock.unlock();
 
 
 }

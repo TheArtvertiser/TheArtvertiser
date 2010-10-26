@@ -764,12 +764,10 @@
 		2DFC52F7125CA38F00ED1872 /* artvertiser */ = {
 			isa = PBXGroup;
 			children = (
-				2D5DC23A1276F75800CB8A0F /* ArtvertList.h */,
-				2D5DC23B1276F75800CB8A0F /* ArtvertList.cpp */,
-				2DBC92ED12731058008CC9C9 /* ThreadSafeString.h */,
-				2DBC92EE12731058008CC9C9 /* ThreadSafeString.cpp */,
 				2D2EB000126DC61300043AF6 /* Artvert.h */,
 				2D2EB001126DC61300043AF6 /* Artvert.cpp */,
+				2D5DC23A1276F75800CB8A0F /* ArtvertList.h */,
+				2D5DC23B1276F75800CB8A0F /* ArtvertList.cpp */,
 				2DFC52F8125CA38F00ED1872 /* artvertiser.cpp */,
 				2DFC52F9125CA38F00ED1872 /* artvertiser.h */,
 				2DFC52FA125CA38F00ED1872 /* avImage.cpp */,
@@ -785,6 +783,8 @@
 				2DFC530D125CA38F00ED1872 /* multigrab.h */,
 				2DFC530E125CA38F00ED1872 /* multithreadcapture.cpp */,
 				2DFC530F125CA38F00ED1872 /* multithreadcapture.h */,
+				2DBC92ED12731058008CC9C9 /* ThreadSafeString.h */,
+				2DBC92EE12731058008CC9C9 /* ThreadSafeString.cpp */,
 			);
 			path = artvertiser;
 			sourceTree = SOURCE_ROOT;
