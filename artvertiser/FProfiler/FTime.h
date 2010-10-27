@@ -114,7 +114,6 @@ public:
         #endif
         return *this;
 	}
-
 	// assignment
 	FTime& operator= (const FTime& other ) { Copy(other); return *this; }
 
