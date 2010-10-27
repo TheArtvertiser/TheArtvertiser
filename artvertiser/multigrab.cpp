@@ -71,7 +71,7 @@ int MultiGrab::init( const char *avi_bg_path, int width, int height, int v4l_dev
 		cout << "MultiGrab::init creating camera with device "<<v4l_device<<", capture at " << width << "x" << height << " detect at " << detect_width << "x" << detect_height << endl;
 		ofVideoGrabber* grabber = new ofVideoGrabber();
 		grabber->listDevices();
-		grabber->setDeviceID(1);
+		grabber->setDeviceID(v4l_device);
 		if (!grabber->initGrabber( width, height, false ) )
 		{
 			printf( "couldn't initialise ofVideoGrabber\n");

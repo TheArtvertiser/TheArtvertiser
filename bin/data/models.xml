@@ -1,7 +1,7 @@
 <artverts>
     <advert>
-        <model_filename>models/ships.bmp</model_filename>
-        <name>Ships</name>
+        <model_filename>models/default.bmp</model_filename>
+        <name>Akihabara</name>
         <artvert>
             <title>Your Art Here</title>
             <artist>The Artvertiser Team</artist>
