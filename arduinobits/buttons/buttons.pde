@@ -1,6 +1,15 @@
+/* 
+// for old buttons
 const int pin_r = 12;
 const int pin_g = 10;
 const int pin_b = 8;
+*/
+
+// for new buttons
+const int pin_r = 10;
+const int pin_g = 11;
+const int pin_b = 12;
+
 
 boolean on_r = false;
 boolean on_g = false;
