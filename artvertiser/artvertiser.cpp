@@ -279,10 +279,10 @@ void drawMenu();
 
 // model loading stuff
 ofx3DModelLoader modelLoader;
-GLfloat lightOnePosition[] = {40.0, 40, 100.0, 0.0};
-GLfloat lightOneColor[] = {0.99, 0.99, 0.99, 0.5};
-GLfloat lightTwoPosition[] = {-40.0, 40, 100.0, 0.0};
-GLfloat lightTwoColor[] = {0.99, 0.99, 0.99, 0.5};
+GLfloat lightOnePosition[] = {100.0, 100, 200.0, 0.0};
+GLfloat lightOneColor[] = {0.99, 0.99, 0.99, 0.1};
+//GLfloat lightTwoPosition[] = {-100.0, 40, 100.0, 0.0};
+//GLfloat lightTwoColor[] = {0.99, 0.99, 0.99, 0.1};
 bool three_d_model_load = false; 
 bool light_state = true;
 
@@ -1309,9 +1309,9 @@ void Artvertiser::setup( int argc, char** argv )
 	glLightfv (GL_LIGHT0, GL_POSITION, lightOnePosition);
 	glLightfv (GL_LIGHT0, GL_DIFFUSE, lightOneColor);
 	glEnable (GL_LIGHT0);
-	glLightfv (GL_LIGHT1, GL_POSITION, lightTwoPosition);
-	glLightfv (GL_LIGHT1, GL_DIFFUSE, lightTwoColor);
-	glEnable(GL_LIGHT1);
+	//glLightfv (GL_LIGHT1, GL_POSITION, lightTwoPosition);
+	//glLightfv (GL_LIGHT1, GL_DIFFUSE, lightTwoColor);
+	//glEnable(GL_LIGHT1);
 	
     printf("setup() finished\n");
 }
