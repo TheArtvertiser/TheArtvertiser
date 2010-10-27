@@ -39,6 +39,8 @@ public:
 	MultiGrab() {};
     ~MultiGrab();
 
+	void clear();
+
 	int init( char *avi_bg_path,
           int capture_width, int capture_height, int v4l_device, int detect_width, int detect_height,
           int desired_capture_fps );

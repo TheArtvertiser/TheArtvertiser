@@ -83,6 +83,12 @@ int MultiGrab::init( char *avi_bg_path, int width, int height, int v4l_device, i
     return 1;
 }
 
+void MultGrab::clear()
+{
+	if ( cams.size() > 0 && cams[0] != NULL )
+		cams[0]->detector.clear();
+}
+
 bool MultiGrab::loadOrTrainCache( bool wants_training, const char* modelfile, bool train_on_binoculars )
 {
     cams[0]->detector.clear();
@@ -275,3 +281,5 @@ bool add_detected_homography(int n, planar_object_recognizer &detector, CamAugme
 	a.AddHomography(pts, detector.H);
 	return true;
 }
+
+

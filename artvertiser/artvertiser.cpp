@@ -687,6 +687,13 @@ int serialport_read_until(int fd, char* buf, char until)
 
 bool loadOrTrain( int new_index )
 {
+	if ( new_index == -1 )
+	{
+		multi->clear();
+		current_artvert_index = -1;
+		return false;
+	}
+
     // fetch data
     if ( new_index < 0 || new_index >= artvert_list.size() )
     {
@@ -2414,8 +2421,8 @@ void updateMenu()
 	{
 		menu_is_showing = true;
 		menu_timer.SetNow();
-		if ( menu_index >= artvert_list.size() )
-			menu_index = artvert_list.size()-1;
+		if ( menu_index > artvert_list.size() )
+			menu_index = artvert_list.size();
 		// done
 		return;
 	}
@@ -2428,7 +2435,7 @@ void updateMenu()
 	if( button_state == BUTTON_BLUE )
 	{
 		menu_index++;
-		if ( menu_index >= artvert_list.size() )
+		if ( menu_index > artvert_list.size() )
 			menu_index = 0;
 		menu_timer.SetNow();
 	}
@@ -2436,7 +2443,7 @@ void updateMenu()
 	{
 		menu_index--;
 		if ( menu_index < 0 )
-			menu_index = artvert_list.size()-1;
+			menu_index = artvert_list.size();
 		menu_timer.SetNow();
 	}
 
@@ -2444,7 +2451,7 @@ void updateMenu()
 	if ( button_state == BUTTON_GREEN )
 	{
 
-		new_artvert_requested_index = menu_index;
+		new_artvert_requested_index = menu_index-1;
 		new_artvert_requested = true;
 
 	    menu_is_showing = false;
@@ -2511,14 +2518,22 @@ void drawMenu()
     ftglFont->Render("Select artvert:");
     glTranslatef( 0, -22, 0 );
 
-	for ( int i=max(0,menu_index-12); i<artvert_list.size(); i++ )
+	for ( int i=max(0,menu_index-12); i<artvert_list.size()+1; i++ )
 	{
-		string advert = artvert_list[i].advert;
-		string name = artvert_list[i].name;
-		string artist = artvert_list[i].artist;
-		char number[64];
-		sprintf(number, "%2i  ", i );
-		string line = string(number) + advert + " : '" + name + "' by " + artist;
+		string line;
+		if ( i == 0 )
+		{
+			line = "<none>";
+		}
+		else
+		{
+			string advert = artvert_list[i].advert;
+			string name = artvert_list[i].name;
+			string artist = artvert_list[i].artist;
+			char number[64];
+			sprintf(number, "%2i  ", i );
+			line = string(number) + advert + " : '" + name + "' by " + artist;
+		}
 
         if ( i == menu_index )
         {
