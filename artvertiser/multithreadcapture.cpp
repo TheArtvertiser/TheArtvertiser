@@ -1,24 +1,24 @@
 /*
  Copyright 2010 Damian Stewart <damian@frey.co.nz>
  Distributed under the terms of the GNU General Public License v3.
- 
+
  This file is part of The Artvertiser.
- 
+
  The Artvertiser is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  The Artvertiser is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU Lesser General Public License
  along with The Artvertiser.  If not, see <http://www.gnu.org/licenses/>.
  */
- 
- 
+
+
 #include "multithreadcapture.h"
 #include <unistd.h>
 
@@ -67,7 +67,7 @@ MultiThreadCapture::MultiThreadCapture( ofBaseVideo* _capture )
     capture_frame(0), process_thread_should_exit(false), process_thread_semaphore(0), /* start semaphore in busy state */
     new_draw_frame_available(false),
     new_detect_frame_available(false),
-    frame_counter(0) 
+    frame_counter(0)
 {
     MultiThreadCaptureManager* manager = MultiThreadCaptureManager::getInstance();
     assert( manager->getCaptureForCam( capture ) == NULL );
@@ -185,7 +185,7 @@ void MultiThreadCapture::ThreadedFunction()
     {
         PROFILE_SECTION_PUSH("avGetFrame");
 		IplImage* f = avGetFrame( capture );
-		
+
         PROFILE_SECTION_POP();
         if ( f )
         {
@@ -194,7 +194,7 @@ void MultiThreadCapture::ThreadedFunction()
             PROFILE_SECTION_PUSH("mtc capture frame");
 
             capture_frame_lock.lock();
-			
+
             // store locally
             if ( capture_frame==0 || capture_frame->width != f->width ||
                 capture_frame->height != f->height ||
@@ -219,7 +219,7 @@ void MultiThreadCapture::ThreadedFunction()
 
     }
 
-	
+
     PROFILE_SECTION_PUSH("idle sleeping");
     // wait a bit, to maintain desired framerate
     double elapsed = framerate_timer.Update();
@@ -242,12 +242,16 @@ void MultiThreadCapture::ThreadedFunction()
 
 void MultiThreadCapture::startProcessThread()
 {
+    #ifdef TARGET_WIN32
+    process_thread = (HANDLE)_beginthreadex(NULL, 0, processPthreadFunc,  this, 0, NULL);
+    #else
 	pthread_attr_t thread_attr;
     pthread_attr_init(&thread_attr);
     pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
     // launch the thread
     pthread_create( &process_thread, &thread_attr, processPthreadFunc, this );
     pthread_attr_destroy( &thread_attr );
+    #endif
 
 }
 
@@ -255,17 +259,28 @@ void MultiThreadCapture::stopProcessThread()
 {
 	process_thread_should_exit = true;
 	process_thread_semaphore.signal();
+	#ifdef TARGET_WIN32
+	WaitForSingleObject( process_thread, INFINITE );
+	#else
 	void* ret;
 	pthread_join( process_thread, &ret );
+	#endif
 }
 
-void* MultiThreadCapture::processPthreadFunc( void* _data )
+#ifdef TARGET_WIN32
+unsigned int
+#else
+void*
+#endif
+    MultiThreadCapture::processPthreadFunc( void* _data )
 {
 	MultiThreadCapture* instance = (MultiThreadCapture*)_data;
 
 	instance->processThreadedFunction();
 
+    #ifndef TARGET_WIN32
 	pthread_exit(0);
+	#endif
 }
 
 void MultiThreadCapture::processThreadedFunction( )

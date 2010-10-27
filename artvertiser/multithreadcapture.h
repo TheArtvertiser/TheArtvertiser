@@ -1,27 +1,30 @@
 /*
  Copyright 2010 Damian Stewart <damian@frey.co.nz>
  Distributed under the terms of the GNU General Public License v3.
- 
+
  This file is part of The Artvertiser.
- 
+
  The Artvertiser is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  The Artvertiser is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU Lesser General Public License
  along with The Artvertiser.  If not, see <http://www.gnu.org/licenses/>.
  */
- 
+
 
 #pragma once
+#include "ofMain.h"
 
+#ifndef TARGET_WIN32
 #include <pthread.h>
+#endif
 #include <stdio.h>
 #include "FProfiler/FThread.h"
 #include "ofxMutex.h"
@@ -29,7 +32,7 @@
 #include "FProfiler/FTime.h"
 #include <cv.h>
 #include <map>
-#include "ofMain.h"
+
 
 class MultiThreadCapture;
 
@@ -140,7 +143,13 @@ private:
 	void startProcessThread();
 	void stopProcessThread();
 	/// for pthreads interface
-	static void* processPthreadFunc( void* );
+	#ifdef TARGET_WIN32
+	static unsigned int __stdcall
+	#else
+	static void*
+	#endif
+        processPthreadFunc( void* );
+
 	/// the work actually happens here
 	void processThreadedFunction();
 
@@ -156,7 +165,11 @@ private:
 
 	// for the process thread
 	bool process_thread_should_exit;
+	#ifdef TARGET_WIN32
+	HANDLE process_thread;
+	#else
 	pthread_t process_thread;
+	#endif
 	ofxSemaphore process_thread_semaphore;
 
     // lock for the last frame
