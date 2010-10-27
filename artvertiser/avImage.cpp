@@ -29,18 +29,18 @@ public:
 	{
 		return working.find( source );
 	}
-	WorkingFrames::iterator end() 
+	WorkingFrames::iterator end()
 	{
 		return working.end();
 	}
-	
+
 	void erase( ofBaseVideo* source )
 	{
 		working.erase( source );
 	}
-	
+
 	WorkingFrames working;
-	
+
 };
 
 WorkingFramesDatabase working_frames;
@@ -48,10 +48,10 @@ WorkingFramesDatabase working_frames;
 IplImage* avGetFrame( ofBaseVideo* video_source )
 {
 	// get a frame from the video source
-	
+
 	bool allocate = false;
 	IplImage* working_frame = NULL;
-	
+
 	// do we have one?
 	if ( working_frames.find( video_source )== working_frames.end() )
 	{
@@ -75,13 +75,13 @@ IplImage* avGetFrame( ofBaseVideo* video_source )
 	if ( allocate )
 	{
 		// 24 bit RGB
-		working_frame = cvCreateImage( cvSize( video_source->getWidth(), video_source->getHeight() ), 
+		working_frame = cvCreateImage( cvSize( video_source->getWidth(), video_source->getHeight() ),
 									  IPL_DEPTH_8U, 3 );
 		//strcpy( working_frame->channelSeq, "BGR" );
 		//strcpy( working_frame->channelSeq, "RGB" );
 		working_frames[video_source] = working_frame;
 	}
-	
+
 	// now copy
 	unsigned char* pixels = video_source->getPixels();
 	int w = video_source->getWidth();
@@ -96,7 +96,7 @@ IplImage* avGetFrame( ofBaseVideo* video_source )
 				   w*3 );
 		}
 	}
-	
+
 #ifdef VIDEO_SWAP_RED_BLUE
 	for ( int i=0; i<h ;i++ )
 	{
@@ -115,7 +115,7 @@ IplImage* avGetFrame( ofBaseVideo* video_source )
 			data[2] = tmp;*/
 		}
 	}
-#endif	
+#endif
 	return working_frame;
 }
 
@@ -129,7 +129,7 @@ void toOfImage( IplImage* source, ofImage& dest )
 #else
 	bool order_is_rgb = true;
 #endif
-	
+
 	int type = OF_IMAGE_COLOR;
 	if ( f->nChannels == 1 )
 		type = OF_IMAGE_GRAYSCALE;
@@ -172,7 +172,7 @@ IplImage* avLoadImage( const char* path, int is_color )
 	else
 		printf("avLoadImage loaded %ix%i %s %s\n", working.width, working.height, working.type==OF_IMAGE_GRAYSCALE?"OF_IMAGE_GRAYSCALE":
 			   (working.type==OF_IMAGE_COLOR?"OF_IMAGE_COLOR":"OF_IMAGE_COLOR_ALPHA"), path );
-		
+
 	int n_channels;
 	// take care of 'automatic'
 	if ( is_color == -1 )
@@ -190,12 +190,12 @@ IplImage* avLoadImage( const char* path, int is_color )
 		n_channels = ( working.type == OF_IMAGE_GRAYSCALE ? 1:3 );
 
 	IplImage* output = cvCreateImage( cvSize( working.width, working.height ), IPL_DEPTH_8U, n_channels );
-	
+
 	// copy from working to output
 	unsigned char* pixels = working.getPixels();
 	int w = working.getWidth();
 	int h = working.getHeight();
-	
+
 	if ( is_color == 1 && working.type != OF_IMAGE_COLOR )
 	{
 		// convert to color
@@ -239,7 +239,7 @@ IplImage* avLoadImage( const char* path, int is_color )
 		if ( working.type == OF_IMAGE_COLOR_ALPHA )
 			// alpha is discarded
 			bpp = 4;
-		
+
 		for ( int i=0; i<h ;i++ )
 		{
 			unsigned char* source_base = pixels + i*bpp*w;
@@ -248,16 +248,16 @@ IplImage* avLoadImage( const char* path, int is_color )
 			{
 				unsigned char* source_data = source_base + j*bpp;
 				unsigned char* target_data = target_base + j;
-				target_data[0] = (unsigned char)min(255.0f, 
-													0.2126f*source_data[0] + 
-													0.7152f*source_data[1] + 
+				target_data[0] = (unsigned char)min(255.0f,
+													0.2126f*source_data[0] +
+													0.7152f*source_data[1] +
 													0.0722f*source_data[2]);
 			}
 		}
 	}
 	else // pass color through
 	{
-		int bypp = n_channels; 
+		int bypp = n_channels;
 		// straight copy
 		if( output->width == output->widthStep ){
 			memcpy( output->imageData,  pixels, w*h*bypp);
@@ -270,14 +270,15 @@ IplImage* avLoadImage( const char* path, int is_color )
 			}
 		}
 	}
-	
+
 	return output;
 }
 
 
 string fromOfDataPath( string path )
 {
-	string baseDataFolder = ofToDataPath("");
+	string baseDataFolder = ofToDataPath(".");
+	baseDataFolder = baseDataFolder.substr(0,baseDataFolder.size()-1);
 	size_t pos = path.find( baseDataFolder );
 	if ( pos == string::npos || baseDataFolder.size() >= path.size() )
 		return path;
@@ -290,7 +291,7 @@ string toAbsolutePath( string path )
 {
 	if ( path.size()==0 || path[0] == '/' )
 		return path;
-	
+
 	// prepend CWD to passed-in path
 	char cwd[2048];
 	getcwd( cwd, 2048 );
@@ -301,7 +302,7 @@ string fromAbsolutePath( string path )
 {
 	if ( path.size()==0 )
 		return path;
-	
+
 	// search for CWD in passed-in path
 	char cwd[2048];
 	getcwd( cwd, 2048 );
@@ -322,6 +323,6 @@ string fromOfDataOrAbsolutePath( string path )
 		model_path = string("data/")+model_path;
 	else
 		model_path = fromAbsolutePath( path );
-	
+
 	return model_path;
 }

@@ -1,18 +1,18 @@
 /*
  Copyright 2008, 2009, 2010 Damian Stewart <damian@frey.co.nz>.
- 
+
  This file is part of The Artvertiser.
- 
+
  The Artvertiser is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  The Artvertiser is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU Lesser General Public License
  along with The Artvertiser.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -24,7 +24,7 @@
 #include "FThread.h"
 
 FProfiler::FProfileContexts FProfiler::contexts;
-FSemaphore FProfiler::lock;
+ofxMutex FProfiler::lock;
 
 int FProfileSection::EXEC_ORDER_ID = 0;
 
@@ -39,7 +39,7 @@ FProfileContext::~FProfileContext()
 FProfileContext* FProfiler::GetContext()
 {
 	FThreadContext thread_context;
-	lock.Wait();
+	lock.lock();
 	// try to get current thread context
 	for ( FProfileContexts::const_iterator i = contexts.begin();
 		  i!= contexts.end();
@@ -47,7 +47,7 @@ FProfileContext* FProfiler::GetContext()
 	{
 		if ( thread_context == ( *i )->thread_context )
 		{
-			lock.Signal();
+			lock.unlock();
 			return *i;
 		}
 	}
@@ -62,7 +62,7 @@ FProfileContext* FProfiler::GetContext()
 	context->current = context->toplevel;
 
 	// return
-	lock.Signal();
+	lock.unlock();
 	return context;
 }
 
@@ -71,7 +71,7 @@ FProfileContext* FProfiler::GetContext()
 void FProfiler::Clear()
 {
     // get lock
-    lock.Wait();
+    lock.lock();
     // delete everything
     for ( int i=0; i<contexts.size(); i++ )
     {
@@ -80,7 +80,7 @@ void FProfiler::Clear()
     contexts.clear();
 
     // done
-    lock.Signal();
+    lock.unlock();
 
 }
 
@@ -148,7 +148,7 @@ void FProfiler::Display( FProfiler::SORT_BY sort )
     printf( "PRofiler output: sorted by %s\n", (sort==SORT_EXECUTION?"execution order":"total time"));
     printf( "%-50s  %10s  %10s  %6s\n", "name                            values in ms -> ", "total ", "average ", "count" );
     printf("---------------------------------------------------------------------------------------\n" );
-	lock.Wait();
+	lock.lock();
 	for ( FProfileContexts::iterator i = contexts.begin();
 		  i != contexts.end();
 		  ++i )
@@ -156,7 +156,7 @@ void FProfiler::Display( FProfiler::SORT_BY sort )
 		printf("Thread %x\n", (unsigned long)&((*i)->thread_context) );
 		(*i)->toplevel->Display("| ", sort );
 	}
-	lock.Signal();
+	lock.unlock();
 	printf("---------------------------------------------------------------------------------------\n" );
 }
 

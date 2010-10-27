@@ -5,19 +5,19 @@
  modifications Copyright 2009, 2010 Damian Stewart <damian@frey.co.nz>.
 
  Distributed under the terms of the GNU General Public License v3.
- 
+
  This file is part of The Artvertiser.
- 
+
  The Artvertiser is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  The Artvertiser is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU Lesser General Public License
  along with The Artvertiser.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -73,8 +73,12 @@ void planar_object_recognizer::clear()
           affine_thread_data[i]->should_stop = true;
           affine_thread_data[i]->start_signal.signal();
           // wait for completion
+          #ifdef TARGET_WIN32
+          WaitForSingleObject( affine_thread_data[i]->thread, INFINITE );
+          #else
           void* res;
           pthread_join( affine_thread_data[i]->thread, &res );
+          #endif
           // delete
           delete( affine_thread_data[i] );
       }
@@ -460,7 +464,7 @@ void planar_object_recognizer::save(string directory_name)
 #endif
 
 	printf("trying to save to %s\n", directory_name.c_str() );
-	
+
   char image_name[1000];
   sprintf(image_name, "%s/original_image.bmp", directory_name.data());
   mcvSaveImage(image_name, new_images_generator.original_image);
@@ -761,8 +765,12 @@ bool planar_object_recognizer::valid(affinity * A)
 
 
 
-
-void* planar_object_recognizer::estimate_affine_transformation_thread_func( void* _data )
+#ifdef TARGET_WIN32
+unsigned int __stdcall
+#else
+void*
+#endif
+    planar_object_recognizer::estimate_affine_transformation_thread_func( void* _data )
 {
     //PROFILE_THIS_FUNCTION();
 
@@ -882,7 +890,9 @@ void* planar_object_recognizer::estimate_affine_transformation_thread_func( void
 
     }
 
+    #ifndef TARGET_WIN32
     pthread_exit(0);
+    #endif
 }
 
 void planar_object_recognizer::construct_match_lut()
@@ -944,10 +954,12 @@ bool planar_object_recognizer::estimate_affine_transformation_mt(void)
         // construct barrier
         shared_barrier = new ofxBarrier( num_threads+1 );
 
+        #ifndef TARGET_WIN32
         // make threads joinable
         pthread_attr_t thread_attr;
         pthread_attr_init(&thread_attr);
         pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
+        #endif
         printf("creating %i estimate affine transformation threads\n", num_threads);
         for ( int i=0; i<num_threads; i++ )
         {
@@ -957,13 +969,20 @@ bool planar_object_recognizer::estimate_affine_transformation_mt(void)
             thread_data->detector = this;
             thread_data->barrier = shared_barrier;
             thread_data->should_stop = false;
+
             // start the thread
+            #ifdef TARGET_WIN32
+            thread_data->thread = (HANDLE)_beginthreadex(NULL, 0, estimate_affine_transformation_thread_func,  (void *)thread_data, 0, NULL);
+            #else
             pthread_create( &thread_data->thread, &thread_attr, estimate_affine_transformation_thread_func, (void*)thread_data );
+            #endif
 
             // store
             affine_thread_data.push_back( thread_data );
         }
+        #ifndef TARGET_WIN32
         pthread_attr_destroy(&thread_attr);
+        #endif
     }
 
     // dump out three_random_corr input data

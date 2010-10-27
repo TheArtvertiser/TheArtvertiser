@@ -5,19 +5,19 @@
  modifications Copyright 2009, 2010 Damian Stewart <damian@frey.co.nz>.
 
  Distributed under the terms of the GNU General Public License v3.
- 
+
  This file is part of The Artvertiser.
- 
+
  The Artvertiser is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  The Artvertiser is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU Lesser General Public License
  along with The Artvertiser.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -28,7 +28,14 @@ using namespace std;
 #include <starter.h>
 #include "object_view.h"
 #include "ofxBarrier.h"
-#include "../../artvertiser/FProfiler/FProfiler.h"
+#include "FProfiler.h"
+#include "ofMain.h"
+
+#ifdef TARGET_WIN32
+#include <windows.h>
+#else
+#include <pthread.h>
+#endif
 
 // Constructor for training stage:
 object_view::object_view(PyrImage * _image) :
@@ -71,15 +78,26 @@ void object_view::build(IplImage *im, int kernelSize)
 }
 
 
-#include <pthread.h>
-
 class object_view::CompGradientThreadData
 {
 public:
     CompGradientThreadData() : semaphore(0), should_stop(false) {};
-    ~CompGradientThreadData() { should_stop = true; semaphore.signal(); void* ret; pthread_join( thread, &ret ); }
+    ~CompGradientThreadData() {
+        should_stop = true;
+        semaphore.signal();
+        #ifdef TARGET_WIN32
+        WaitForSingleObject(thread, INFINITE);
+        #else
+        void* ret;
+        pthread_join( thread, &ret );
+        #endif
+    }
 
+    #ifdef TARGET_WIN32
+    HANDLE thread;
+    #else
     pthread_t thread;
+    #endif
     ofxBarrier* shared_barrier;
     ofxSemaphore semaphore;
     bool should_stop;
@@ -93,8 +111,12 @@ public:
 
 
 
-
-void* object_view::comp_gradient_thread_func( void* _data )
+#ifdef TARGET_WIN32
+unsigned int
+#else
+void*
+#endif
+    object_view::comp_gradient_thread_func( void* _data )
 {
     CompGradientThreadData* data = (CompGradientThreadData*)_data;
 
@@ -115,7 +137,9 @@ void* object_view::comp_gradient_thread_func( void* _data )
         data->shared_barrier->wait();
     }
 
+    #ifndef TARGET_WIN32
     pthread_exit(0);
+    #endif
 
     return NULL;
 
@@ -135,9 +159,11 @@ void object_view::comp_gradient_mt()
 
         // construct threads
         printf("creating %i threads for object_view::comp_gradient\n", num_threads );
+        #ifndef TARGET_WIN32
         pthread_attr_t thread_attr;
         pthread_attr_init(&thread_attr);
         pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
+        #endif
         for ( int i=0; i<num_threads; i++ )
         {
             CompGradientThreadData* thread_data = new CompGradientThreadData();
@@ -148,8 +174,12 @@ void object_view::comp_gradient_mt()
             thread_data->doX = (i%2==0);
             // store
             comp_gradient_thread_data.push_back( thread_data );
+            #ifdef TARGET_WIN32
+            thread_data->thread = (HANDLE)_beginthreadex(NULL, 0, comp_gradient_thread_func,  (void *)thread_data, 0, NULL);
+            #else
             // launch thread
             pthread_create( &thread_data->thread, &thread_attr, &comp_gradient_thread_func, (void*)thread_data );
+            #endif
         }
     }
 
