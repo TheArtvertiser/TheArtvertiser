@@ -114,6 +114,7 @@ using namespace std;
 
 // matrix tracker
 #include "MatrixTracker/MatrixTracker.h"
+#include "../../../../addons/ofx3DModelLoader/src/ofx3DModelLoader.h"
 
 #ifndef GL_CLAMP_TO_BORDER
 #define GL_CLAMP_TO_BORDER 0x812D
@@ -276,6 +277,15 @@ bool menu_is_showing = false;
 void updateMenu();
 void drawMenu();
 
+// model loading stuff
+ofx3DModelLoader modelLoader;
+GLfloat lightOnePosition[] = {40.0, 40, 100.0, 0.0};
+GLfloat lightOneColor[] = {0.99, 0.99, 0.99, 0.5};
+GLfloat lightTwoPosition[] = {-40.0, 40, 100.0, 0.0};
+GLfloat lightTwoColor[] = {0.99, 0.99, 0.99, 0.5};
+bool three_d_model_load = false; 
+bool light_state = true;
+
 /* use this to read paths from the file system
 
    string getExtension(const string &file)
@@ -292,7 +302,18 @@ void drawMenu();
    }
  */
 
+static void glLights(bool state)
+{
 
+    if (state)
+    {
+	    glEnable(GL_LIGHTING);
+    }
+    else
+    {
+	   glDisable (GL_LIGHTING);
+    }
+}
 
 string getSettingsString()
 {
@@ -963,6 +984,7 @@ void Artvertiser::setup( int argc, char** argv )
     bool redo_lighting=false;
     bool redo_training = false;
     string avi_bg_path = "";
+    string three_d_model_path = "";
 	string image_path = "";
     bool got_ds = false;
     bool got_fps = false;
@@ -1072,6 +1094,21 @@ void Artvertiser::setup( int argc, char** argv )
             }
             i+=2;
         }
+        else if (strcmp(argv[i], "-3d")==0)
+        {
+            three_d_model_load = true;
+            three_d_model_path=toAbsolutePath(argv[i+1]);
+    	    modelLoader.loadModel(three_d_model_path, 30);
+            printf(" -3d: loading 3ds model from '%s'\n", three_d_model_path.c_str() );
+    	    glShadeModel (GL_SMOOTH);
+	    	glColorMaterial (GL_FRONT_AND_BACK, GL_DIFFUSE);
+	    	glEnable (GL_COLOR_MATERIAL);
+	    	modelLoader.setRotation(0, 90, 1, 0, 0);
+	    	modelLoader.setRotation(1, 180, 0, 0, 1);
+	    	modelLoader.setScale(0.9, 0.9, 0.9);
+	    	modelLoader.setPosition(DEFAULT_WIDTH/2, DEFAULT_HEIGHT/2, 0);
+        }
+		
         else if ( strcmp(argv[i], "-ds")==0 )
         {
             detect_width = atoi(argv[i+1]);
@@ -1097,7 +1134,6 @@ void Artvertiser::setup( int argc, char** argv )
 			printf(" unknown argument '%s'\n", argv[i] );
             usage(argv[0]);
         }
-		
     }
 	
 	// default to always load data/models.xml, if no model has been passed in on the command line
@@ -1269,9 +1305,15 @@ void Artvertiser::setup( int argc, char** argv )
 		control_panel.setMinimized( true );
 		control_panel_timer = CONTROL_PANEL_SHOW_TIME;
 	}	
+
+	glLightfv (GL_LIGHT0, GL_POSITION, lightOnePosition);
+	glLightfv (GL_LIGHT0, GL_DIFFUSE, lightOneColor);
+	glEnable (GL_LIGHT0);
+	glLightfv (GL_LIGHT1, GL_POSITION, lightTwoPosition);
+	glLightfv (GL_LIGHT1, GL_DIFFUSE, lightTwoColor);
+	glEnable(GL_LIGHT1);
 	
     printf("setup() finished\n");
-
 }
 
 void Artvertiser::updateModelSelectionDropdown()
@@ -1702,6 +1744,20 @@ void Artvertiser::drawAugmentation()
 			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, avi_image->width, avi_image->height, format, GL_UNSIGNED_BYTE, avi_image->imageData);
 		}
 	}
+	else if (three_d_model_load) 
+	{
+		glEnable(GL_DEPTH_TEST);
+		glPushMatrix();
+
+		int posx = artvert_roi_vec[6] - artvert_roi_vec[0];
+		int posy = artvert_roi_vec[3] - artvert_roi_vec[1];
+
+		glTranslatef(posx,posy,0);
+	    glLights(true);
+		modelLoader.draw();
+		glPopMatrix();
+		glDisable(GL_DEPTH_TEST);
+	}
 	else
 	{
 		if ( current_artvert_index >= 0 &&
@@ -1720,27 +1776,24 @@ void Artvertiser::drawAugmentation()
 			}
 		}
 	}
-
-	glEnable(GL_TEXTURE_2D);
-
-	glHint(GL_POLYGON_SMOOTH, GL_NICEST);
-	glEnable(GL_POLYGON_SMOOTH);
-
-
-	glColor4f(1.0, 1.0, 1.0, fade);
-
-	glBegin(GL_QUADS);
-	glTexCoord2f(0, 0);
-	glVertex3f(artvert_roi_vec[0], artvert_roi_vec[1], 0);
-	glTexCoord2f(1, 0);
-	glVertex3f(artvert_roi_vec[2], artvert_roi_vec[3], 0);
-	glTexCoord2f(1, 1);
-	glVertex3f(artvert_roi_vec[4], artvert_roi_vec[5], 0);
-	glTexCoord2f(0, 1);
-	glVertex3f(artvert_roi_vec[6], artvert_roi_vec[7], 0);
-	glEnd();
-
-	glDisable(GL_TEXTURE_2D);
+	if (!three_d_model_load)
+        {
+		glEnable(GL_TEXTURE_2D);
+		glHint(GL_POLYGON_SMOOTH, GL_NICEST);
+		glEnable(GL_POLYGON_SMOOTH);
+		glColor4f(1.0, 1.0, 1.0, fade);
+		glBegin(GL_QUADS);
+			glTexCoord2f(0, 0);
+			glVertex3f(artvert_roi_vec[0], artvert_roi_vec[1], 0);
+			glTexCoord2f(1, 0);
+			glVertex3f(artvert_roi_vec[2], artvert_roi_vec[3], 0);
+			glTexCoord2f(1, 1);
+			glVertex3f(artvert_roi_vec[4], artvert_roi_vec[5], 0);
+			glTexCoord2f(0, 1);
+			glVertex3f(artvert_roi_vec[6], artvert_roi_vec[7], 0);
+		glEnd();
+		glDisable(GL_TEXTURE_2D);
+	}
 
 	// 'label' is a boolean set by the right mouse button and toggles the
 	//in-scene artvert label.
