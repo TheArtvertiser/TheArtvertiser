@@ -35,6 +35,7 @@
 #if defined __WIN32__ || defined _WIN32
 #ifndef TARGET_WIN32
 #define TARGET_WIN32
+#include <windows.h>
 #endif
 #endif
 
