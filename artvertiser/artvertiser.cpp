@@ -544,12 +544,14 @@ static void usage(const char *s)
          "   -a <path>  load an AVI movie as an artvert\n"
          "   -i <path>  load an image as an artvert\n"
          "   -l	 rebuild irradiance map from scratch\n"
-         "   -vd <num>  V4L video device number (0-n)\n"
+         "   -vd <num>  video device number (0-n)\n"
          "   -vs <width> <height>  video width and height (default 640x480)\n"
          "   -ds <width> <height>  frame size at which to run the detector (default to video width/height)\n"
          "   -fps <fps>  desired fps at which to run the image capture\n"
 		 "   -binoc  run as if operating on binoculars\n"
-		 "      -nofullscreen  don't try to run fullscreen in -binoc mode\n\n";
+		 "      -nofullscreen  don't try to run fullscreen in -binoc mode\n"
+		 "\n"
+		 " If no -m arguments are specified, data/models.xml will be loaded by default\n";
     exit(1);
 }
 
@@ -1073,7 +1075,7 @@ void Artvertiser::setup( int argc, char** argv )
         else if (strcmp(argv[i], "-vd")==0)
         {
             v4l_device=atoi(argv[i+1]);
-            printf(" -vd: using v4l device %i\n", v4l_device);
+            printf(" -vd: using video device %i\n", v4l_device);
             i++;
         }
         else if (strcmp(argv[i], "-vs")==0)
