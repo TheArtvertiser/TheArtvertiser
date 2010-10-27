@@ -967,6 +967,7 @@ void Artvertiser::setup( int argc, char** argv )
     bool got_ds = false;
     bool got_fps = false;
     bool video_source_is_avi = false;
+	bool got_minus_m = false;
 	
     // parse command line
 	printf("argc: %2i\n", argc );
@@ -974,6 +975,7 @@ void Artvertiser::setup( int argc, char** argv )
 	{
         if (strcmp(argv[i], "-m") ==0)
         {
+			got_minus_m = true;
             if (i==argc-1)
                 usage(argv[0]);
 			Artvert* a = new Artvert();
@@ -1098,14 +1100,12 @@ void Artvertiser::setup( int argc, char** argv )
 		
     }
 	
-#ifdef TARGET_OSX
-	// OSX: default to always load data/models.xml
-    if ( model_file_list_file.size()==0 )
+	// default to always load data/models.xml, if no model has been passed in on the command line
+    if ( model_file_list_file.size()==0 && !got_minus_m )
 	{
 		// default: load models.xml
 		model_file_list_file = ofToDataPath( "models.xml" );
 	}
-#endif
 
 	// read model files from model_file_list_file
 	if ( model_file_list_file.size()>0 )
