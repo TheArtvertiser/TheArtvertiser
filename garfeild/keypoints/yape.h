@@ -33,8 +33,8 @@
 #include "keypoint.h"
 
 #if defined __WIN32__ || defined _WIN32
-#ifndef TARGET_WINDOWS
-#define TARGET_WINDOWS
+#ifndef TARGET_WIN32
+#define TARGET_WIN32
 #endif
 #endif
 
