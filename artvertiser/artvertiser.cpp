@@ -1040,11 +1040,14 @@ unsigned char* pixels = NULL;
 FTime record_timer;
 static const float record_fps = 20.0f;
 FTime record_timestep;
+bool old_video_delay;
 
 void toggleRecording()
 {
 	if ( !is_recording )
 	{
+		old_video_delay = delay_video;
+		delay_video = false;
 		record_timestep.SetSeconds( 1.0f/record_fps );
 		is_recording = true;
 		// construct filename
@@ -1068,6 +1071,7 @@ void toggleRecording()
 	else
 	{
 		printf("**_ stopping recording\n");
+		delay_video = old_video_delay;
 		is_recording = false;
 		recorder.shutdown();
 	}
@@ -2466,7 +2470,7 @@ void drawMenu()
 			glLoadIdentity();
 			glTranslatef(-.8, 0.65, 0.0);
 			glScalef(.003, .003, .003);
-			ftglFont->FaceSize(24);
+			ftglFont->FaceSize(18);
 			glColor4f(0.0, 1.0, 0.0, 1);
 
 			if ( multi->model.isLearnInProgress() )
@@ -2478,7 +2482,7 @@ void drawMenu()
 				while( ptr != NULL) 
 				{
         			ftglFont->Render(ptr);
-	        		glTranslatef(0, -26, 0 );
+	        		glTranslatef(0, -22, 0 );
 					ptr = strtok( NULL, "\n" );
 				}
 			}
@@ -2501,18 +2505,20 @@ void drawMenu()
 	glEnable(GL_BLEND);
     glTranslatef(-.85, 0.65, 0.0);
     glScalef(.003, .003, .003);
-    ftglFont->FaceSize(24);
+    ftglFont->FaceSize(18);
     glColor4f(.25, 1.0, 0.0, 1);
 
     ftglFont->Render("Select artvert:");
-    glTranslatef( 0, -26, 0 );
+    glTranslatef( 0, -22, 0 );
 
-	for ( int i=0; i<artvert_list.size(); i++ )
+	for ( int i=max(0,menu_index-12); i<artvert_list.size(); i++ )
 	{
 		string advert = artvert_list[i].advert;
 		string name = artvert_list[i].name;
 		string artist = artvert_list[i].artist;
-		string line = string("   ") + advert + " : '" + name + "' by " + artist;
+		char number[64];
+		sprintf(number, "%2i  ", i );
+		string line = string(number) + advert + " : '" + name + "' by " + artist;
 
         if ( i == menu_index )
         {
@@ -2523,7 +2529,7 @@ void drawMenu()
             glColor4f( .25f, 1.f, 0.0f, 1 );
         }
         ftglFont->Render(line.c_str());
-        glTranslatef(0, -26, 0 );
+        glTranslatef(0, -22, 0 );
 
     }
 
