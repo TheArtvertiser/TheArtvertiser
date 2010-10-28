@@ -2481,6 +2481,7 @@ void updateMenu()
 		}
 	}
 
+
 	if ( !button_state_changed || new_artvert_switching_in_progress )
 		return;
 
@@ -2525,11 +2526,14 @@ void updateMenu()
 	// accept?
 	if ( button_state == BUTTON_GREEN )
 	{
-
+		if ( menu_index < 0 )
+			menu_index = 0;
+		if ( menu_index > artvert_list.size() )
+			menu_index = artvert_list.size();
+	    menu_is_showing = false;
 		new_artvert_requested_index = menu_index-1;
 		new_artvert_requested = true;
 
-	    menu_is_showing = false;
 
 	}
 
