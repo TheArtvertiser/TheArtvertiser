@@ -122,7 +122,7 @@ const char BUTTON_GREEN = 0x02;
 const char BUTTON_BLUE  = 0x04;
 // serial comms
 int serialport_init(const char* serialport, int baud);
-int serialport_read_until(int fd, char* buf, char until);
+int serialport_read_until(int fd, char* buf, char until, int bufsize);
 bool serial_thread_should_exit = false;
 bool serial_thread_is_running = false;
 pthread_t serial_thread;
@@ -670,7 +670,7 @@ int serialport_init(const char* serialport, int baud)
 
 
 // arduino serial port read
-int serialport_read_until(int fd, char* buf, char until)
+int serialport_read_until(int fd, char* buf, char until, int bufsize)
 {
 	char b[1];
 	int i=0;
@@ -684,7 +684,7 @@ int serialport_read_until(int fd, char* buf, char until)
 			continue;
 		}
 		buf[i] = b[0]; i++;
-	} while( b[0] != until && timeout > 0 );
+	} while( i < bufsize-1 && b[0] != until && timeout > 0 );
 
 	if ( timeout<=0 )
 		fprintf(stderr, "serialport_read_until timed out\n");
@@ -2164,7 +2164,7 @@ void* serialThreadFunc( void* data )
 
     while ( !serial_thread_should_exit )
     {
-        int read = serialport_read_until(fd, buf, '\n');
+        int read = serialport_read_until(fd, buf, '\n', 256);
         //printf("read: %s then %s\n",buf2, buf);
         if ( (read==0) && strlen( buf ) >= 4 /*includes final \n*/ )
         {
