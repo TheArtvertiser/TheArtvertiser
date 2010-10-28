@@ -88,6 +88,10 @@ camera.o: calib/camera.cpp /usr/include/c++/4.3/fstream \
   /usr/include/sys/select.h /usr/include/bits/select.h \
   /usr/include/sys/sysmacros.h /usr/include/alloca.h \
   /usr/lib/gcc/i486-linux-gnu/4.3.2/include/float.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/emmintrin.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/xmmintrin.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/mmintrin.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/mm_malloc.h \
   /usr/local/include/opencv/cxerror.h /usr/local/include/opencv/cvver.h \
   /usr/local/include/opencv/cxcore.hpp \
   /usr/local/include/opencv/cvtypes.h /usr/local/include/opencv/cv.hpp \
@@ -361,6 +365,14 @@ calib/matvec.h:
 /usr/include/alloca.h:
 
 /usr/lib/gcc/i486-linux-gnu/4.3.2/include/float.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/emmintrin.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/xmmintrin.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/mmintrin.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/mm_malloc.h:
 
 /usr/local/include/opencv/cxerror.h:
 

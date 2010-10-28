@@ -1,151 +1,154 @@
 <artverts>
-	<!--<advert>
-		<model_filename>models/ships.bmp</model_filename>
-		<advert>ships</advert>
+	<advert>
+		<model_filename>models/delhaizemeat.bmp</model_filename>
+		<advert>delhaize1</advert>
 		<artvert>
-			<name>your art here</name>
+			<name>erazor eye 9</name>
+			<movie_filename>artverts/NicolasKunysz/delhaize/erazoreye9_nicolaskunysz.avi</movie_filename>
+			<artist>nicolas kunysz</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/amazonas.bmp</model_filename>
+		<advert>amazonas</advert>
+		<artvert>
+			<name>ws biff datroa</name>
+			<movie_filename>artverts/DaTroa/ws_biff_datroa.avi</movie_filename>
+			<artist>Da Troa</artist>
+		</artvert>
+		<artvert>
+			<name>nowhere art after oil</name>
+			<movie_filename>artverts/StefMeul/nowhereartafteroil.mp4</movie_filename>
+			<artist>stef meul</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/brouckere.bmp</model_filename>
+		<advert>brouckere</advert>
+		<artvert>
+			<name>brouckere 2</name>
+			<image_filename>artverts/Adelaide_Francois/brouckere2_oiseaux_adelaide_francois_mmf.png</image_filename>
+			<artist>adelaide francois</artist>
+		</artvert>
+		<artvert>
+			<name>nowhere art boredom</name>
+			<movie_filename>artverts/StefMeul/nowhereartboredom.mp4</movie_filename>
+			<artist>stef meul</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/cette.bmp</model_filename>
+		<advert>cette</advert>
+		<artvert>
+			<name>point</name>
+			<movie_filename>artverts/Marika/Point.avi</movie_filename>
+			<artist>Marika</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/chichis.bmp</model_filename>
+		<advert>chichis</advert>
+		<artvert>
+			<name>1mextex</name>
+			<image_filename>artverts/MelisTezkan/1MEXTEX/small.jpg</image_filename>
+			<artist>MelisTezkan</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/ck1.bmp</model_filename>
+		<advert>calvin klein</advert>
+		<artvert>
+			<name>1mextex</name>
+			<image_filename>artverts/MelisTezkan/1MEXTEX/small.jpg</image_filename>
+			<artist>MelisTezkan</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/diesel.bmp</model_filename>
+		<advert>diesel</advert>
+		<artvert>
+			<name>test</name>
+			<image_filename>artverts/enlightenment.png</image_filename>
+			<artist>Bjorn Erik Haugen</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/esteelauder.bmp</model_filename>
+		<advert>estee lauder</advert>
+		<artvert>
+			<name>untitled</name>
+			<movie_filename>artverts/Olivia_Degrez/esteelauder/olivia_Degrez_video.avi</movie_filename>
+			<artist>olivia degrez</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/etam.bmp</model_filename>
+		<advert>etam.bmp</advert>
+		<artvert>
+			<name>sivousple</name>
+			<movie_filename>artverts/Khanh/etam/sivouple-JulienDitKhanh.avi</movie_filename>
+			<artist>Khan</artist>
+		</artvert>
+		<artvert>
+			<name>erazoreye 12</name>
+			<movie_filename>artverts/NicolasKunysz/delhaize/erazoreye12_nicolaskunysz.avi</movie_filename>
+			<artist>nicolas kunysz</artist>
+		</artvert>
+		<artvert>
+			<name>wanna be</name>
+			<image_filename>artverts/MelisTezkan/3WANNABEoptional/foto.jpg</image_filename>
+			<artist>MelisTezkan</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/karmez.bmp</model_filename>
+		<advert>karmez</advert>
+		<artvert>
+			<name>test</name>
 			<image_filename>artverts/your_art_here.png</image_filename>
-			<artist>us</artist>
+			<artist>The Artvertiser Team</artist>
 		</artvert>
-	</advert>-->
-
-	<!--<advert>
-		<model_filename>models/v2_test_lab/v2_1.bmp</model_filename>
-		<advert>v2 test lab 1</advert>
 		<artvert>
-			<name>USB Bomb</name>
+			<name>master control program</name>
+			<movie_filename>artverts/Yannick/MasterControlProgram.xvid.avi</movie_filename>
+			<artist>yannick antoine</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/mexx.bmp</model_filename>
+		<advert>mexx</advert>
+		<artvert>
+			<name>biomatic 1</name>
+			<movie_filename>artverts/Elipeo/biomaticxvid.avi</movie_filename>
+			<artist>Elipeo</artist>
+		</artvert>
+	</advert>
+	<advert>
+		<model_filename>models/movistar.bmp</model_filename>
+		<advert>movistar</advert>
+		<artvert>
+			<name>test</name>
 			<image_filename>artverts/usb_bomb.png</image_filename>
-			<artist>us</artist>
-		</artvert>
-	</advert>-->
-	<advert>
-		<model_filename>models/v2_test_lab/v2_2.bmp</model_filename>
-		<advert>Stimorol</advert>
-		<artvert>
-			<name>your art here</name>
-			<image_filename>artverts/your_art_here.png</image_filename>
-			<artist>us</artist>
-		</artvert>
-		<artvert>
-			<name>A Tradition of The Best Advice</name>
-			<movie_filename>artverts/advice_flat.mp4</movie_filename>
-			<artist>Jason Reizner</artist>
-		</artvert>
-		<artvert>
-			<name>Publicity Against Consumption</name>
-			<movie_filename>artverts/publicity_against_consumption.avi</movie_filename>
-			<artist>Animazon</artist>
-		</artvert>
-		<artvert>
-			<name>Meaninglessness</name>
-			<movie_filename>artverts/meaninglessness.avi</movie_filename>
-			<artist>unknown</artist>
+			<artist>The Artvertiser Team</artist>
 		</artvert>
 	</advert>
 	<advert>
-		<model_filename>models/v2_test_lab/v2_3.bmp</model_filename>
-		<advert>v2 test lab 3</advert>
+		<model_filename>models/ps3.bmp</model_filename>
+		<advert>playstation 3 game</advert>
 		<artvert>
-			<name>Spider</name>
-			<image_filename>artverts/spider.png</image_filename>
-			<artist>us</artist>
+			<name>frame cuted</name>
+			<image_filename>artverts/AlecdeBusschere/wall_without_pannel.png</image_filename>
+			<artist>Alec de Busschere</artist>
 		</artvert>
 	</advert>
 	<advert>
-		<model_filename>models/v2_test_lab/v2_4.bmp</model_filename>
-		<advert>v2 test lab 4</advert>
+		<model_filename>models/ulla.bmp</model_filename>
+		<advert>ulla woman</advert>
 		<artvert>
-			<name>USB Bomb</name>
-			<image_filename>artverts/usb_bomb.png</image_filename>
-			<artist>us</artist>
+			<name>pixilate</name>
+			<image_filename>artverts/ireti/pixilate.png</image_filename>
+			<artist>ireti</artist>
 		</artvert>
 	</advert>
-	<advert>
-		<model_filename>models/v2_test_lab/v2_5.bmp</model_filename>
-		<advert>v2 test lab 5</advert>
-		<artvert>
-			<name>Electropalm</name>
-			<image_filename>artverts/electropalm.png</image_filename>
-			<artist>us</artist>
-		</artvert>
-	</advert>
-	<advert>
-		<model_filename>models/v2_test_lab/v2_6.bmp</model_filename>
-		<advert>v2 test lab 6</advert>
-		<artvert>
-			<name>Spider</name>
-			<image_filename>artverts/spider.png</image_filename>
-			<artist>us</artist>
-		</artvert>
-	</advert>
-<advert>
-		<model_filename>models/v2_test_lab/v2_7.bmp</model_filename>
-		<advert>v2 test lab 7</advert>
-		<artvert>
-			<name>USB Bomb</name>
-			<image_filename>artverts/usb_bomb.png</image_filename>
-			<artist>us</artist>
-		</artvert>
-	</advert>
-	<advert>
-		<model_filename>models/v2_test_lab/v2_8.bmp</model_filename>
-		<advert>v2 test lab 8</advert>
-		<artvert>
-			<name>Electropalm</name>
-			<image_filename>artverts/electropalm.png</image_filename>
-			<artist>us</artist>
-		</artvert>
-	</advert>
-	<advert>
-		<model_filename>models/v2_test_lab/v2_9.bmp</model_filename>
-		<advert>v2 test lab 9</advert>
-		<artvert>
-			<name>Spider</name>
-			<image_filename>artverts/spider.png</image_filename>
-			<artist>us</artist>
-		</artvert>
-	</advert>
-
-
-
-
-
-
-
-
-	<advert>	
-		<model_filename>models/posters10.bmp</model_filename>
-		<advert>Sparkasse</advert>
-		<artvert>
-			<name>A Tradition of The Best Advice</name>
-			<movie_filename>artverts/advice_flat.mp4</movie_filename>
-			<artist>Jason Reizner</artist>
-		</artvert>
-	</advert>
-
-	<advert>
-		<model_filename>models/posters13.bmp</model_filename>
-		<advert>La Roche</advert>
-		<artvert>
-			<name>Hair Helmuts are Super Cool</name>
-			<image_filename>artverts/laroche-ad-hairJustinYoung1500x980.jpg</image_filename>
-			<artist>Justin Young</artist>
-		</artvert>
-		<artvert>
-			<name>Untitled</name>
-			<image_filename>artverts/laroche-ad-pattern-JustinYoung850x555.jpg</image_filename>
-			<artist>Justin Young</artist>
-		</artvert>
-	</advert>
-	<advert>
-		<model_filename>models/posters15.bmp</model_filename>
-		<advert>Ulla</advert>
-		<artvert>
-			<name>Publicity Against Consumption</name>
-			<movie_filename>artverts/publicity_against_consumption.mov</movie_filename>
-			<artist>Animazon</artist>
-		</artvert>
-	</advert>
-
 </artverts>
 

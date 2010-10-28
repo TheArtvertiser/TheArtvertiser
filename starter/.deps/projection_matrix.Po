@@ -88,9 +88,13 @@ projection_matrix.o: geometry/projection_matrix.cpp \
   /usr/include/bits/waitflags.h /usr/include/bits/waitstatus.h \
   /usr/include/sys/types.h /usr/include/sys/select.h \
   /usr/include/bits/select.h /usr/include/sys/sysmacros.h \
-  /usr/include/alloca.h /usr/include/string.h /usr/include/math.h \
-  /usr/local/include/opencv/cxerror.h /usr/local/include/opencv/cvver.h \
-  /usr/local/include/opencv/cxcore.hpp \
+  /usr/include/alloca.h /usr/include/string.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/emmintrin.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/xmmintrin.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/mmintrin.h \
+  /usr/lib/gcc/i486-linux-gnu/4.3.2/include/mm_malloc.h \
+  /usr/include/math.h /usr/local/include/opencv/cxerror.h \
+  /usr/local/include/opencv/cvver.h /usr/local/include/opencv/cxcore.hpp \
   /usr/local/include/opencv/cvtypes.h /usr/local/include/opencv/cv.hpp \
   /usr/local/include/opencv/cvcompat.h
 
@@ -365,6 +369,14 @@ geometry/projection_matrix.h:
 /usr/include/alloca.h:
 
 /usr/include/string.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/emmintrin.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/xmmintrin.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/mmintrin.h:
+
+/usr/lib/gcc/i486-linux-gnu/4.3.2/include/mm_malloc.h:
 
 /usr/include/math.h:
 

@@ -1,5 +1,6 @@
-/*
- * Credits: Julian Oliver, 2008-2009 <julian@julianoliver.com>.
+ /*
+ * Copyright 2008, 2009, 2010 Julian Oliver <julian@julianoliver.com> and 
+ * Damian Stewart <damian@frey.co.nz>.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -686,6 +687,13 @@ int serialport_read_until(int fd, char* buf, char until)
 
 bool loadOrTrain( int new_index )
 {
+	if ( new_index == -1 )
+	{
+		multi->clear();
+		current_artvert_index = -1;
+		return false;
+	}
+
     // fetch data
     if ( new_index < 0 || new_index >= artvert_list.size() )
     {
@@ -1031,6 +1039,71 @@ static bool init( int argc, char** argv )
     return true;
 }
 
+#include <time.h>
+#include <ofxGstVideoRecorder/ofxGstVideoRecorder.h>
+bool is_recording;
+ofxGstVideoRecorder recorder;
+unsigned char* pixels = NULL;
+FTime record_timer;
+static const float record_fps = 20.0f;
+FTime record_timestep;
+bool old_video_delay;
+
+void toggleRecording()
+{
+	if ( !is_recording )
+	{
+		old_video_delay = delay_video;
+		delay_video = false;
+		record_timestep.SetSeconds( 1.0f/record_fps );
+		is_recording = true;
+		// construct filename
+		char filename[512];
+		time_t timestamp;
+		time(&timestamp);
+		sprintf(filename, "/home/artvertiser/recordings/recording_%010i.avi", (int)timestamp );
+		// select codec
+		ofxGstVideoRecorder::Codec codec = ofxGstVideoRecorder::JPEG;
+		int bpp=24;
+
+		// allocate pixel temp buffer space
+		if ( pixels == NULL )
+			pixels = new unsigned char[video_width*video_height*3];
+
+		printf("**_ starting recording\n");
+		// go
+		recorder.setup( video_width, video_height, bpp, filename, codec, record_fps );
+		record_timer.SetNow();
+	}
+	else
+	{
+		printf("**_ stopping recording\n");
+		delay_video = old_video_delay;
+		is_recording = false;
+		recorder.shutdown();
+	}
+}
+
+void updateRecording(IplImage* frame)
+{
+	if ( !is_recording )
+		return;
+	
+	//glReadPixels(0,0,video_width, video_height, GL_RGB, GL_UNSIGNED_BYTE, pixels );
+	FTime now_time;
+	now_time.SetNow();
+	while ( record_timestep < (now_time - record_timer) )
+	{
+		unsigned char* source_pixels = (unsigned char*)frame->imageData;
+		memcpy( pixels, source_pixels, video_width*video_height*3 );
+	//	printf("**_ recorder frame\n");
+		recorder.newFrame( pixels );
+		// advance time by one frame
+		record_timer.SetSeconds( record_timer.ToSeconds() + record_timestep.ToSeconds() );
+	}
+
+}
+
 /*! The keyboard callback: reacts to '+' and '-' to change the viewed cam, 'q' exits.
  * 'd' turns on/off the dynamic lightmap update.
  * 'f' goes fullscreen.
@@ -1099,6 +1172,10 @@ static void keyboard(unsigned char c, int x, int y)
 		break;
 	case '\\':
 		button_state |= BUTTON_BLUE;
+		break;
+	
+	case 'R':
+		toggleRecording();
 		break;
 
     default:
@@ -1944,6 +2021,7 @@ static void draw()
         //ftglFont->Render(date(now).c_str());
         if (frame_ok == 1 and (now/1000)%2== 0)
         {
+			glPushMatrix();
             glTranslatef(video_width-295, video_height+35, 0);
             glColor4f(0.0, 1.0, 0.0, .8);
             glBegin(GL_TRIANGLES);
@@ -1954,7 +2032,24 @@ static void draw()
             glTranslatef(70, 5, 0);
             ftglFont->FaceSize(16);
             ftglFont->Render("tracking");
+			glPopMatrix();
         }
+		if ( is_recording && ((now/200)%2) == 0 )
+		{
+			glPushMatrix();
+			glTranslatef(video_width-195, video_height+35, 0 );
+			glColor4f( 1.0f, 0.0f, 0.0f, 0.8f );
+			glBegin( GL_QUADS );
+			glVertex3f( 145, 5, 0 );
+			glVertex3f( 155, 5, 0 );
+			glVertex3f( 155, 15, 0 );
+			glVertex3f( 145, 15, 0 );
+			glEnd();
+			glTranslatef( 70, 5, 0 );
+			ftglFont->FaceSize( 16 );
+			ftglFont->Render("recording");
+			glPopMatrix();
+		}
 
         // reset the ftgl font size for next pass
         ftglFont->FaceSize(12);
@@ -1986,6 +2081,9 @@ static void draw()
     glutSwapBuffers();
     //cvReleaseImage(&image); // cleanup used image
     glFlush();
+
+	//printf("writing frame\n");
+	//updateRecording();
 }
 
 
@@ -2215,12 +2313,14 @@ static void idle()
         raw_frame_timestamp = frameRingBuffer.front().second;
 
         raw_frame_texture->setImage(raw_frame);
+		updateRecording( raw_frame );
     }
     else
     {
         IplImage* raw_frame = raw_frame_texture->getImage();
         multi->cams[current_cam]->getLastDrawFrame( &raw_frame, &raw_frame_timestamp );
         raw_frame_texture->setImage(raw_frame);
+		updateRecording( raw_frame );
     }
 
     PROFILE_SECTION_POP();
@@ -2236,7 +2336,27 @@ static void idle()
     }
     else
     {
-        updateMenu();
+		// deal with buttons, ui
+		if ( !menu_is_showing )
+		{
+			// check red button 
+        	bool button_red = button_state   & BUTTON_RED;
+			static bool prev_button_red = button_red;
+			// did the button state just change?
+			bool changed = (button_red != prev_button_red);
+			// hit red button to toggle recording status
+			if ( changed && button_red )
+			{
+				// stop recording 
+				toggleRecording();
+			}
+			// store prev state
+			prev_button_red = button_red;
+		}
+		if ( !is_recording )
+		{
+        	updateMenu();
+		}
         //doDetection();
     }
     glutPostRedisplay();
@@ -2301,8 +2421,8 @@ void updateMenu()
 	{
 		menu_is_showing = true;
 		menu_timer.SetNow();
-		if ( menu_index >= artvert_list.size() )
-			menu_index = artvert_list.size()-1;
+		if ( menu_index > artvert_list.size() )
+			menu_index = artvert_list.size();
 		// done
 		return;
 	}
@@ -2315,7 +2435,7 @@ void updateMenu()
 	if( button_state == BUTTON_BLUE )
 	{
 		menu_index++;
-		if ( menu_index >= artvert_list.size() )
+		if ( menu_index > artvert_list.size() )
 			menu_index = 0;
 		menu_timer.SetNow();
 	}
@@ -2323,7 +2443,7 @@ void updateMenu()
 	{
 		menu_index--;
 		if ( menu_index < 0 )
-			menu_index = artvert_list.size()-1;
+			menu_index = artvert_list.size();
 		menu_timer.SetNow();
 	}
 
@@ -2331,7 +2451,7 @@ void updateMenu()
 	if ( button_state == BUTTON_GREEN )
 	{
 
-		new_artvert_requested_index = menu_index;
+		new_artvert_requested_index = menu_index-1;
 		new_artvert_requested = true;
 
 	    menu_is_showing = false;
@@ -2357,7 +2477,7 @@ void drawMenu()
 			glLoadIdentity();
 			glTranslatef(-.8, 0.65, 0.0);
 			glScalef(.003, .003, .003);
-			ftglFont->FaceSize(24);
+			ftglFont->FaceSize(18);
 			glColor4f(0.0, 1.0, 0.0, 1);
 
 			if ( multi->model.isLearnInProgress() )
@@ -2369,7 +2489,7 @@ void drawMenu()
 				while( ptr != NULL) 
 				{
         			ftglFont->Render(ptr);
-	        		glTranslatef(0, -26, 0 );
+	        		glTranslatef(0, -22, 0 );
 					ptr = strtok( NULL, "\n" );
 				}
 			}
@@ -2392,18 +2512,28 @@ void drawMenu()
 	glEnable(GL_BLEND);
     glTranslatef(-.85, 0.65, 0.0);
     glScalef(.003, .003, .003);
-    ftglFont->FaceSize(24);
+    ftglFont->FaceSize(18);
     glColor4f(.25, 1.0, 0.0, 1);
 
     ftglFont->Render("Select artvert:");
-    glTranslatef( 0, -26, 0 );
+    glTranslatef( 0, -22, 0 );
 
-	for ( int i=0; i<artvert_list.size(); i++ )
+	for ( int i=max(0,menu_index-12); i<artvert_list.size()+1; i++ )
 	{
-		string advert = artvert_list[i].advert;
-		string name = artvert_list[i].name;
-		string artist = artvert_list[i].artist;
-		string line = string("   ") + advert + " : '" + name + "' by " + artist;
+		string line;
+		if ( i == 0 )
+		{
+			line = "<none>";
+		}
+		else
+		{
+			string advert = artvert_list[i-1].advert;
+			string name = artvert_list[i-1].name;
+			string artist = artvert_list[i-1].artist;
+			char number[64];
+			sprintf(number, "%2i  ", i );
+			line = string(number) + advert + " : '" + name + "' by " + artist;
+		}
 
         if ( i == menu_index )
         {
@@ -2414,7 +2544,7 @@ void drawMenu()
             glColor4f( .25f, 1.f, 0.0f, 1 );
         }
         ftglFont->Render(line.c_str());
-        glTranslatef(0, -26, 0 );
+        glTranslatef(0, -22, 0 );
 
     }
 
