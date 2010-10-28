@@ -959,6 +959,7 @@ static bool init( int argc, char** argv )
 					else
 					{
 						// load an image
+						a.artvert_is_movie = false;
 						a.artvert_image_file = data.getValue( "image_filename", "artvert1.png" );
 					}
                 	printf("     %i: %s:%s:%s\n", j, a.name.c_str(), a.artist.c_str(),
