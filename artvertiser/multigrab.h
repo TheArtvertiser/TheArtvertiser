@@ -39,7 +39,7 @@ public:
 	MultiGrab() {};
     ~MultiGrab();
 
-	void clear();
+	void clearDetector();
 
 	int init( char *avi_bg_path,
           int capture_width, int capture_height, int v4l_device, int detect_width, int detect_height,
@@ -67,8 +67,9 @@ public:
         unsigned int getFrameIndexForTime( const FTime& timestamp ) { return mtc->getFrameIndexForTime( timestamp ); }
 		IplImage* getLastProcessedFrame() { return frame; }
 		/// fetch the last raw frame + timestamp and put into *frame + timestamp. if *frame is NULL, create.
-		bool getLastDrawFrame( IplImage** raw_frame, FTime* timestamp=NULL )
-            { return mtc->getLastDrawFrame( raw_frame, timestamp, true /*block*/ ); }
+		/// if block is false, return immediately
+		bool getLastDrawFrame( IplImage** raw_frame, FTime* timestamp=NULL, bool block = true )
+            { return mtc->getLastDrawFrame( raw_frame, timestamp, block ); }
 
 		void setCam(CvCapture *c, int capture_width, int capture_height, int detect_width, int detect_height, int desired_capture_fps );
 		bool detect( bool& frame_retrieved, bool &detect_succeeded );

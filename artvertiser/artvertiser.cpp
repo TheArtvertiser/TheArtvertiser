@@ -162,6 +162,13 @@ IplImage *last_frame  = 0;
 IplImage *diff= 0;
 IplImage *bit_frame= 0;
 
+// 20 second idle timeout
+static const double IDLE_TIMEOUT = 40.0f;
+bool is_idling = false;
+//#define AUTO_IDLE
+int menu_index = 0;
+
+
 int v4l_device = DEFAULT_V4LDEVICE;
 int video_width = DEFAULT_WIDTH;
 int video_height = DEFAULT_HEIGHT;
@@ -214,8 +221,10 @@ static const int VIDEO_DELAY_FRAMES=7;
 double a_proj[3][4];
 double old_a_proj[3][4];
 float fade = 0.0;
+FSemaphore last_frame_caught_time_lock;
 FTime last_frame_caught_time;
 FTime frame_timer;
+string screen_message;
 float draw_fps;
 int difference = 0;
 int have_proj = 0;
@@ -689,7 +698,7 @@ bool loadOrTrain( int new_index )
 {
 	if ( new_index == -1 )
 	{
-		multi->clear();
+		multi->clearDetector();
 		current_artvert_index = -1;
 		return false;
 	}
@@ -754,6 +763,11 @@ bool loadOrTrain( int new_index )
 
 	// no longer switching
 	new_artvert_switching_in_progress = false;
+
+	// reset caught timer
+	last_frame_caught_time_lock.Wait();
+	last_frame_caught_time.SetNow();
+	last_frame_caught_time_lock.Signal();
 
     return true;
 
@@ -925,12 +939,16 @@ static bool init( int argc, char** argv )
 				Artvert a;
                 a.model_file = data.getValue( "model_filename", "model.bmp" );
 				a.advert = data.getValue( "advert", "unknown advert" );
+				if ( a.advert == "unknown advert" )
+					a.advert = data.getValue( "name", "unknown name of advert" );
 				int num_artverts = data.getNumTags( "artvert" );
             	printf("   -ml: got advert, model file '%s', advert '%s', %i artverts\n", a.model_file.c_str(), a.advert.c_str(), num_artverts );
 				for ( int j=0; j<num_artverts; j++ )
 				{
 					data.pushTag("artvert", j );
 					a.name = data.getValue( "name", "unnamed" );
+					if ( a.name == "unnamed" )
+						a.name = data.getValue( "title", "untitled" );
 					a.artist = data.getValue( "artist", "unknown artist" );
 					if ( data.getNumTags("movie_filename") != 0 )
 					{
@@ -1029,7 +1047,9 @@ static bool init( int argc, char** argv )
     // start detection
     startDetectionThread( 1 /* priority, only if running as root */ );
 
+	last_frame_caught_time_lock.Wait();
     last_frame_caught_time.SetNow();
+	last_frame_caught_time_lock.Signal();
     frame_timer.SetNow();
 
     // start serial
@@ -1074,6 +1094,12 @@ void toggleRecording()
 		// go
 		recorder.setup( video_width, video_height, bpp, filename, codec, record_fps );
 		record_timer.SetNow();
+<<<<<<< HEAD
+=======
+		
+		// don't idle
+		is_idling = false;
+>>>>>>> 88db07ba2723b0a8264f2140a56a30e90ad25aa7
 	}
 	else
 	{
@@ -1966,10 +1992,23 @@ static void draw()
 
 
         // fade
+		double DESIRED_FRAMERATE = ((is_idling&&!is_recording)?5.0:20.0);
         double elapsed = frame_timer.Update();
+		double remaining = min(0.5, elapsed - 1.0/DESIRED_FRAMERATE);
+		if ( remaining > 0.0 )
+		{
+			// sleep for the rest
+			char buf[256];
+			sprintf(buf, "sleeping for %7.3fms", 1000.0f*remaining );	
+			screen_message = buf;
+			usleep( 1000.0*1000.0*remaining );
+		}
+
         if ( frame_ok )
         {
+			last_frame_caught_time_lock.Wait();
             last_frame_caught_time.SetNow();
+			last_frame_caught_time_lock.Signal();
             // increase fade
             if ( fade < (show_status?MAX_FADE_SHOW:MAX_FADE_NORMAL) )
             {
@@ -1983,7 +2022,9 @@ static void draw()
         {
             FTime now;
             now.SetNow();
+			last_frame_caught_time_lock.Wait();
             double elapsed_since_last_caught = (now-last_frame_caught_time).ToSeconds();
+			last_frame_caught_time_lock.Signal();
             if ( elapsed_since_last_caught > SECONDS_LOST_TRACK )
             {
                 if ( fade > 0.0f )
@@ -2288,9 +2329,43 @@ static void idle()
 
     if(!raw_frame_texture) raw_frame_texture = new IplTexture;
 
+	// check if we should be idling
+	FTime now;
+	now.SetNow();
+	last_frame_caught_time_lock.Wait();
+	double last_frame_caught_delay = (now-last_frame_caught_time).ToSeconds();
+	last_frame_caught_time_lock.Signal();
+	if ( !is_idling )
+	{
+		// don't idle if 
+		//  -- we're still active (not timed out), and
+		//  -- artvert switching is in progress, and
+		//  -- we're not recording
+#ifdef AUTO_IDLE
+		if ( !new_artvert_switching_in_progress && 
+				last_frame_caught_delay > IDLE_TIMEOUT && 
+				!is_recording )
+		{
+			is_idling = true;
+			menu_index = 0;
+			menu_is_showing = true;
+			new_artvert_requested = true;
+			new_artvert_requested_index = -1;
+		}
+#endif
+	}
+	else
+	{
+		// we are idling, should we not be?
+		if ( last_frame_caught_delay <= IDLE_TIMEOUT )
+		{
+			is_idling = false;
+		}
+	}
+
     PROFILE_SECTION_PUSH("getting last frame");
 
-    if ( delay_video )
+    if ( delay_video && !is_idling )
     {
         IplImage* captured_frame;
         multi->cams[current_cam]->getLastDrawFrame( &captured_frame, &raw_frame_timestamp );
@@ -2318,9 +2393,18 @@ static void idle()
     else
     {
         IplImage* raw_frame = raw_frame_texture->getImage();
+<<<<<<< HEAD
         multi->cams[current_cam]->getLastDrawFrame( &raw_frame, &raw_frame_timestamp );
         raw_frame_texture->setImage(raw_frame);
 		updateRecording( raw_frame );
+=======
+        bool got = multi->cams[current_cam]->getLastDrawFrame( &raw_frame, &raw_frame_timestamp, /* block */ false );
+		if ( got )
+		{
+        	raw_frame_texture->setImage(raw_frame);
+			updateRecording( raw_frame );
+		}
+>>>>>>> 88db07ba2723b0a8264f2140a56a30e90ad25aa7
     }
 
     PROFILE_SECTION_POP();
@@ -2337,6 +2421,7 @@ static void idle()
     else
     {
 		// deal with buttons, ui
+<<<<<<< HEAD
 		if ( !menu_is_showing )
 		{
 			// check red button 
@@ -2357,6 +2442,27 @@ static void idle()
 		{
         	updateMenu();
 		}
+=======
+		
+		// recording:
+		// check red && green buttons 
+		bool button_red = button_state   & BUTTON_RED;
+		bool button_blue = button_state & BUTTON_BLUE;
+		bool button_red_blue = button_red && button_blue;
+		static bool prev_button_red_blue = button_red && button_blue;
+		// did the button state just change?
+		bool changed = (button_red_blue != prev_button_red_blue);
+		// hit red button to toggle recording status
+		if ( changed && button_red_blue )
+		{
+			// stop recording 
+			toggleRecording();
+		}
+		// store prev state
+		prev_button_red_blue = button_red_blue;
+		
+        updateMenu();
+>>>>>>> 88db07ba2723b0a8264f2140a56a30e90ad25aa7
         //doDetection();
     }
     glutPostRedisplay();
@@ -2391,7 +2497,6 @@ bool menu_down = false;
 void updateMenu();
 void drawMenu();
 */
-int menu_index = 0;
 
 void updateMenu()
 {
@@ -2400,7 +2505,7 @@ void updateMenu()
 	{
 		FTime now;
 		now.SetNow();
-		if ( (now-menu_timer).ToSeconds() > MENU_HIDE_TIME )
+		if ( !is_idling && (now-menu_timer).ToSeconds() > MENU_HIDE_TIME )
 		{
 			menu_is_showing = false;
 		}
@@ -2468,9 +2573,20 @@ void drawMenu()
 {
 	if ( !menu_is_showing )
 	{
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		glMatrixMode(GL_MODELVIEW);
+		glLoadIdentity();
+		glTranslatef(-.8, 0.65, 0.0);
+		glScalef(.003, .003, .003);
+		ftglFont->FaceSize(18);
+		glColor4f(0.0, 1.0, 0.0, 1);
+		ftglFont->Render( screen_message.c_str() );
+		glTranslatef( 0, -22, 0 );
 		// draw switching text?
 		if ( new_artvert_switching_in_progress )
 		{
+<<<<<<< HEAD
 			glMatrixMode(GL_PROJECTION);
 			glLoadIdentity();
 			glMatrixMode(GL_MODELVIEW);
@@ -2479,6 +2595,8 @@ void drawMenu()
 			glScalef(.003, .003, .003);
 			ftglFont->FaceSize(18);
 			glColor4f(0.0, 1.0, 0.0, 1);
+=======
+>>>>>>> 88db07ba2723b0a8264f2140a56a30e90ad25aa7
 
 			if ( multi->model.isLearnInProgress() )
 			{	
@@ -2513,9 +2631,20 @@ void drawMenu()
     glTranslatef(-.85, 0.65, 0.0);
     glScalef(.003, .003, .003);
     ftglFont->FaceSize(18);
+<<<<<<< HEAD
     glColor4f(.25, 1.0, 0.0, 1);
 
     ftglFont->Render("Select artvert:");
+=======
+    glColor4f(.25, 1.0, 0.0, 1);	
+	ftglFont->Render( screen_message.c_str() );
+	glTranslatef( 0, -22, 0 );
+
+	if ( is_idling )
+		ftglFont->Render("Idling, select artvert to resume:");
+	else
+		ftglFont->Render("Select artvert:");
+>>>>>>> 88db07ba2723b0a8264f2140a56a30e90ad25aa7
     glTranslatef( 0, -22, 0 );
 
 	for ( int i=max(0,menu_index-12); i<artvert_list.size()+1; i++ )
@@ -2523,6 +2652,7 @@ void drawMenu()
 		string line;
 		if ( i == 0 )
 		{
+<<<<<<< HEAD
 			line = "<none>";
 		}
 		else
@@ -2530,6 +2660,15 @@ void drawMenu()
 			string advert = artvert_list[i].advert;
 			string name = artvert_list[i].name;
 			string artist = artvert_list[i].artist;
+=======
+			line = " 0  <none>";
+		}
+		else
+		{
+			string advert = artvert_list[i-1].advert;
+			string name = artvert_list[i-1].name;
+			string artist = artvert_list[i-1].artist;
+>>>>>>> 88db07ba2723b0a8264f2140a56a30e90ad25aa7
 			char number[64];
 			sprintf(number, "%2i  ", i );
 			line = string(number) + advert + " : '" + name + "' by " + artist;
