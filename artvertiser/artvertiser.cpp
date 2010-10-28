@@ -1094,12 +1094,9 @@ void toggleRecording()
 		// go
 		recorder.setup( video_width, video_height, bpp, filename, codec, record_fps );
 		record_timer.SetNow();
-<<<<<<< HEAD
-=======
 		
 		// don't idle
 		is_idling = false;
->>>>>>> 88db07ba2723b0a8264f2140a56a30e90ad25aa7
 	}
 	else
 	{
@@ -2393,18 +2390,12 @@ static void idle()
     else
     {
         IplImage* raw_frame = raw_frame_texture->getImage();
-<<<<<<< HEAD
-        multi->cams[current_cam]->getLastDrawFrame( &raw_frame, &raw_frame_timestamp );
-        raw_frame_texture->setImage(raw_frame);
-		updateRecording( raw_frame );
-=======
         bool got = multi->cams[current_cam]->getLastDrawFrame( &raw_frame, &raw_frame_timestamp, /* block */ false );
 		if ( got )
 		{
         	raw_frame_texture->setImage(raw_frame);
 			updateRecording( raw_frame );
 		}
->>>>>>> 88db07ba2723b0a8264f2140a56a30e90ad25aa7
     }
 
     PROFILE_SECTION_POP();
@@ -2421,28 +2412,6 @@ static void idle()
     else
     {
 		// deal with buttons, ui
-<<<<<<< HEAD
-		if ( !menu_is_showing )
-		{
-			// check red button 
-        	bool button_red = button_state   & BUTTON_RED;
-			static bool prev_button_red = button_red;
-			// did the button state just change?
-			bool changed = (button_red != prev_button_red);
-			// hit red button to toggle recording status
-			if ( changed && button_red )
-			{
-				// stop recording 
-				toggleRecording();
-			}
-			// store prev state
-			prev_button_red = button_red;
-		}
-		if ( !is_recording )
-		{
-        	updateMenu();
-		}
-=======
 		
 		// recording:
 		// check red && green buttons 
@@ -2462,7 +2431,6 @@ static void idle()
 		prev_button_red_blue = button_red_blue;
 		
         updateMenu();
->>>>>>> 88db07ba2723b0a8264f2140a56a30e90ad25aa7
         //doDetection();
     }
     glutPostRedisplay();
@@ -2586,17 +2554,6 @@ void drawMenu()
 		// draw switching text?
 		if ( new_artvert_switching_in_progress )
 		{
-<<<<<<< HEAD
-			glMatrixMode(GL_PROJECTION);
-			glLoadIdentity();
-			glMatrixMode(GL_MODELVIEW);
-			glLoadIdentity();
-			glTranslatef(-.8, 0.65, 0.0);
-			glScalef(.003, .003, .003);
-			ftglFont->FaceSize(18);
-			glColor4f(0.0, 1.0, 0.0, 1);
-=======
->>>>>>> 88db07ba2723b0a8264f2140a56a30e90ad25aa7
 
 			if ( multi->model.isLearnInProgress() )
 			{	
@@ -2631,12 +2588,7 @@ void drawMenu()
     glTranslatef(-.85, 0.65, 0.0);
     glScalef(.003, .003, .003);
     ftglFont->FaceSize(18);
-<<<<<<< HEAD
-    glColor4f(.25, 1.0, 0.0, 1);
-
-    ftglFont->Render("Select artvert:");
-=======
-    glColor4f(.25, 1.0, 0.0, 1);	
+   glColor4f(.25, 1.0, 0.0, 1);	
 	ftglFont->Render( screen_message.c_str() );
 	glTranslatef( 0, -22, 0 );
 
@@ -2644,7 +2596,6 @@ void drawMenu()
 		ftglFont->Render("Idling, select artvert to resume:");
 	else
 		ftglFont->Render("Select artvert:");
->>>>>>> 88db07ba2723b0a8264f2140a56a30e90ad25aa7
     glTranslatef( 0, -22, 0 );
 
 	for ( int i=max(0,menu_index-12); i<artvert_list.size()+1; i++ )
@@ -2652,15 +2603,6 @@ void drawMenu()
 		string line;
 		if ( i == 0 )
 		{
-<<<<<<< HEAD
-			line = "<none>";
-		}
-		else
-		{
-			string advert = artvert_list[i].advert;
-			string name = artvert_list[i].name;
-			string artist = artvert_list[i].artist;
-=======
 			line = " 0  <none>";
 		}
 		else
@@ -2668,7 +2610,6 @@ void drawMenu()
 			string advert = artvert_list[i-1].advert;
 			string name = artvert_list[i-1].name;
 			string artist = artvert_list[i-1].artist;
->>>>>>> 88db07ba2723b0a8264f2140a56a30e90ad25aa7
 			char number[64];
 			sprintf(number, "%2i  ", i );
 			line = string(number) + advert + " : '" + name + "' by " + artist;
