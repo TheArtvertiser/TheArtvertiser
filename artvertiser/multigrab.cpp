@@ -83,10 +83,11 @@ int MultiGrab::init( char *avi_bg_path, int width, int height, int v4l_device, i
     return 1;
 }
 
-void MultiGrab::clear()
+void MultiGrab::clearDetector()
 {
 	if ( cams.size() > 0 && cams[0] != NULL )
 		cams[0]->detector.clear();
+
 }
 
 bool MultiGrab::loadOrTrainCache( bool wants_training, const char* modelfile, bool train_on_binoculars )
@@ -194,6 +195,14 @@ void MultiGrab::Cam::shutdownMultiThreadCapture()
 bool MultiGrab::Cam::detect( bool &frame_retrieved, bool &detect_succeeded )
 {
     PROFILE_THIS_FUNCTION();
+	if ( !detector.isReady() )
+    {
+		mtc->captureAtLowFps( true );
+        detect_succeeded = false;
+        return false;
+    }
+	mtc->captureAtLowFps( false );
+	  
 	CvSize detect_size = cvSize( detect_width, detect_height );
 
 	PROFILE_SECTION_PUSH("frame management");
@@ -215,12 +224,7 @@ bool MultiGrab::Cam::detect( bool &frame_retrieved, bool &detect_succeeded )
     PROFILE_SECTION_POP();
 
 
-    if ( !detector.isReady() )
-    {
-        detect_succeeded = false;
-        return false;
-    }
-
+  
 	PROFILE_SECTION_PUSH( "detection" );
 
 

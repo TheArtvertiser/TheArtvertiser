@@ -66,7 +66,8 @@ MultiThreadCapture::MultiThreadCapture( CvCapture* _capture )
     capture_frame(0), process_thread_should_exit(false), process_thread_semaphore(0), /* start semaphore in busy state */
     new_draw_frame_available(false),
     new_detect_frame_available(false),
-    frame_counter(0)
+    frame_counter(0),
+	low_fps(false)
     {
     MultiThreadCaptureManager* manager = MultiThreadCaptureManager::getInstance();
     assert( manager->getCaptureForCam( capture ) == NULL );
@@ -145,7 +146,7 @@ void MultiThreadCapture::startCapture()
 {
     if ( thread_running )
     {
-        printf("MultiThreadCapture(%x)::StartCapture(): capture already running\n", this );
+        printf("MultiThreadCapture(%lx)::StartCapture(): capture already running\n", (unsigned long)this );
         return;
     }
     new_draw_frame_available=false;
@@ -233,7 +234,7 @@ void MultiThreadCapture::ThreadedFunction()
     PROFILE_SECTION_PUSH("idle sleeping");
     // wait a bit, to maintain desired framerate
     double elapsed = framerate_timer.Update();
-    float desired_frame_duration = 1.0f/desired_framerate;
+    float desired_frame_duration = low_fps ? 0.5f : 1.0f/desired_framerate;
     float seconds_to_sleep = desired_frame_duration-elapsed;
     //printf("elapsed %fs, will wait %fs until next frame grab -> %i us\n", elapsed, seconds_to_sleep, int(seconds_to_sleep*1e6)  );
     /*struct timespec sleeptime;

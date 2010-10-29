@@ -130,6 +130,9 @@ public:
     /// number of channels returned by the camera. if camera is yet to start, wait max 10s then timeout.
     int getNumChannelsRaw();
 
+	/// enable low-fps low-cpu frame capture for idle times...
+	void captureAtLowFps( bool do_low_fps ) { low_fps = do_low_fps; }
+
 private:
 
     /// overridden from base
@@ -182,5 +185,6 @@ private:
     FTimeToFrameNumberIdx ftime_framenum_idx;
     unsigned int frame_counter;
 
+	bool low_fps;
 };
 
