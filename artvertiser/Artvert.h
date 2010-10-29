@@ -27,7 +27,7 @@ public:
 	
 	void shutdown();
 	
-	IplImage* getArtvertImage();
+	void drawArtvert( float fade, const vector<float>& corners );
 	
 	bool artvert_is_movie;
 
@@ -69,21 +69,21 @@ private:
 	string artvert_image_file;
 	string artvert_movie_file;
 	ofVideoPlayer* avi_capture;
-	IplImage* avi_image;
+
 	bool avi_load_attempted;
 	bool avi_storage_initialised;
 	GLuint imageID;
 	
-	IplImage* artvert_image;
-
 	int which_fallback_image;
-	static vector<IplImage*> fallback_artvert_images;
+	static vector<ofImage*> fallback_artvert_images;
 	
 	friend class ArtvertDrawer;
 	
-	IplImage* fallback();
+	ofImage* fallback();
 	
 	bool active;
+	
+	ofTexture texture;
 };
 
 

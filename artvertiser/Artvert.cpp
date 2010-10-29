@@ -9,11 +9,11 @@
 
 #include "Artvert.h"
 
-vector<IplImage*> Artvert::fallback_artvert_images;
+vector<ofImage*> Artvert::fallback_artvert_images;
+
 
 Artvert::Artvert()
 { 
-	artvert_image=0; 
 	model_file="<uninitialised>"; 
 	artvert_image_file="<uninitialised>"; 
 	artvert_is_movie= false;
@@ -21,27 +21,30 @@ Artvert::Artvert()
 	advert_name = "unknown advert";
 	title = "untitled artvert";
 	avi_capture = NULL;
-	avi_image = NULL;
 	avi_storage_initialised = false;
 	active = false;
 	
-	printf("loading fallback artvert images from data/...\n");
+	// do we need to initialise?
 	if ( fallback_artvert_images.size()==0 )
 	{
+		printf("loading fallback artvert images from data/...\n");
 		// load fallback images
 		// default, should always be there
-		IplImage* image = avLoadImage(ofToDataPath("fallback_artvert_image.png").c_str());
-		assert( image != NULL && "couldn't load data/fallback_artvert_image.png" );
+		ofImage* image = new ofImage();
+		bool loaded = image->loadImage("fallback_artvert_image.png");
+		assert( loaded && "couldn't load data/fallback_artvert_image.png" );
 		fallback_artvert_images.push_back( image );
 		// optional, fallback_artvert_image_[0..9].png
 		for ( int i=0; i<10; i++ )
 		{
 			char buf[256];
 			sprintf(buf, "fallback_artvert_image_%i.png", i );
-			image = avLoadImage( ofToDataPath( buf ).c_str() );
-			if ( image != NULL )
+			image = new ofImage();
+			loaded = image->loadImage( buf );
+			if ( loaded )
 				fallback_artvert_images.push_back( image );
 		}
+		
 	}
 	
 	which_fallback_image = -1;
@@ -57,15 +60,9 @@ void Artvert::shutdown()
 {	
 	deactivate();
 	
-	if ( artvert_image && which_fallback_image == -1 )
-		cvReleaseImage( &artvert_image );
-	artvert_image = NULL;
 	if ( avi_capture )
 		delete avi_capture;
 	avi_capture = NULL;
-	if ( avi_image )
-		cvReleaseImage( &avi_image );
-	avi_image = NULL;
 }
 
 
@@ -93,20 +90,43 @@ void Artvert::activate()
 		{
 			avi_capture->play();
 			avi_capture->setVolume(0);
+			texture.allocate( avi_capture->width, avi_capture->height, GL_RGB );
 		}
 
 	}
 	else
 	{
-		if ( !artvert_image )
+		if ( !texture.bAllocated() )
 		{
 			printf("loading artvert image '%s'\n", artvert_image_file.c_str() );
-			artvert_image = avLoadImage( artvert_image_file.c_str() );
-		}
-		if ( !artvert_image )
-		{
-			fprintf(stderr, "couldn't load artvert image '%s'\n", artvert_image_file.c_str() );
-			artvert_image = fallback();
+			ofImage artvert_image;
+			artvert_image.setUseTexture(false);
+			if ( artvert_image.loadImage( artvert_image_file.c_str() ) )
+			{	
+				GLuint gl_type;
+				if ( artvert_image.type == OF_IMAGE_COLOR )
+					gl_type = GL_RGB;
+				else if ( artvert_image.type == OF_IMAGE_COLOR_ALPHA )
+					gl_type = GL_RGBA;
+				else
+					gl_type = GL_LUMINANCE;
+				texture.allocate( artvert_image.getWidth(), artvert_image.getHeight(), gl_type );
+				texture.loadData( artvert_image.getPixels(), artvert_image.getWidth(), artvert_image.getHeight(), gl_type );
+			}
+			else
+			{
+				fprintf(stderr, "couldn't load artvert image '%s', using fallback instead\n", artvert_image_file.c_str() );
+				ofImage* fallback_image = fallback();
+				GLuint gl_type;
+				if ( fallback_image->type == OF_IMAGE_COLOR )
+					gl_type = GL_RGB;
+				else if ( fallback_image->type == OF_IMAGE_COLOR_ALPHA )
+					gl_type = GL_RGBA;
+				else
+					gl_type = GL_LUMINANCE;
+				texture.allocate( fallback_image->getWidth(), fallback_image->getHeight(), gl_type );
+				texture.loadData( fallback_image->getPixels(), fallback_image->getWidth(), fallback_image->getHeight(), gl_type );
+			}
 		}
 	}
 	printf("artvert '%s': activated (movie:%c)\n", getDescription().c_str(), artvert_is_movie?'y':'n' );
@@ -123,10 +143,11 @@ void Artvert::deactivate()
 		avi_capture->setVolume(0);
 		avi_capture->stop();
 	}
+	texture.clear();
 	active = false;
 }
 
-IplImage* Artvert::fallback()
+ofImage* Artvert::fallback()
 {
 	if ( which_fallback_image == -1 )
 		which_fallback_image = ofRandom( 0, 0.9999f * fallback_artvert_images.size() );
@@ -134,37 +155,47 @@ IplImage* Artvert::fallback()
 }	
 
 
-IplImage* Artvert::getArtvertImage()
+void Artvert::drawArtvert( float fade, const vector<float>& corners )
 {
+	ofTexture* the_texture;
 	if ( artvert_is_movie )
 	{
 		if ( !avi_capture || avi_capture->width == 0 )
+			the_texture = &fallback()->getTextureReference();
+		else
 		{
-			return fallback();
+			avi_capture->update();
+			texture.loadData( avi_capture->getPixels(), avi_capture->width, avi_capture->height, GL_RGB );
+			the_texture = &texture;
 		}
-
-		// get the next frame
-		IplImage* avi_frame = avGetFrame( avi_capture );
-		
-		if ( avi_image == 0 )
-			avi_image = cvCreateImage( cvGetSize(avi_frame), avi_frame->depth, avi_frame->nChannels );
-		cvCopy( avi_frame, avi_image );
-		avi_image->origin = avi_frame->origin;
-		GLenum format = IsBGR(avi_image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
-		
-		if (!avi_storage_initialised)
-		{
-			glGenTextures(1, &imageID);
-			glBindTexture(GL_TEXTURE_2D, imageID);
-			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-			avi_storage_initialised=true;
-		}
-		return avi_image;
 	}
 	else
 	{
-		return artvert_image;
+		the_texture = &texture;
 	}
+	
+	the_texture->bind();
+	ofPoint texcoord, vec;
+	glBegin(GL_QUADS);
+	glColor4f(1.0, 1.0, 1.0, fade);
+	texcoord = the_texture->getCoordFromPercent( 0, 0 );
+	vec.set( corners[0], corners[1] );
+	glTexCoord2f( texcoord.x, texcoord.y );
+	glVertex3f( vec.x, vec.y, 0 );
+	texcoord = the_texture->getCoordFromPercent( 1, 0 );
+	vec.set( corners[2], corners[3] );
+	glTexCoord2f( texcoord.x, texcoord.y );
+	glVertex3f( vec.x, vec.y, 0 );
+	texcoord = the_texture->getCoordFromPercent( 1, 1 );
+	vec.set( corners[4], corners[5] );
+	glTexCoord2f( texcoord.x, texcoord.y );
+	glVertex3f( vec.x, vec.y, 0 );
+	texcoord = the_texture->getCoordFromPercent( 0, 1 );
+	vec.set( corners[6], corners[7] );
+	glTexCoord2f( texcoord.x, texcoord.y );
+	glVertex3f( vec.x, vec.y, 0 );
+	glEnd();
+	the_texture->unbind();
 }
 
 void Artvert::setVolume( float volume )
@@ -275,15 +306,16 @@ void ArtvertDrawer::draw( float x, float y, float w, float h )
 	if ( artvert == NULL || !artvert->isActive() ) 
 		return;
 
-	IplImage* artvert_image = artvert->getArtvertImage();
-	if ( artvert_image )
-	{
-		if ( artvert->which_fallback_image != -1 )
-			local_image.clear();
-		else
-			toOfImage( artvert_image, local_image );
-	}
-	local_image.draw( x, y, w, h );
+	vector<float> corners;
+	corners.push_back( x );
+	corners.push_back( y );
+	corners.push_back( x+w );
+	corners.push_back( y );
+	corners.push_back( x+w );
+	corners.push_back( y+h );
+	corners.push_back( x );
+	corners.push_back( y+h );
+	artvert->drawArtvert( 1.0f, corners );
 }
 
 	

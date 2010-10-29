@@ -182,8 +182,7 @@ bool frame_ok=false;
 bool cache_light=false;
 bool dynamic_light=false;
 bool sphere_object=false;
-bool avi_play=false;
-bool avi_play_init=false;
+
 bool lbutton_down = false;
 int mouse_x=0;
 int mouse_y=0;
@@ -214,9 +213,9 @@ int avi_init = 0;
 int augment = 1;
 int cnt=0;
 
-vector<int> roi_vec;
+vector<float> roi_vec;
 CvPoint2D32f *c1 = new CvPoint2D32f[4];
-vector<int> artvert_roi_vec;
+vector<float> artvert_roi_vec;
 
 
 string model_file_list_file = "";
@@ -480,12 +479,12 @@ static void drawTextOnscreen( ofTrueTypeFont& font, string text )
 }
 
 // read in ROI coords from txt file into vector.
-static vector<int>  readROI(const char *filename)
+static vector<float>  readROI(const char *filename)
 {
     cout << filename << endl;
     string l;
     ifstream roi(filename);
-    vector<int> v;
+    vector<float> v;
     int coord;
     char s[10];
     char *s1;
@@ -1055,12 +1054,19 @@ void Artvertiser::setup( int argc, char** argv )
         }
         else if (strcmp(argv[i], "-a")==0)
         {
-			ofVideoPlayer* player = new ofVideoPlayer();
-			player->loadMovie( argv[i+1] );
-			player->play();
-			player->update();
-            avi_capture = player;
-            avi_play=true;
+			if( artvert_list.size() == 0 )
+			{
+				Artvert* a = new Artvert();
+				a->setModelFile( "models/default.bmp" );
+				a->setAdvertName( "cmdline movie artvert" );
+				// store
+				artvert_list_lock.lock();
+				artvert_list.push_back( a );
+				artvert_list_lock.unlock();
+			}
+			artvert_list_lock.lock();
+			artvert_list.back()->setArtvertMovieFile( argv[i+1] );
+			artvert_list_lock.unlock();
         }
         else if (strcmp(argv[i], "-b")==0)
         {
@@ -1725,39 +1731,15 @@ void Artvertiser::drawAugmentation()
 	glDisable(GL_CULL_FACE);
  */
 
-	if (avi_play == true)
-	{
-		//IplImage *avi_frame = 0;
-		IplImage *avi_image = 0;
-		avi_image = avGetFrame( avi_capture );
-		//avi_image = cvCreateImage(cvSize(video_width/2, video_height/2), 8, 3);
-		//cvResize(avi_frame, avi_image, 0);
-		//avi_image->origin = avi_frame->origin;
-		GLenum format = IsBGR(avi_image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
-
-		if (!avi_play_init)
-		{
-			glGenTextures(1, &imageID);
-			glBindTexture(GL_TEXTURE_2D, imageID);
-			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, avi_image->width, avi_image->height, 0, format, GL_UNSIGNED_BYTE, avi_image->imageData);
-			avi_play_init=true;
-		}
-		else
-		{
-			glBindTexture(GL_TEXTURE_2D, imageID);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, avi_image->width, avi_image->height, format, GL_UNSIGNED_BYTE, avi_image->imageData);
-		}
-	}
-	else if (three_d_model_load) 
+	
+	
+	if (three_d_model_load) 
 	{
 		glEnable(GL_DEPTH_TEST);
 		glPushMatrix();
 
-		int posx = artvert_roi_vec[6] - artvert_roi_vec[0];
-		int posy = artvert_roi_vec[3] - artvert_roi_vec[1];
+		float posx = artvert_roi_vec[6] - artvert_roi_vec[0];
+		float posy = artvert_roi_vec[3] - artvert_roi_vec[1];
 
 		glTranslatef(posx,posy,0);
 	    glLights(true);
@@ -1767,39 +1749,18 @@ void Artvertiser::drawAugmentation()
 	}
 	else
 	{
+		glHint(GL_POLYGON_SMOOTH, GL_NICEST);
+		glEnable(GL_POLYGON_SMOOTH);
 		if ( current_artvert_index >= 0 &&
 				current_artvert_index < artvert_list.size() )
 		{
-			glBindTexture(GL_TEXTURE_2D, imageID);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 			// this lock could cause flickering..
 			if ( artvert_list_lock.tryLock() )
 			{
-				IplImage* image = artvert_list.at(current_artvert_index)->getArtvertImage();
-				GLenum format = IsBGR(image->channelSeq) ? GL_BGR_EXT : GL_RGBA;
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->width, image->height, 0, format, GL_UNSIGNED_BYTE, image->imageData);
+				artvert_list.at(current_artvert_index)->drawArtvert( fade, artvert_roi_vec );
 				artvert_list_lock.unlock();
 			}
 		}
-	}
-	if (!three_d_model_load)
-        {
-		glEnable(GL_TEXTURE_2D);
-		glHint(GL_POLYGON_SMOOTH, GL_NICEST);
-		glEnable(GL_POLYGON_SMOOTH);
-		glColor4f(1.0, 1.0, 1.0, fade);
-		glBegin(GL_QUADS);
-			glTexCoord2f(0, 0);
-			glVertex3f(artvert_roi_vec[0], artvert_roi_vec[1], 0);
-			glTexCoord2f(1, 0);
-			glVertex3f(artvert_roi_vec[2], artvert_roi_vec[3], 0);
-			glTexCoord2f(1, 1);
-			glVertex3f(artvert_roi_vec[4], artvert_roi_vec[5], 0);
-			glTexCoord2f(0, 1);
-			glVertex3f(artvert_roi_vec[6], artvert_roi_vec[7], 0);
-		glEnd();
-		glDisable(GL_TEXTURE_2D);
 	}
 
 	// 'label' is a boolean set by the right mouse button and toggles the
