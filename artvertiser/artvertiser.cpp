@@ -528,18 +528,18 @@ static void reshape(int width, int height)
 static void usage(const char *s)
 {
     cerr << "usage:\n" << s
-         << " [-m <model image>] [-m <model image>] ... \n "
-         "  [-ml <model images file .xml>] [-r] [-t] [-g] [-a <path>] [-l] [-vd <num>] [-vs <width> <height>]\n"
+         << " [-m <model image> [-a <path>] [-i <path>]] [-m <model image> [-a <path>] [-i <path>]] ... \n "
+         "  [-ml <model images file .xml>] [-r] [-t] [-g] [-l] [-vd <num>] [-vs <width> <height>]\n"
          "  [-ds <width> <height>] [-fps <fps>] [-binoc [-nofullscreen]]\n\n"
          //"   -a <path>  specify path to AVI (instead of v4l device)\n"
          "   -b <path>  specify path to AVI (instead of v4l device), ignores -vs\n"
          "   -m	 specify model image (may be used multiple times)\n"
+ 		 "   -a <path>  load an AVI movie as an artvert\n"
+		 "   -i <path>  load an image as an artvert\n"
          "   -ml <path>  load model images from <path> (xml) (respects additional -m paths)\n"
          "   -r	 do not load any data\n"
          "   -t	 train a new classifier\n"
          "   -g	 recompute geometric calibration\n"
-         "   -a <path>  load an AVI movie as an artvert\n"
-         "   -i <path>  load an image as an artvert\n"
          "   -l	 rebuild irradiance map from scratch\n"
          "   -vd <num>  video device number (0-n)\n"
          "   -vs <width> <height>  video width and height (default 640x480)\n"
@@ -1065,18 +1065,31 @@ void Artvertiser::setup( int argc, char** argv )
 				artvert_list_lock.unlock();
 			}
 			artvert_list_lock.lock();
-			artvert_list.back()->setArtvertMovieFile( argv[i+1] );
+			artvert_list.back()->setArtvertMovieFile( toAbsolutePath(argv[i+1]) );
 			artvert_list_lock.unlock();
+        }
+		else if (strcmp(argv[i], "-i")==0)
+        {
+			if( artvert_list.size() == 0 )
+			{
+				Artvert* a = new Artvert();
+				a->setModelFile( "models/default.bmp" );
+				a->setAdvertName( "cmdline image artvert" );
+				// store
+				artvert_list_lock.lock();
+				artvert_list.push_back( a );
+				artvert_list_lock.unlock();
+			}
+			artvert_list_lock.lock();
+			artvert_list.back()->setArtvertImageFile( toAbsolutePath(argv[i+1]) );
+			artvert_list_lock.unlock();
+			
         }
         else if (strcmp(argv[i], "-b")==0)
         {
             video_source_is_avi = true;
-            avi_bg_path=toAbsolutePath(argv[i+1]);
+            avi_bg_path = toAbsolutePath(argv[i+1]);
             printf(" -b: loading from avi '%s'\n", avi_bg_path.c_str() );
-        }
-        else if (strcmp(argv[i], "-i")==0)
-        {
-            image_path=toAbsolutePath(argv[i+1]);
         }
         else if ( strcmp(argv[i], "-fps")==0 )
         {
