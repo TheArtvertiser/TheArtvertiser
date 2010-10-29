@@ -1992,7 +1992,7 @@ static void draw()
 		double DESIRED_FRAMERATE = ((is_idling&&!is_recording)?5.0:20.0);
         double elapsed = frame_timer.Update();
 		double remaining = min(0.5, elapsed - 1.0/DESIRED_FRAMERATE);
-		if ( remaining > 0.0 )
+		if ( remaining > 0.1f )
 		{
 			// sleep for the rest
 			char buf[256];
@@ -2000,6 +2000,8 @@ static void draw()
 			screen_message = buf;
 			usleep( 1000.0*1000.0*remaining );
 		}
+		else
+			screen_message = "";
 
         if ( frame_ok )
         {
