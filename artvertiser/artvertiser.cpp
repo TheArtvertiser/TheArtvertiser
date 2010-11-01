@@ -299,19 +299,6 @@ bool light_state = true;
    }
  */
 
-static void glLights(bool state)
-{
-
-    if (state)
-    {
-	    glEnable(GL_LIGHTING);
-    }
-    else
-    {
-	   glDisable (GL_LIGHTING);
-    }
-}
-
 string getSettingsString()
 {
     planar_object_recognizer &detector(multi->cams[current_cam]->detector);
@@ -557,7 +544,7 @@ static void usage(const char *s)
 void Artvertiser::exitHandler()
 {
     printf("in exit_handler\n");
-
+	
 	if ( new_artvert_requested_lock.tryLock() )
 	{
 		saveArtvertXml();
@@ -571,13 +558,13 @@ void Artvertiser::exitHandler()
 		multi->model.abortInteractiveTrain();
 	}
 
-
 	// shutdown detection thread
     if ( detection_thread_running )
     {
         printf("stopping detection\n");
         shutdownDetectionThread();
     }
+	
  	// shutdown serial
     if ( serial_thread_is_running )
     {
@@ -589,10 +576,9 @@ void Artvertiser::exitHandler()
     if ( multi )
     {
         printf("stopping multithread capture\n");
-
-
         multi->cams[0]->shutdownMultiThreadCapture();
     }
+	
     // delete cameras
     if ( multi )
     {
@@ -1319,6 +1305,7 @@ void Artvertiser::setup( int argc, char** argv )
 		artvertfile_lister.allowExt("mpeg");
 		artvertfile_lister.allowExt("264");
 		artvertfile_lister.allowExt("mkv");
+		artvertfile_lister.allowExt("3ds");
 		artvertfile_lister.listDir("artverts/");
 		current_artvertfile_lister = control_panel.addFileLister("select new artvert file:", &artvertfile_lister, ofGetWidth()/2-40, 50);
 
@@ -1738,110 +1725,17 @@ void Artvertiser::drawAugmentation()
 	// multiply texture colour by surface colour of poly
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-/*
-
-	glEnable(GL_DEPTH_TEST);
-	glDisable(GL_CULL_FACE);
- */
-
 	
-	
-	if (three_d_model_load) 
+	if ( current_artvert_index >= 0 &&
+			current_artvert_index < artvert_list.size() )
 	{
-		glEnable(GL_DEPTH_TEST);
-		glPushMatrix();
-
-		float posx = artvert_roi_vec[6] - artvert_roi_vec[0];
-		float posy = artvert_roi_vec[3] - artvert_roi_vec[1];
-
-		glTranslatef(posx,posy,0);
-	    glLights(true);
-		modelLoader.draw();
-		glPopMatrix();
-		glDisable(GL_DEPTH_TEST);
-	}
-	else
-	{
-		glHint(GL_POLYGON_SMOOTH, GL_NICEST);
-		glEnable(GL_POLYGON_SMOOTH);
-		if ( current_artvert_index >= 0 &&
-				current_artvert_index < artvert_list.size() )
+		// this lock could cause flickering..
+		if ( artvert_list_lock.tryLock() )
 		{
-			// this lock could cause flickering..
-			if ( artvert_list_lock.tryLock() )
-			{
-				artvert_list.at(current_artvert_index)->drawArtvert( fade, artvert_roi_vec );
-				artvert_list_lock.unlock();
-			}
+			artvert_list.at(current_artvert_index)->drawArtvert( fade, artvert_roi_vec );
+			artvert_list_lock.unlock();
 		}
 	}
-
-	// 'label' is a boolean set by the right mouse button and toggles the
-	//in-scene artvert label.
-
-	if (label)
-	{
-		printf("drawing label\n");
-		glBegin(GL_LINE_LOOP);
-		glColor3f(0.0, 1.0, 0.0);
-		glVertex3f(roi_vec[0]-10, roi_vec[1]-10, 0);
-		glVertex3f(roi_vec[2]+10, roi_vec[3]-10, 0);
-		glVertex3f(roi_vec[4]+10, roi_vec[5]+10, 0);
-		glVertex3f(roi_vec[6]-10, roi_vec[7]+10, 0);
-		glVertex3f(roi_vec[0]-10, roi_vec[1]-10, 0);
-		glEnd();
-
-		glTranslatef(roi_vec[2]+12, roi_vec[3], 0);
-		glRotatef(180, 1.0, 0.0, 0.0);
-		glRotatef(-45, 0.0, 1.0, 0.0);
-		glColor4f(0.0, 1.0, 0.0, 1);
-
-		glBegin(GL_LINE_LOOP);
-		glVertex3f(0, 10, -.2);
-		glVertex3f(150, 10, -.2);
-		glVertex3f(150, -60, -.2);
-		glVertex3f(0, -60, -.2);
-		glEnd();
-
-		glColor4f(0.0, 1.0, 0.0, .5);
-
-		glBegin(GL_QUADS);
-		glVertex3f(0, 10, -.2);
-		glVertex3f(150, 10, -.2);
-		glVertex3f(150, -60, -.2);
-		glVertex3f(0, -60, -.2);
-		glEnd();
-
-/*		// render the text in the label
-		glColor4f(1.0, 1.0, 1.0, 1);
-		drawTextOnscreen( font_12, artverts[cnt].artvert );
-		glTranslatef(0, -12, 0);
-		drawTextOnscreen( font_12, artverts[cnt].date );
-		glTranslatef(0, -12, 0);
-		drawTextOnscreen( font_12, artverts[cnt].author );
-		glTranslatef(0, -12, 0);
-		drawTextOnscreen( font_12, artverts[cnt].advert );
-		glTranslatef(0, -12, 0);
-		drawTextOnscreen( font_12, artverts[cnt].street );
- */
-	}
-
-
-	/*cvReleaseMat(&world);
-	{
-		CvScalar c =cvGet2D(multi->model.image, multi->model.image->height/2, multi->model.image->width/2);
-		glColor3d(c.val[2], c.val[1], c.val[0]);
-	}
-	if (multi->model.map.isReady())
-		multi->model.map.disableShader();
-	else
-		glDisable(GL_LIGHTING);*/
-/*
-	if ( avi_play == true  )
-	{
-		cvReleaseImage(&avi_image);
-		cvReleaseImage(&avi_frame);
-	}*/
 
 
 }

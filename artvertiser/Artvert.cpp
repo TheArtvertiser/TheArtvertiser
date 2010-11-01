@@ -16,12 +16,11 @@ Artvert::Artvert()
 { 
 	model_file="<uninitialised>"; 
 	artvert_image_file="<uninitialised>"; 
-	artvert_is_movie= false;
+	type = AV_NONE;
 	artist = "unknown artist";
 	advert_name = "unknown advert";
 	title = "untitled artvert";
 	avi_capture = NULL;
-	avi_storage_initialised = false;
 	active = false;
 	
 	// do we need to initialise?
@@ -72,7 +71,7 @@ void Artvert::activate()
 	if ( active )
 		return;
 	
-	if ( artvert_is_movie )
+	if ( type == AV_MOVIE )
 	{
 		if ( avi_capture == NULL )
 		{
@@ -80,7 +79,6 @@ void Artvert::activate()
 			if ( avi_capture->loadMovie( artvert_movie_file.c_str() ) )
 			{
 				avi_capture->setLoopState( OF_LOOP_NORMAL );
-				avi_storage_initialised = false;
 			}
 			else
 				ofLog( OF_LOG_ERROR, "failed to load movie '%s'", artvert_movie_file.c_str() );
@@ -94,7 +92,7 @@ void Artvert::activate()
 		}
 
 	}
-	else
+	else if ( type == AV_IMAGE )
 	{
 		if ( !texture.bAllocated() )
 		{
@@ -129,7 +127,16 @@ void Artvert::activate()
 			}
 		}
 	}
-	printf("artvert '%s': activated (movie:%c)\n", getDescription().c_str(), artvert_is_movie?'y':'n' );
+	else if ( type == AV_3DS )
+	{
+		model_loader.loadModel(artvert_3ds_file, 30);
+		model_loader.setRotation(0, 90, 1, 0, 0);
+		model_loader.setRotation(1, 180, 0, 0, 1);
+		model_loader.setScale(0.9, 0.9, 0.9);
+		model_loader.setPosition(ofGetWidth()/2, ofGetHeight()/2, 0);
+	}
+	
+	printf("artvert '%s': activated\n", getDescription().c_str() );
 	active = true;
 }
 
@@ -138,10 +145,14 @@ void Artvert::deactivate()
 	printf("artvert '%s': deactivate() called\n", getDescription().c_str() );
 	if ( !active )
 		return; 
-	if ( artvert_is_movie && avi_capture != NULL && avi_capture->width != 0 )
+	if ( type == AV_MOVIE && avi_capture != NULL && avi_capture->width != 0 )
 	{
 		avi_capture->setVolume(0);
 		avi_capture->stop();
+	}
+	else if ( type == AV_3DS )
+	{
+		// seems to be nothing to do
 	}
 	texture.clear();
 	active = false;
@@ -155,52 +166,94 @@ ofImage* Artvert::fallback()
 }	
 
 
-void Artvert::drawArtvert( float fade, const vector<float>& corners )
+void Artvert::drawArtvert( float fade, const vector<float>& corners, bool for_preview )
 {
 	ofTexture* the_texture;
-	if ( artvert_is_movie )
+	if ( type == AV_MOVIE || type == AV_IMAGE )
 	{
-		if ( !avi_capture || avi_capture->width == 0 )
-			the_texture = &fallback()->getTextureReference();
-		else
+		if ( type == AV_MOVIE )
 		{
-			avi_capture->update();
-			texture.loadData( avi_capture->getPixels(), avi_capture->width, avi_capture->height, GL_RGB );
+			if ( !avi_capture || avi_capture->width == 0 )
+				the_texture = &fallback()->getTextureReference();
+			else
+			{
+				avi_capture->update();
+				texture.loadData( avi_capture->getPixels(), avi_capture->width, avi_capture->height, GL_RGB );
+				the_texture = &texture;
+			}
+		}
+		else if ( type == AV_IMAGE )
+		{
 			the_texture = &texture;
 		}
+		else if ( type == AV_3DS )
+		{
+			glShadeModel (GL_SMOOTH);
+			glColorMaterial (GL_FRONT_AND_BACK, GL_DIFFUSE);
+			glEnable (GL_COLOR_MATERIAL);
+		}
+		
+		glHint(GL_POLYGON_SMOOTH, GL_NICEST);
+		glEnable(GL_POLYGON_SMOOTH);
+		the_texture->bind();
+		ofPoint texcoord, vec;
+		glBegin(GL_QUADS);
+		glColor4f(1.0, 1.0, 1.0, fade);
+		texcoord = the_texture->getCoordFromPercent( 0, 0 );
+		vec.set( corners[0], corners[1] );
+		glTexCoord2f( texcoord.x, texcoord.y );
+		glVertex3f( vec.x, vec.y, 0 );
+		texcoord = the_texture->getCoordFromPercent( 1, 0 );
+		vec.set( corners[2], corners[3] );
+		glTexCoord2f( texcoord.x, texcoord.y );
+		glVertex3f( vec.x, vec.y, 0 );
+		texcoord = the_texture->getCoordFromPercent( 1, 1 );
+		vec.set( corners[4], corners[5] );
+		glTexCoord2f( texcoord.x, texcoord.y );
+		glVertex3f( vec.x, vec.y, 0 );
+		texcoord = the_texture->getCoordFromPercent( 0, 1 );
+		vec.set( corners[6], corners[7] );
+		glTexCoord2f( texcoord.x, texcoord.y );
+		glVertex3f( vec.x, vec.y, 0 );
+		glEnd();
+		the_texture->unbind();
 	}
 	else
 	{
-		the_texture = &texture;
-	}
-	
-	the_texture->bind();
-	ofPoint texcoord, vec;
-	glBegin(GL_QUADS);
-	glColor4f(1.0, 1.0, 1.0, fade);
-	texcoord = the_texture->getCoordFromPercent( 0, 0 );
-	vec.set( corners[0], corners[1] );
-	glTexCoord2f( texcoord.x, texcoord.y );
-	glVertex3f( vec.x, vec.y, 0 );
-	texcoord = the_texture->getCoordFromPercent( 1, 0 );
-	vec.set( corners[2], corners[3] );
-	glTexCoord2f( texcoord.x, texcoord.y );
-	glVertex3f( vec.x, vec.y, 0 );
-	texcoord = the_texture->getCoordFromPercent( 1, 1 );
-	vec.set( corners[4], corners[5] );
-	glTexCoord2f( texcoord.x, texcoord.y );
-	glVertex3f( vec.x, vec.y, 0 );
-	texcoord = the_texture->getCoordFromPercent( 0, 1 );
-	vec.set( corners[6], corners[7] );
-	glTexCoord2f( texcoord.x, texcoord.y );
-	glVertex3f( vec.x, vec.y, 0 );
-	glEnd();
-	the_texture->unbind();
+		if ( for_preview )
+		{
+			ofPushStyle();
+			ofSetColor( 255, 255, 255, 255 );
+			float posx = (corners[0]+corners[2])/2 - 50;
+			float posy = (corners[1]+corners[5])/2;
+			ofDrawBitmapString( "(.3ds model)", posx, posy );
+			ofPopStyle();
+		}
+		else
+		{
+			glShadeModel (GL_SMOOTH);
+			glColorMaterial (GL_FRONT_AND_BACK, GL_DIFFUSE);
+			glEnable (GL_COLOR_MATERIAL);
+			glEnable(GL_DEPTH_TEST);
+			glPushMatrix();
+
+			float posx = corners[6] - corners[0];
+			float posy = corners[3] - corners[1];
+			glTranslatef(posx,posy,0);
+			
+			glEnable( GL_LIGHTING );
+			model_loader.draw();
+			glDisable( GL_LIGHTING );
+			glPopMatrix();
+			glDisable(GL_DEPTH_TEST);
+		}
+	}		
+		
 }
 
 void Artvert::setVolume( float volume )
 {
-	if ( artvert_is_movie && avi_capture != NULL && avi_capture->width != 0 )
+	if ( type == AV_MOVIE && avi_capture != NULL && avi_capture->width != 0 )
 	{
 		int passed_volume = volume*255;
 		avi_capture->setVolume( passed_volume );
@@ -238,16 +291,26 @@ void Artvert::loadArtvertsFromXml( ofxXmlSettings& data, vector<Artvert*>& resul
 		if ( data.getNumTags("movie_filename") != 0 )
 		{
 			// load a movie
-			a->artvert_is_movie = true;
 			a->setArtvertMovieFile( data.getValue("movie_filename", "artverts/artvertmovie1.mp4" ) );
+		}
+		else if ( data.getNumTags("threeds_filename") != 0 )
+		{
+			// load a 3ds file
+			a->setArtvert3dsFile( data.getValue("threeds_filename", "artverts/artvert3d1.3ds" ) );
 		}
 		else
 		{
 			// load an image
 			a->setArtvertImageFile( data.getValue( "image_filename", "artverts/artvert1.png" ) );
 		}
-		printf("     %i: %s:%s:%s\n", j, a->title.c_str(), a->artist.c_str(),
-			   a->artvert_is_movie?(a->getArtvertMovieFile()+"( movie)").c_str() : a->getArtvertImageFile().c_str() );
+		string artvert_file;
+		if ( a->type == AV_MOVIE )
+			artvert_file = a->getArtvertMovieFile() + " (movie)";
+		else if ( a->type == AV_3DS )
+			artvert_file = a->getArtvert3dsFile() + " (.3ds)";
+		else
+			artvert_file = a->getArtvertImageFile() + " (image)";
+		printf("     %i: %s:%s:%s\n", j, a->title.c_str(), a->artist.c_str(), artvert_file.c_str() );
 		
 		results.push_back( a );
 		data.popTag();
@@ -267,9 +330,13 @@ void Artvert::saveArtvertToXml( ofxXmlSettings& data, Artvert* a, bool save_mode
 	data.pushTag( "artvert", index );
 	data.addValue( "title", a->title );
 	data.addValue( "artist", a->artist );
-	if ( a->artvert_is_movie )
+	if ( a->type == AV_MOVIE )
 	{
 		data.addValue( "movie_filename", fromOfDataPath( a->getArtvertMovieFile() ) );
+	}
+	else if ( a->type == AV_3DS )
+	{
+		data.addValue( "threeds_filename", fromOfDataPath( a->getArtvert3dsFile() ) );
 	}
 	else
 	{
@@ -283,8 +350,13 @@ void Artvert::changeArtvertFile( string new_filename )
 	bool was_active = active;
 	// clear out the old, if any
 	shutdown();
+	if ( new_filename.size() > 4 && new_filename.substr( new_filename.size()-4, 4 ) == ".3ds" )
+	{
+		// it's a 3ds model
+		setArtvert3dsFile( new_filename );
+	}
 	// use FReeImage to tell us what kind of file it is..
-	if ( FreeImage_GetFileType( ofToDataPath( new_filename ).c_str() ) == FIF_UNKNOWN )
+	else if ( FreeImage_GetFileType( ofToDataPath( new_filename ).c_str() ) == FIF_UNKNOWN )
 	{
 		// it's a movie
 		setArtvertMovieFile( new_filename );
@@ -299,6 +371,17 @@ void Artvert::changeArtvertFile( string new_filename )
 		
 }
 
+
+string Artvert::getArtvertFile()
+{ 
+	
+	if ( type == AV_MOVIE ) 
+		return getArtvertMovieFile(); 
+	else if ( type == AV_IMAGE )
+		return getArtvertImageFile(); 
+	else
+		return getArtvert3dsFile();
+}
 
 
 void ArtvertDrawer::draw( float x, float y, float w, float h )
@@ -315,7 +398,7 @@ void ArtvertDrawer::draw( float x, float y, float w, float h )
 	corners.push_back( y+h );
 	corners.push_back( x );
 	corners.push_back( y+h );
-	artvert->drawArtvert( 1.0f, corners );
+	artvert->drawArtvert( 1.0f, corners, /*preview*/true );
 }
 
 	
