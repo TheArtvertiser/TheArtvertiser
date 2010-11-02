@@ -177,6 +177,9 @@
 		<Unit filename="..\..\..\addons\ofxXmlSettings\libs\tinyxmlparser.cpp" />
 		<Unit filename="..\..\..\addons\ofxXmlSettings\src\ofxXmlSettings.cpp" />
 		<Unit filename="..\..\..\addons\ofxXmlSettings\src\ofxXmlSettings.h" />
+		<Unit filename="artvertiser.rc">
+			<Option compilerVar="WINDRES" />
+		</Unit>
 		<Unit filename="artvertiser\Artvert.cpp" />
 		<Unit filename="artvertiser\Artvert.h" />
 		<Unit filename="artvertiser\ArtvertList.cpp" />
