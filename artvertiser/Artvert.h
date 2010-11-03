@@ -33,7 +33,7 @@ public:
 
 	/// if skip_data_path_stuff is true, don't do an ofToDataPath processing on the path f
 	void setModelFile( string f, bool skip_data_path_stuff=false ) { model_file = skip_data_path_stuff ? f : ofToDataPath( f ); }
-	/// programatically determine if it's a movie or not
+	/// programatically determine the file type
 	void changeArtvertFile( string new_file );
 	void setArtvertImageFile( string f ) { assert(!active); artvert_image_file = ofToDataPath( f ); type = AV_IMAGE; }
 	void setArtvertMovieFile( string f ) { assert(!active); artvert_movie_file = ofToDataPath( f ); type = AV_MOVIE; }

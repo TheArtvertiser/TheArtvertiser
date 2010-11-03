@@ -37,6 +37,7 @@ MultiThreadCapture* MultiThreadCaptureManager::getCaptureForCam( ofBaseVideo* ca
 {
     MultiThreadCapture* result = 0;
     lock.lock();
+	
     if ( capture_map.find( cam ) != capture_map.end() )
         result = capture_map[cam];
     lock.unlock();
@@ -165,6 +166,9 @@ void MultiThreadCapture::stopCapture()
 
     // stop the capture thread
     FThread::StopThread();
+	
+	// shutdown the capture device
+	capture->close();
 
     new_draw_frame_available=false;
     new_detect_frame_available=false;

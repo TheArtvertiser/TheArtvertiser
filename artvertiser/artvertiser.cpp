@@ -573,10 +573,10 @@ void Artvertiser::exitHandler()
     }
 
     // shutdown capture
-    if ( multi )
+    if ( multi && current_cam >= 0 )
     {
         printf("stopping multithread capture\n");
-        multi->cams[0]->shutdownMultiThreadCapture();
+        multi->cams[current_cam]->shutdownMultiThreadCapture();
     }
 	
     // delete cameras
@@ -695,6 +695,11 @@ bool loadOrTrain( int new_index )
 {
 	printf("entered loadOrTrain(%i)\n", new_index );
     // fetch data
+	if ( !multi || current_cam < 0 )
+	{
+		setCurrentArtvertIndex(-1 );
+		return false;
+	}
 	if ( new_index == -1 )
 	{
 		multi->clear();
@@ -702,7 +707,7 @@ bool loadOrTrain( int new_index )
 		return false;
 	}
 	artvert_list_lock.lock();
-    if ( new_index < 0 || new_index >= artvert_list.size() )
+    if ( new_index < 0 || new_index >= artvert_list.size()  )
     {
         fprintf(stderr,"loadOrTrain: invalid index %i (artvert_list has %i members)\n", new_index, (int)artvert_list.size() );
 		artvert_list_lock.unlock();
@@ -824,6 +829,7 @@ void Artvertiser::keyPressed(int c )
 	case 'S':
 		show_status = !show_status;
 		break;
+			
 	case 'p':
 		show_profile_results = true;
 		break;
@@ -847,7 +853,7 @@ void Artvertiser::keyPressed(int c )
 		break;
 	}
 
-	if ( multi && show_status )
+	if ( multi && current_cam >= 0 && show_status )
 	{
 		planar_object_recognizer &detector(multi->cams[current_cam]->detector);
 		bool something = true;
@@ -1228,11 +1234,11 @@ void Artvertiser::setup( int argc, char** argv )
 
     multi = new MultiGrab();
 
-    if( multi->init( avi_bg_path.c_str(), video_width, video_height, v4l_device,
-                    detect_width, detect_height, desired_capture_fps ) ==0)
+    if( 0==multi->init( avi_bg_path.c_str(), video_width, video_height, v4l_device,
+                    detect_width, detect_height, desired_capture_fps ) )
     {
-        cerr <<"Initialization error.\n";
-		exit(1);
+        cerr <<"couldn't init camera\n";
+		current_cam = -1;
     }
 
 
@@ -1401,6 +1407,7 @@ static bool drawBackground(IplTexture *tex)
 static void drawDetectedPoints(int frame_width, int frame_height)
 {
     if (!multi) return;
+	if (current_cam == -1 ) return;
 
     planar_object_recognizer &detector(multi->cams[current_cam]->detector);
 
@@ -1651,7 +1658,7 @@ void Artvertiser::drawAugmentation()
 	//printf(". now we want interpolated pose for %f\n", raw_frame_timestamp.ToSeconds() );
 	if ( track_kalman )
 		matrix_tracker.getInterpolatedPoseKalman( world,
-			multi->cams[0]->getFrameIndexForTime( raw_frame_timestamp ) );
+			multi->cams[current_cam]->getFrameIndexForTime( raw_frame_timestamp ) );
 	else
 		matrix_tracker.getInterpolatedPose( world, raw_frame_timestamp );
 
@@ -1710,7 +1717,7 @@ void Artvertiser::drawAugmentation()
 	// translate into OpenGL PROJECTION and MODELVIEW matrices
 	PerspectiveCamera c;
 	//c.loadTdir(a_proj, multi->cams[0]->frame->width, multi->cams[0]->frame->height);
-	c.loadTdir(a_proj, multi->cams[0]->detect_width, multi->cams[0]->detect_height );
+	c.loadTdir(a_proj, multi->cams[current_cam]->detect_width, multi->cams[current_cam]->detect_height );
 	c.flip();
 	c.setPlanes(100,1000000); // near/far clip planes
 	cvReleaseMat(&proj);
@@ -2107,7 +2114,11 @@ static void*
 				continue;
 
 			bool frame_retrieved = false;
-			bool frame_retrieved_and_ok = multi->cams[0]->detect( frame_retrieved, frame_ok );
+			bool frame_retrieved_and_ok;
+			if ( multi && current_cam>= 0 )
+				frame_retrieved_and_ok = multi->cams[current_cam]->detect( frame_retrieved, frame_ok );
+			else
+				frame_retrieved_and_ok = false;
 			//printf( "detect returned frame_ok of %c\n", frame_ok?'y':'n' );
 			if( frame_retrieved )
 			{
@@ -2125,9 +2136,9 @@ static void*
 				break;
 
 			multi->model.augm.Clear();
-			if (multi->cams[0]->detector.object_is_detected)
+			if (multi->cams[current_cam]->detector.object_is_detected)
 			{
-				add_detected_homography(0, multi->cams[0]->detector, multi->model.augm);
+				add_detected_homography(0, multi->cams[current_cam]->detector, multi->model.augm);
 			}
 			else
 			{
@@ -2148,10 +2159,10 @@ static void*
 
 				// continue to track
 				if ( track_kalman )
-					matrix_tracker.addPoseKalman( mat, multi->cams[0]->getFrameIndexForTime(
+					matrix_tracker.addPoseKalman( mat, multi->cams[current_cam]->getFrameIndexForTime(
 							multi->cams[0]->getLastProcessedFrameTimestamp() ) );
 				else
-					matrix_tracker.addPose( mat, multi->cams[0]->getLastProcessedFrameTimestamp() );
+					matrix_tracker.addPose( mat, multi->cams[current_cam]->getLastProcessedFrameTimestamp() );
 
 				cvReleaseMat(&mat);
 
@@ -2190,36 +2201,38 @@ void Artvertiser::update()
 
     PROFILE_SECTION_PUSH("getting last frame");
 
-    if ( delay_video )
-    {
-        IplImage* captured_frame;
-        multi->cams[current_cam]->getLastDrawFrame( &captured_frame, &raw_frame_timestamp );
+	if ( current_cam != -1 )
+	{
+		if ( delay_video )
+		{
+			IplImage* captured_frame;
+			multi->cams[current_cam]->getLastDrawFrame( &captured_frame, &raw_frame_timestamp );
 
-        while ( frameRingBuffer.size()<VIDEO_DELAY_FRAMES )
-        {
-            IplImage* first_frame =  cvCreateImage( cvGetSize( captured_frame ), captured_frame->depth, captured_frame->nChannels );
-            cvCopy( captured_frame, first_frame );
-            frameRingBuffer.push_back( make_pair( first_frame, raw_frame_timestamp ) );
-        }
+			while ( frameRingBuffer.size()<VIDEO_DELAY_FRAMES )
+			{
+				IplImage* first_frame =  cvCreateImage( cvGetSize( captured_frame ), captured_frame->depth, captured_frame->nChannels );
+				cvCopy( captured_frame, first_frame );
+				frameRingBuffer.push_back( make_pair( first_frame, raw_frame_timestamp ) );
+			}
 
-        IplImage* ringbuffered = frameRingBuffer.front().first;
-        cvCopy( captured_frame, ringbuffered );
-        frameRingBuffer.push_back( make_pair( ringbuffered, raw_frame_timestamp ) );
+			IplImage* ringbuffered = frameRingBuffer.front().first;
+			cvCopy( captured_frame, ringbuffered );
+			frameRingBuffer.push_back( make_pair( ringbuffered, raw_frame_timestamp ) );
 
-        frameRingBuffer.pop_front();
+			frameRingBuffer.pop_front();
 
-        IplImage* raw_frame = frameRingBuffer.front().first;
-        raw_frame_timestamp = frameRingBuffer.front().second;
+			IplImage* raw_frame = frameRingBuffer.front().first;
+			raw_frame_timestamp = frameRingBuffer.front().second;
 
-        raw_frame_texture->setImage(raw_frame);
-    }
-    else
-    {
-        IplImage* raw_frame = raw_frame_texture->getImage();
-        multi->cams[current_cam]->getLastDrawFrame( &raw_frame, &raw_frame_timestamp );
-        raw_frame_texture->setImage(raw_frame);
-    }
-
+			raw_frame_texture->setImage(raw_frame);
+		}
+		else
+		{
+			IplImage* raw_frame = raw_frame_texture->getImage();
+			multi->cams[current_cam]->getLastDrawFrame( &raw_frame, &raw_frame_timestamp );
+			raw_frame_texture->setImage(raw_frame);
+		}
+	}
 
 
     PROFILE_SECTION_POP();
@@ -2653,7 +2666,7 @@ void Artvertiser::drawMenu()
 	if ( !menu_is_showing )
 	{
 		// draw switching text?
-		if ( new_artvert_switching_in_progress || geom_calib_in_progress || detection_thread_should_exit )
+		if ( current_cam == -1 || new_artvert_switching_in_progress || geom_calib_in_progress || detection_thread_should_exit )
 		{
 			glMatrixMode(GL_PROJECTION);
 			glLoadIdentity();
@@ -2668,36 +2681,37 @@ void Artvertiser::drawMenu()
 				drawTextOnscreen( font_24, "shutting down..." );
 				model_status_label->setText("shutting down..." );
 			}
-			else
+			else if ( multi->model.isLearnInProgress() )
 			{
-
-				if ( multi->model.isLearnInProgress() )
+				// must manually tokenize
+				char message[2048];
+				strncpy( message, multi->model.getLearnProgressMessage(), 2048 );
+				char* ptr = strtok( message,"\n");
+				while( ptr != NULL)
 				{
-					// must manually tokenize
-					char message[2048];
-					strncpy( message, multi->model.getLearnProgressMessage(), 2048 );
-					char* ptr = strtok( message,"\n");
-					while( ptr != NULL)
-					{
-						drawTextOnscreen( font_24, ptr );
-						glTranslatef(0, -26, 0 );
-						ptr = strtok( NULL, "\n" );
-					}
-					model_status_label->setText( multi->model.getLearnProgressMessage() );
-				}
-				else if ( geom_calib_in_progress )
-				{
-					drawTextOnscreen( font_24, "calibrating camera" );
+					drawTextOnscreen( font_24, ptr );
 					glTranslatef(0, -26, 0 );
-					string message = geom_calib_message.getText();
-					drawTextOnscreen( font_24, message.c_str() );
-					model_status_label->setText( string("calibrating camera: ")+message );
+					ptr = strtok( NULL, "\n" );
 				}
-				else
-				{
-					model_status_label->setText( "changing_artvert..." );
-					drawTextOnscreen (font_24, "changing artvert..." );
-				}
+				model_status_label->setText( multi->model.getLearnProgressMessage() );
+			}
+			else if ( geom_calib_in_progress )
+			{
+				drawTextOnscreen( font_24, "calibrating camera" );
+				glTranslatef(0, -26, 0 );
+				string message = geom_calib_message.getText();
+				drawTextOnscreen( font_24, message.c_str() );
+				model_status_label->setText( string("calibrating camera: ")+message );
+			}
+			else if ( new_artvert_switching_in_progress )
+			{
+				model_status_label->setText( "changing_artvert..." );
+				drawTextOnscreen (font_24, "changing artvert..." );
+			}
+			else if ( current_cam == -1 )
+			{
+				model_status_label->setText( "no camera found!" );
+				drawTextOnscreen (font_24, "no camera found!" );
 			}
 
 		}
