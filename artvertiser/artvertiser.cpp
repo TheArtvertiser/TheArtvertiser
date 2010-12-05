@@ -1290,7 +1290,11 @@ void Artvertiser::setup( int argc, char** argv )
 		// add new
 		add_model_toggle = control_panel.addToggle( " add new model", "add_new_tgl", false );
 		// geometry training
-		retrain_geometry_toggle = control_panel.addToggle(" calibrate camera geometry", "retrain_geometry_tgl", false );
+		
+		if (redo_geom)
+		{
+			retrain_geometry_toggle = control_panel.addToggle(" calibrate camera geometry", "retrain_geometry_tgl", false );
+		}
 
 		// right column: current artvert
 		control_panel.setWhichColumn( 1 );
@@ -2553,18 +2557,21 @@ void Artvertiser::update()
 			artvert_list_lock.unlock();
 		}
 
-		// retrain geometry?
-		if ( !new_artvert_requested && retrain_geometry_toggle->value.getValueB() )
+		if (redo_geom)
 		{
-			// clear
-			retrain_geometry_toggle->setValue( false, 0 );
-			// hide UI
-			control_panel.setMinimized( true );
-			control_panel.hide();
+			// retrain geometry?
+			if ( !new_artvert_requested && retrain_geometry_toggle->value.getValueB() )
+			{
+				// clear
+				retrain_geometry_toggle->setValue( false, 0 );
+				// hide UI
+				control_panel.setMinimized( true );
+				control_panel.hide();
 
-			// request
-			printf("retrain_geometry_toggle was true\n");
-			redo_geometry_requested = true;
+				// request
+				printf("retrain_geometry_toggle was true\n");
+				redo_geometry_requested = true;
+			}
 		}
 
 
