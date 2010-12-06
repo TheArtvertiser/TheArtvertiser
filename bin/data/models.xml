@@ -1,16 +1,12 @@
 <artverts>
     <advert>
         <model_filename>models/default.bmp</model_filename>
-        <name>Akihabara</name>
+        <name>unknown advert</name>
         <artvert>
-            <title>Your Art Here</title>
-            <artist>The Artvertiser Team</artist>
+            <title>untitled artvert</title>
+            <artist>unknown artist</artist>
             <image_filename>artverts/artvert1.png</image_filename>
         </artvert>
-        <artvert>
-            <title>A Tui Movie Instead</title>
-            <artist>Damian</artist>
-            <movie_filename>artverts/tui.mp4</movie_filename>
-        </artvert>
     </advert>
+    <advert>
 </artverts>
