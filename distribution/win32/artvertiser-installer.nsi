@@ -3,7 +3,7 @@
 ; HM NIS Edit Wizard helper defines
 !define PRODUCT_NAME "The Artvertiser"
 !define PRODUCT_VERSION "0.92"
-!define PRODUCT_PUBLISHER "The Artevertiser Team"
+!define PRODUCT_PUBLISHER "The Artvertiser Team"
 !define PRODUCT_WEB_SITE "http://theartvertiser.com"
 !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\TheArtvertiser.exe"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
@@ -20,7 +20,7 @@
 ; Welcome page
 !insertmacro MUI_PAGE_WELCOME
 ; License page
-!insertmacro MUI_PAGE_LICENSE "Downloads\gpl-3.0.txt"
+!insertmacro MUI_PAGE_LICENSE "gpl-3.0.txt"
 ; Directory page
 !insertmacro MUI_PAGE_DIRECTORY
 ; Instfiles page
