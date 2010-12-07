@@ -13,7 +13,7 @@
 				<Option working_dir="bin" />
 				<Option object_output="obj\release" />
 				<Option external_deps="..\..\..\libs\openFrameworksCompiled\lib\win_cb\openFrameworks.lib;" />
-				<Option type="1" />
+				<Option type="0" />
 				<Option compiler="gcc" />
 				<Option projectLinkerOptionsRelation="2" />
 				<Compiler>
@@ -84,7 +84,6 @@
 			<Add option="../../../libs/freetype/lib/win_cb/libfreetype.a" />
 			<Add option="../../../libs/glut/lib/win_cb/libglut.a" />
 			<Add option="../../../libs/videoInput/lib/win_cb/videoInputLib.a" />
-			<Add option="../../../libs/fmodex/lib/win_cb/libfmodex.a" />
 			<Add option="../../../libs/glee/lib/win_cb/GLee.lib" />
 			<Add option="../../../libs/glu/lib/win_cb/glu32.lib" />
 			<Add option="../../../libs/poco/lib/win_cb/libPocoNetmt.a" />

@@ -13,19 +13,21 @@
 #include "ofxControlPanel.h"
 #include "Artvert.h"
 
+#define ARTVERTISER_VERSION "0.92"
+
 class Artvertiser
 {
 public:
 	Artvertiser();
 	~Artvertiser();
-	
+
 	void setup( int argc, char** argv );
 	void update();
 	void draw();
-	
+
 	/// clean things up on exit
 	void exitHandler();
-	
+
 	void keyPressed (int key );
 	void keyReleased( int key );
 	void mouseMoved( int x , int y );
@@ -37,15 +39,15 @@ public:
 private:
 	// draw the men
 	void drawMenu();
-	
+
 	// draw the current augmentation, if any
 	void drawAugmentation();
-	
+
 	ofTrueTypeFont font_12;
 	ofTrueTypeFont font_16;
 	ofTrueTypeFont font_24;
 	ofTrueTypeFont font_32;
-	
+
 
 	// delay buffer for frame delay
 	list< pair<IplImage*, FTime> > frameRingBuffer;
@@ -63,20 +65,20 @@ private:
 	guiTypeToggle* add_model_toggle;
 	guiTypeTextInput* model_name_input;
 	guiTypeToggle* retrain_geometry_toggle;
-	
+
 	guiTypeLabel* current_artvertfile_label;
 	guiTypeDrawable* current_artvertfile_image_drawer;
 	guiTypeFileLister* current_artvertfile_lister;
 	simpleFileLister artvertfile_lister;
-	
+
 	ArtvertDrawer current_artvert_drawer;
 	guiTypeTextInput* artvert_title_input;
 	guiTypeTextInput* artvert_artist_input;
 
 	ofxControlPanel control_panel;
 	float control_panel_timer;
-	
+
 	void updateModelSelectionDropdown();
-	
+
 };
 

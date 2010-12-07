@@ -9,7 +9,8 @@ testApp::testApp( int _argc, char** _argv )
 //--------------------------------------------------------------
 void testApp::setup(){
 
-	ofSetLogLevel( OF_LOG_VERBOSE );
+	ofSetWindowTitle(string("The Artvertiser ")+ARTVERTISER_VERSION);
+	//ofSetLogLevel( OF_LOG_VERBOSE );
 	ofSetBackgroundAuto(false);
 	artvertiser.setup( argc, argv );
 }
@@ -22,7 +23,7 @@ void testApp::update(){
 
 //--------------------------------------------------------------
 void testApp::draw(){
-	
+
 	artvertiser.draw();
 
 }
@@ -48,7 +49,7 @@ void testApp::keyReleased(int key){
 void testApp::mouseMoved(int x, int y ){
 
 	artvertiser.mouseMoved( x,y );
-	
+
 }
 
 //--------------------------------------------------------------

@@ -49,8 +49,6 @@
 #include "artvertiser.h"
 #include "multigrab.h"
 
-#define ARTVERTISER_VERSION "0.92"
-
 static const float CONTROL_PANEL_SHOW_TIME = 10.0f;
 
 // read from arduino
@@ -280,7 +278,7 @@ GLfloat lightOnePosition[] = {100.0, 100, 200.0, 0.0};
 GLfloat lightOneColor[] = {0.99, 0.99, 0.99, 0.1};
 //GLfloat lightTwoPosition[] = {-100.0, 40, 100.0, 0.0};
 //GLfloat lightTwoColor[] = {0.99, 0.99, 0.99, 0.1};
-bool three_d_model_load = false; 
+bool three_d_model_load = false;
 bool light_state = true;
 
 /* use this to read paths from the file system
@@ -544,7 +542,7 @@ static void usage(const char *s)
 void Artvertiser::exitHandler()
 {
     printf("in exit_handler\n");
-	
+
 	if ( new_artvert_requested_lock.tryLock() )
 	{
 		saveArtvertXml();
@@ -564,7 +562,7 @@ void Artvertiser::exitHandler()
         printf("stopping detection\n");
         shutdownDetectionThread();
     }
-	
+
  	// shutdown serial
     if ( serial_thread_is_running )
     {
@@ -578,7 +576,7 @@ void Artvertiser::exitHandler()
         printf("stopping multithread capture\n");
         multi->cams[current_cam]->shutdownMultiThreadCapture();
     }
-	
+
     // delete cameras
     if ( multi )
     {
@@ -829,7 +827,7 @@ void Artvertiser::keyPressed(int c )
 	case 'S':
 		show_status = !show_status;
 		break;
-			
+
 	case 'p':
 		show_profile_results = true;
 		break;
@@ -989,7 +987,7 @@ void Artvertiser::setup( int argc, char** argv )
     bool got_fps = false;
     bool video_source_is_avi = false;
 	bool got_minus_m = false;
-   
+
    	// parse command line
 	printf("argc: %2i\n", argc );
     for (int i=1; i<argc; i++)
@@ -1075,7 +1073,7 @@ void Artvertiser::setup( int argc, char** argv )
 			artvert_list_lock.lock();
 			artvert_list.back()->setArtvertImageFile( toAbsolutePath(argv[i+1]) );
 			artvert_list_lock.unlock();
-			
+
         }
         else if (strcmp(argv[i], "-b")==0)
         {
@@ -1127,7 +1125,7 @@ void Artvertiser::setup( int argc, char** argv )
 	    	modelLoader.setScale(0.9, 0.9, 0.9);
 	    	modelLoader.setPosition(DEFAULT_WIDTH/2, DEFAULT_HEIGHT/2, 0);
         }
-		
+
         else if ( strcmp(argv[i], "-ds")==0 )
         {
             detect_width = atoi(argv[i+1]);
@@ -1154,7 +1152,7 @@ void Artvertiser::setup( int argc, char** argv )
             usage(argv[0]);
         }
     }
-	
+
 	// default to always load data/models.xml, if no model has been passed in on the command line
     if ( model_file_list_file.size()==0 && !got_minus_m )
 	{
@@ -1290,7 +1288,7 @@ void Artvertiser::setup( int argc, char** argv )
 		// add new
 		add_model_toggle = control_panel.addToggle( " add new model", "add_new_tgl", false );
 		// geometry training
-		
+
 		if (redo_geom)
 		{
 			retrain_geometry_toggle = control_panel.addToggle(" calibrate camera geometry", "retrain_geometry_tgl", false );
@@ -1327,7 +1325,7 @@ void Artvertiser::setup( int argc, char** argv )
 		control_panel.show();
 		control_panel.setMinimized( true );
 		control_panel_timer = CONTROL_PANEL_SHOW_TIME;
-	}	
+	}
 
 	glLightfv (GL_LIGHT0, GL_POSITION, lightOnePosition);
 	glLightfv (GL_LIGHT0, GL_DIFFUSE, lightOneColor);
@@ -1335,7 +1333,7 @@ void Artvertiser::setup( int argc, char** argv )
 	//glLightfv (GL_LIGHT1, GL_POSITION, lightTwoPosition);
 	//glLightfv (GL_LIGHT1, GL_DIFFUSE, lightTwoColor);
 	//glEnable(GL_LIGHT1);
-	
+
     printf("setup() finished\n");
 }
 
@@ -1360,7 +1358,7 @@ void Artvertiser::updateModelSelectionDropdown()
 	model_selection_dropdown->update();
 
 	model_selection_dropdown->value.clearChangedFlag();
-	
+
 }
 
 //!\brief  Draw a frame contained in an IplTexture object on an OpenGL viewport.
@@ -1736,7 +1734,7 @@ void Artvertiser::drawAugmentation()
 	// multiply texture colour by surface colour of poly
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-	
+
 	if ( current_artvert_index >= 0 &&
 			current_artvert_index < artvert_list.size() )
 	{
