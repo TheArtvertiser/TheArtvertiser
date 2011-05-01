@@ -9,4 +9,12 @@
         </artvert>
     </advert>
     <advert>
+        <model_filename>models/new_model_00.bmp</model_filename>
+        <name>test birdy</name>
+        <artvert>
+            <title>your art here</title>
+            <artist>The Artvertiser Team</artist>
+            <image_filename>artverts/usb_bomb.png</image_filename>
+        </artvert>
+    </advert>
 </artverts>

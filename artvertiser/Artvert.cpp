@@ -8,6 +8,7 @@
  */
 
 #include "Artvert.h"
+#include "FreeImage.h"
 
 vector<ofImage*> Artvert::fallback_artvert_images;
 

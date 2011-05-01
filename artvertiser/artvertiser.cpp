@@ -1333,6 +1333,9 @@ void Artvertiser::setup( int argc, char** argv )
 	//glLightfv (GL_LIGHT1, GL_POSITION, lightTwoPosition);
 	//glLightfv (GL_LIGHT1, GL_DIFFUSE, lightTwoColor);
 	//glEnable(GL_LIGHT1);
+    
+    ofSetFrameRate( 30.0f );
+    ofSetBackgroundAuto( true );
 
     printf("setup() finished\n");
 }
@@ -1369,6 +1372,7 @@ static bool drawBackground(IplTexture *tex)
 		return false;
 	if ( !tex->getImage() )
 		return false;
+
     //printf("drawBackground: drawing frame with timestamp %f\n", raw_frame_timestamp.ToSeconds() );
 
     IplImage *im = tex->getIm();
@@ -1756,6 +1760,9 @@ void Artvertiser::drawAugmentation()
  */
 void Artvertiser::draw()
 {
+    
+    
+//    printf("Artvertiser::draw()\n");
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
 	glLoadIdentity();
@@ -1764,11 +1771,15 @@ void Artvertiser::draw()
 	glLoadIdentity();
 
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_LIGHTING);
+    
+    glColor4f( 1.0f, 1.0f, 1.0f, 1.0f ); 
 
     if ( multi->model.isInteractiveTrainRunning() )
+    {
         multi->model.interactiveTrainDraw();
+    }
     else
     {
         drawBackground(raw_frame_texture);
@@ -1907,7 +1918,6 @@ void Artvertiser::draw()
 		}
 
     }
-
 
 
 }

@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "ofxMatrix4x4.h"
+#include "ofxVectorMath.h"
 #include <cv.h>
 #include "../FProfiler/FTime.h"
 #include "ofxMutex.h"

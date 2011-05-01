@@ -25,6 +25,13 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA
 #include <starter.h>
 #include "affine_image_generator.h"
 
+#ifndef MIN
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#endif
+#ifndef MAX
+#define MAX(a,b) (((a)>(b))?(a):(b))
+#endif
+
 using namespace std;
 
 // Used for randomizing precomputed white noise

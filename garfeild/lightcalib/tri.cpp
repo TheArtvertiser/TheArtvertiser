@@ -60,8 +60,8 @@ static int edge_pair(IplImage *im, int sum[], int _a[2], int _b[2], int _c[2], i
 		d[1] = _d[1];
 	}
 
-	int y_start = MAX(a[1], c[1]);
-	int y_stop = MIN(b[1], d[1]);
+	int y_start = max(a[1], c[1]);
+	int y_stop = min(b[1], d[1]);
 
 	if (y_start >= y_stop) return 0;
 

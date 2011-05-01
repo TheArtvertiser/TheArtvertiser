@@ -77,6 +77,7 @@
 
 #include <sys/time.h>
 #include <stdio.h>
+#include <GLUT/glut.h>
 
 struct timeval frameStartTime, frameEndTime;
 // for smoothed fps

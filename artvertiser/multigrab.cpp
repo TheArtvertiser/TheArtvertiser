@@ -101,6 +101,8 @@ bool MultiGrab::loadOrTrainCache( bool wants_training, const char* modelfile, bo
 
     model.useModelFile( modelfile ) ;
 
+    printf("load or train cache\n");
+    
 	if (!model.buildCached(cams.size(), cams[0]->cam, !wants_training, cams[0]->detector, train_on_binoculars)) {
 		cout << "model.buildCached() failed.\n";
 		return false;

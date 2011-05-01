@@ -130,7 +130,7 @@ void toOfImage( IplImage* source, ofImage& dest )
 	bool order_is_rgb = true;
 #endif
 
-	int type = OF_IMAGE_COLOR;
+	ofImageType type = OF_IMAGE_COLOR;
 	if ( f->nChannels == 1 )
 		type = OF_IMAGE_GRAYSCALE;
 	else if ( f->nChannels == 4 )
