@@ -75,10 +75,20 @@ private:
 	guiTypeTextInput* artvert_title_input;
 	guiTypeTextInput* artvert_artist_input;
 
+    
+    guiTypePanel* capture_panel;
+    //guiTypeTextDropDown* camera_selection_dropdown;
+    guiTypeToggle* avi_capture_toggle;
+
+    
 	ofxControlPanel control_panel;
 	float control_panel_timer;
 
+    
 	void updateModelSelectionDropdown();
+    
+    ofBaseVideo* camera_capture;
+    ofBaseVideo* avi_capture;
 
 };
 

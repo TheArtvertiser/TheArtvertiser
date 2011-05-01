@@ -156,8 +156,6 @@ IplTexture *raw_frame_texture=0;
 FTime raw_frame_timestamp;
 IplTexture *tex=0;
 IplImage *image = 0;
-ofBaseVideo *capture = 0;
-ofBaseVideo *avi_capture = 0;
 IplImage *avi_image = 0;
 IplImage *avi_frame = 0;
 //IplImage *model_image = 0;
@@ -299,7 +297,7 @@ bool light_state = true;
 
 string getSettingsString()
 {
-    planar_object_recognizer &detector(multi->cams[current_cam]->detector);
+    planar_object_recognizer &detector(multi->getCam( current_cam )->detector);
     static char detector_settings_string[2048];
     sprintf( detector_settings_string, "1.ransac dist %4.2f  2.iter %i   detected points %i match count %i,\n"
             "3.refine %6.4f  4.score %6.4f  5.best_support thresh %2i  6.tau %2i\n"
@@ -574,7 +572,7 @@ void Artvertiser::exitHandler()
     if ( multi && current_cam >= 0 )
     {
         printf("stopping multithread capture\n");
-        multi->cams[current_cam]->shutdownMultiThreadCapture();
+        multi->getCam( current_cam )->shutdownMultiThreadCapture();
     }
 
     // delete cameras
@@ -853,7 +851,7 @@ void Artvertiser::keyPressed(int c )
 
 	if ( multi && current_cam >= 0 && show_status )
 	{
-		planar_object_recognizer &detector(multi->cams[current_cam]->detector);
+		planar_object_recognizer &detector(multi->getCam( current_cam )->detector);
 		bool something = true;
 		switch (c)
 		{
@@ -1315,12 +1313,22 @@ void Artvertiser::setup( int argc, char** argv )
 		artvertfile_lister.allowExt("mkv");
 		artvertfile_lister.allowExt("3ds");
 		artvertfile_lister.listDir("artverts/");
-		current_artvertfile_lister = control_panel.addFileLister("select new artvert file:", &artvertfile_lister, ofGetWidth()/2-40, 50);
+		current_artvertfile_lister = control_panel.addFileLister( "double-click to select new artvert file:", &artvertfile_lister, ofGetWidth()/2-40, 50);
 
 		artvert_title_input = control_panel.addTextInput( "title:", "<none>", ofGetWidth()/2-40 );
 		main_panel->setElementSpacing( 10, 14 );
 		artvert_artist_input = control_panel.addTextInput( "artist:", "<none>", ofGetWidth()/2-40 );
 
+        
+        capture_panel = control_panel.addPanel( "capture", 0, false );
+        capture_panel->addColumn( ofGetWidth() - 20 );
+        capture_panel->setBackgroundColor( 0,0,0,16 );
+        avi_capture_toggle = control_panel.addToggle( "use movie file as capture source", "<none>", 0 );
+        
+        //camera_selection_dropdown = control_panel.addTextDropDown( "camera source:", "current camera", capture_sources );
+        
+        
+        
 
 		control_panel.show();
 		control_panel.setMinimized( true );
@@ -1415,7 +1423,7 @@ static void drawDetectedPoints(int frame_width, int frame_height)
     if (!multi) return;
 	if (current_cam == -1 ) return;
 
-    planar_object_recognizer &detector(multi->cams[current_cam]->detector);
+    planar_object_recognizer &detector(multi->getCam( current_cam )->detector);
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -1519,7 +1527,7 @@ static bool old_delay_video;
 
 static bool geomCalibEnd()
 {
-	printf("geomCalibEnd: going to calibrate; %u cameras\n", multi->cams.size() );
+	printf("geomCalibEnd: going to calibrate; %u cameras\n", multi->getNumCams() );
 	char buf[256];
 	sprintf(buf, "calculating calibration, please wait",
 			100.0f*geom_calib_nb_homography/150.0f );
@@ -1529,8 +1537,8 @@ static bool geomCalibEnd()
 
 	bool success = calib->Calibrate(
 						 50, // max hom
-						 (multi->cams.size() > 1 ? 1:2),   // padding or random
-						 (multi->cams.size() > 1 ? 0:3),
+						 (multi->getNumCams() > 1 ? 1:2),   // padding or random
+						 (multi->getNumCams() > 1 ? 0:3),
 						 1,   // padding ratio 1/2
 						 0,
 						 0,
@@ -1581,20 +1589,20 @@ static bool geomCalibIdle(void)
 	}
 	nbdet++;*/
 	int nbdet=0;
-    for (int i=0; i<multi->cams.size(); ++i)
+    for (int i=0; i<multi->getNumCams(); ++i)
     {
         bool dummy = false;
-        if (multi->cams[i]->detect(dummy, dummy)) nbdet++;
+        if (multi->getCam(i)->detect(dummy, dummy)) nbdet++;
     }
 
     if (nbdet>0)
     {
-        for (int i=0; i<multi->cams.size(); ++i)
+        for (int i=0; i<multi->getNumCams(); ++i)
         {
-            if (multi->cams[i]->detector.object_is_detected)
+            if (multi->getCam( i )->detector.object_is_detected)
             {
-				printf("cam %i: detector.object_is_detected\n");
-                add_detected_homography(i, multi->cams[i]->detector, *calib);
+				printf("cam %i: detector.object_is_detected\n", i);
+                add_detected_homography(i, multi->getCam( i )->detector, *calib);
             }
             else
             {
@@ -1643,9 +1651,9 @@ static void geomCalibStart(bool cache)
     // construct a CamCalibration object and register all the cameras
     calib = new CamCalibration();
 
-    for (int i=0; i<multi->cams.size(); ++i)
+    for (int i=0; i<multi->getNumCams(); ++i)
     {
-        calib->AddCamera(multi->cams[i]->width, multi->cams[i]->height);
+        calib->AddCamera(multi->getCam(i)->width, multi->getCam(i)->height);
     }
 
     geom_calib_nb_homography=0;
@@ -1664,7 +1672,7 @@ void Artvertiser::drawAugmentation()
 	//printf(". now we want interpolated pose for %f\n", raw_frame_timestamp.ToSeconds() );
 	if ( track_kalman )
 		matrix_tracker.getInterpolatedPoseKalman( world,
-			multi->cams[current_cam]->getFrameIndexForTime( raw_frame_timestamp ) );
+			multi->getCam(current_cam)->getFrameIndexForTime( raw_frame_timestamp ) );
 	else
 		matrix_tracker.getInterpolatedPose( world, raw_frame_timestamp );
 
@@ -1723,7 +1731,7 @@ void Artvertiser::drawAugmentation()
 	// translate into OpenGL PROJECTION and MODELVIEW matrices
 	PerspectiveCamera c;
 	//c.loadTdir(a_proj, multi->cams[0]->frame->width, multi->cams[0]->frame->height);
-	c.loadTdir(a_proj, multi->cams[current_cam]->detect_width, multi->cams[current_cam]->detect_height );
+	c.loadTdir(a_proj, multi->getCam( current_cam )->detect_width, multi->getCam( current_cam )->detect_height );
 	c.flip();
 	c.setPlanes(100,1000000); // near/far clip planes
 	cvReleaseMat(&proj);
@@ -2128,7 +2136,7 @@ static void*
 			bool frame_retrieved = false;
 			bool frame_retrieved_and_ok;
 			if ( multi && current_cam>= 0 )
-				frame_retrieved_and_ok = multi->cams[current_cam]->detect( frame_retrieved, frame_ok );
+				frame_retrieved_and_ok = multi->getCam( current_cam )->detect( frame_retrieved, frame_ok );
 			else
 				frame_retrieved_and_ok = false;
 			//printf( "detect returned frame_ok of %c\n", frame_ok?'y':'n' );
@@ -2148,9 +2156,9 @@ static void*
 				break;
 
 			multi->model.augm.Clear();
-			if (multi->cams[current_cam]->detector.object_is_detected)
+			if (multi->getCam( current_cam )->detector.object_is_detected)
 			{
-				add_detected_homography(0, multi->cams[current_cam]->detector, multi->model.augm);
+				add_detected_homography(0, multi->getCam( current_cam )->detector, multi->model.augm);
 			}
 			else
 			{
@@ -2171,10 +2179,10 @@ static void*
 
 				// continue to track
 				if ( track_kalman )
-					matrix_tracker.addPoseKalman( mat, multi->cams[current_cam]->getFrameIndexForTime(
-							multi->cams[0]->getLastProcessedFrameTimestamp() ) );
+					matrix_tracker.addPoseKalman( mat, multi->getCam( current_cam )->getFrameIndexForTime(
+							multi->getCam( 0 )->getLastProcessedFrameTimestamp() ) );
 				else
-					matrix_tracker.addPose( mat, multi->cams[current_cam]->getLastProcessedFrameTimestamp() );
+					matrix_tracker.addPose( mat, multi->getCam( current_cam )->getLastProcessedFrameTimestamp() );
 
 				cvReleaseMat(&mat);
 
@@ -2218,7 +2226,7 @@ void Artvertiser::update()
 		if ( delay_video )
 		{
 			IplImage* captured_frame;
-			multi->cams[current_cam]->getLastDrawFrame( &captured_frame, &raw_frame_timestamp );
+			multi->getCam( current_cam )->getLastDrawFrame( &captured_frame, &raw_frame_timestamp );
 
 			while ( frameRingBuffer.size()<VIDEO_DELAY_FRAMES )
 			{
@@ -2241,7 +2249,7 @@ void Artvertiser::update()
 		else
 		{
 			IplImage* raw_frame = raw_frame_texture->getImage();
-			multi->cams[current_cam]->getLastDrawFrame( &raw_frame, &raw_frame_timestamp );
+			multi->getCam( current_cam )->getLastDrawFrame( &raw_frame, &raw_frame_timestamp );
 			raw_frame_texture->setImage(raw_frame);
 		}
 	}
@@ -2581,6 +2589,29 @@ void Artvertiser::update()
 				redo_geometry_requested = true;
 			}
 		}
+        
+        // change camera
+        if ( avi_capture_toggle->hasValueChanged() )
+        {
+            bool should_switch_to_camera = false;
+            if ( avi_capture_toggle->value.getValueB(0) )
+            {
+                // show open file dialog
+                
+                // if ( open file dialog succeeded )
+                {
+                    // switch capture to new device
+                }
+            }
+
+            if ( should_switch_to_camera )
+            {
+                // switch back to camera
+            }
+            avi_capture_toggle->value.clearChangedFlag();
+            
+        }
+
 
 
 		new_artvert_requested_lock.unlock();

@@ -1,5 +1,9 @@
-*.mode1v3
+*.mode?v3
+
 *.pbxuser
 build/*
 bin/*
 !data
+xcuserdata
+project.xcworkspace
+

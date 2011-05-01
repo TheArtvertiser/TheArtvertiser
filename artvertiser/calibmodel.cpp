@@ -26,7 +26,7 @@
 #include "avImage.h"
 
 #ifdef TARGET_WIN32
-#include "ofxDirList.h"
+#include "ofMain.h"
 #else
 	#include <dirent.h>
 #endif

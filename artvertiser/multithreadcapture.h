@@ -51,6 +51,8 @@ public:
     MultiThreadCapture* getCaptureForCam( ofBaseVideo* cam );
     /// remove the MultiThreadCapture for the given cam.
     void removeCaptureForCam( ofBaseVideo* cam );
+    /// switch out old_cam, switch in new_cam
+    void switchCamForCapture( MultiThreadCapture* cap, ofBaseVideo* old_cam, ofBaseVideo* new_cam );
 
 private:
 
@@ -133,6 +135,9 @@ public:
 
     /// number of channels returned by the camera. if camera is yet to start, wait max 10s then timeout.
     int getNumChannelsRaw();
+    
+    /// switch to a new capture source
+    void setNewCapture( ofBaseVideo* new_capt );
 
 private:
 
@@ -158,6 +163,9 @@ private:
     void swapDrawPointers();
 
     ofBaseVideo* capture;
+    
+    // set this to something to switch capture devices
+    ofBaseVideo* new_capture;
 
 	// for the capture thread
     ofxMutex capture_frame_lock;

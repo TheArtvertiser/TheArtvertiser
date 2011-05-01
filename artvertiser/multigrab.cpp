@@ -30,17 +30,25 @@ MultiGrab::~MultiGrab()
 {
     printf("in ~MultiGrab\n");
     // delete all the cameras;
+    cams_lock.lock();
     for ( int i=0; i<cams.size(); i++ )
     {
         delete cams[i];
     }
     cams.clear();
+    cams_lock.unlock();
 
+}
+
+MultiGrab::MultiGrab()
+{
 }
 
 int MultiGrab::init( const char *avi_bg_path, int width, int height, int v4l_device, int detect_width, int detect_height, int desired_capture_fps )
 {
 
+    cams_lock.lock();
+    
 	ofBaseVideo *c;
 	cams.clear();
 
@@ -82,6 +90,9 @@ int MultiGrab::init( const char *avi_bg_path, int width, int height, int v4l_dev
 		ofBaseVideo *c = grabber;
 		cams.push_back(new Cam(false, c, width, height, detect_width, detect_height, desired_capture_fps ));
 	}
+    
+    cams_lock.unlock();
+    
 	if (cams.size()==0) {
 		 return 0;
 	}
@@ -91,12 +102,16 @@ int MultiGrab::init( const char *avi_bg_path, int width, int height, int v4l_dev
 
 void MultiGrab::clear()
 {
+    cams_lock.lock();
 	if ( cams.size() > 0 && cams[0] != NULL )
 		cams[0]->detector.clear();
+    cams_lock.unlock();
 }
 
 bool MultiGrab::loadOrTrainCache( bool wants_training, const char* modelfile, bool train_on_binoculars )
 {
+    cams_lock.lock();
+
     cams[0]->detector.clear();
 
     model.useModelFile( modelfile ) ;
@@ -105,23 +120,32 @@ bool MultiGrab::loadOrTrainCache( bool wants_training, const char* modelfile, bo
     
 	if (!model.buildCached(cams.size(), cams[0]->cam, !wants_training, cams[0]->detector, train_on_binoculars)) {
 		cout << "model.buildCached() failed.\n";
+
+        cams_lock.unlock();
+
 		return false;
 	}
+    
 	for (int i=1; i<cams.size(); ++i) {
 		//! TODO mem to mem copy from cams[0]
 		cams[i]->detector.load(string(modelfile)+".bmp.classifier");
 	}
 
+    cams_lock.unlock();
+    
 	return true;
 }
 
 void MultiGrab::allocLightCollector()
 {
+    cams_lock.lock();
 	for (vector<Cam *>::iterator it=cams.begin(); it!=cams.end(); ++it)
 		(*it)->lc = new LightCollector(model.map.reflc);
+    cams_lock.unlock();
 }
 void MultiGrab::Cam::setCam(ofBaseVideo *c, int _width, int _height, int _detect_width, int _detect_height, int desired_capture_fps, bool is_avi )
 {
+    
 
 	if (cam)
 	{
@@ -160,6 +184,10 @@ void MultiGrab::Cam::setCam(ofBaseVideo *c, int _width, int _height, int _detect
 	}*/
 
    // now mtc
+    if ( mtc )
+    {
+        delete mtc;
+    }
     mtc = new MultiThreadCapture( cam );
     mtc->setupResolution( detect_width, detect_height, /*grayscale*/ 1, desired_capture_fps );
     mtc->startCapture();
@@ -196,6 +224,25 @@ MultiGrab::Cam::~Cam() {
 	if (cam) delete cam;
 	if (lc) delete lc;
 }
+
+MultiGrab::Cam* MultiGrab::getCam( int index )
+{
+    cams_lock.lock();
+    MultiGrab::Cam* result = cams[index];
+    cams_lock.unlock();
+    
+    return result;
+}
+
+int MultiGrab::getNumCams()
+{
+    cams_lock.lock();
+    int count = cams.size();
+    cams_lock.unlock();
+    return count;
+}
+
+
 
 void MultiGrab::Cam::shutdownMultiThreadCapture()
 {

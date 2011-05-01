@@ -52,6 +52,17 @@ void MultiThreadCaptureManager::addCaptureForCam(ofBaseVideo* cam, MultiThreadCa
     lock.unlock();
 }
 
+void MultiThreadCaptureManager::switchCamForCapture( MultiThreadCapture* cap, ofBaseVideo* old_cam, ofBaseVideo* new_cam )
+{
+    MultiThreadCapture* capture = getCaptureForCam( old_cam );
+    assert( capture==cap );
+    
+    lock.lock();
+    capture_map.erase( old_cam );
+    capture_map[new_cam] = capture;
+    lock.unlock();
+}
+
 void MultiThreadCaptureManager::removeCaptureForCam( ofBaseVideo* cam )
 {
     lock.lock();
@@ -175,6 +186,11 @@ void MultiThreadCapture::stopCapture()
 
 }
 
+void MultiThreadCapture::setNewCapture( ofBaseVideo* new_capt )
+{
+    new_capture = new_capt;
+}
+
 void MultiThreadCapture::ThreadedFunction()
 {
     // try to get the frame
@@ -182,6 +198,17 @@ void MultiThreadCapture::ThreadedFunction()
 
     PROFILE_SECTION_PUSH("capture->update()");
     //bool grabbed = cvGrabFrame( capture );
+    
+    if ( new_capture != NULL )
+    {
+        MultiThreadCaptureManager* manager = MultiThreadCaptureManager::getInstance();
+        manager->switchCamForCapture( this, capture, new_capture );
+
+        capture = new_capture;
+        
+        new_capture = NULL;
+    }
+    
 	capture->update();
 	bool grabbed = capture->isFrameNew();
     PROFILE_SECTION_POP();

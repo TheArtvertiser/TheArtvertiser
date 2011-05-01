@@ -36,12 +36,15 @@ public:
 	CalibModel model;
 
 	//MultiGrab(const char *modelfile="model.bmp") : model(modelfile) {}
-	MultiGrab() {};
+	MultiGrab();
     ~MultiGrab();
 
 	int init( const char *avi_bg_path,
           int capture_width, int capture_height, int v4l_device, int detect_width, int detect_height,
           int desired_capture_fps );
+    
+    int reinit( const char* avi_bg_path, int desired_capture_fps );
+    
     /// load or train the cache using the given modelfile. if wants_training is true, train;
     /// otherwise try to load and if load files, train
     bool loadOrTrainCache( bool wants_training, const char* modelfile, bool train_on_binoculars );
@@ -49,7 +52,7 @@ public:
 	void clear();
 
 	void allocLightCollector();
-
+    
 	class Cam {
     public:
 		ofBaseVideo *cam;
@@ -71,6 +74,7 @@ public:
             { return mtc->getLastDrawFrame( raw_frame, timestamp, true /*block*/ ); }
 
 		void setCam(ofBaseVideo *c, int capture_width, int capture_height, int detect_width, int detect_height, int desired_capture_fps, bool is_avi );
+        
 		bool detect( bool& frame_retrieved, bool &detect_succeeded );
 
 		Cam(bool is_avi, ofBaseVideo *c=0, int _width=0, int _height=0, int _detect_width=320, int _detect_height=240, int desired_capture_fps=20 )
@@ -96,8 +100,16 @@ public:
 
 	};
 
+    Cam* getCam( int index );
+    int getNumCams();
+    
+private:
+    
 	std::vector<Cam *> cams;
 	struct Cam *foo;
+    
+    ofxMutex cams_lock;
+    
 };
 
 bool add_detected_homography(int n, planar_object_recognizer &detector, CamCalibration &calib);

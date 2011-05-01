@@ -10,11 +10,20 @@
     </advert>
     <advert>
         <model_filename>models/new_model_00.bmp</model_filename>
-        <name>test birdy</name>
+        <name>new model 0</name>
         <artvert>
             <title>your art here</title>
             <artist>The Artvertiser Team</artist>
-            <image_filename>artverts/usb_bomb.png</image_filename>
+            <image_filename>artverts/your_art_here.png</image_filename>
+        </artvert>
+    </advert>
+    <advert>
+        <model_filename>models/new_model_01.bmp</model_filename>
+        <name>new model 2</name>
+        <artvert>
+            <title>your art here</title>
+            <artist>The Artvertiser Team</artist>
+            <image_filename>artverts/electropalm.png</image_filename>
         </artvert>
     </advert>
 </artverts>
