@@ -26,4 +26,22 @@
             <image_filename>artverts/electropalm.png</image_filename>
         </artvert>
     </advert>
+    <advert>
+        <model_filename>models/new_model_02.bmp</model_filename>
+        <name>new model 2</name>
+        <artvert>
+            <title>your art here</title>
+            <artist>The Artvertiser Team</artist>
+            <image_filename>artverts/your_art_here.png</image_filename>
+        </artvert>
+    </advert>
+    <advert>
+        <model_filename>models/new_model_03.bmp</model_filename>
+        <name>new model 3</name>
+        <artvert>
+            <title>your art here</title>
+            <artist>The Artvertiser Team</artist>
+            <image_filename>artverts/your_art_here.png</image_filename>
+        </artvert>
+    </advert>
 </artverts>

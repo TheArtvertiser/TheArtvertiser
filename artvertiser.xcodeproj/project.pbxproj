@@ -35,6 +35,9 @@
 		2D45B7DD136D7F4C0058DEC9 /* opencv_video.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D45B7CE136D7F4C0058DEC9 /* opencv_video.a */; };
 		2D45B7DE136D7F4C0058DEC9 /* zlib.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D45B7CF136D7F4C0058DEC9 /* zlib.a */; };
 		2D47705E1275ACC600C08A92 /* guiTypeTextInput.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D47705D1275ACC600C08A92 /* guiTypeTextInput.cpp */; };
+		2D5BFF2A136DA3A000CE8451 /* openFileDialog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D5BFF28136DA39F00CE8451 /* openFileDialog.cpp */; };
+		2D5BFF2D136DA4B200CE8451 /* openFileDialogOSX.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2D5BFF2B136DA4B100CE8451 /* openFileDialogOSX.mm */; };
+		2D5BFF2F136DC19E00CE8451 /* models.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2D5BFF2E136DC19E00CE8451 /* models.xml */; };
 		2D5DC23C1276F75800CB8A0F /* ArtvertList.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D5DC23B1276F75800CB8A0F /* ArtvertList.cpp */; };
 		2D7BAC31125F096A002AD5DA /* ofxBarrier.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D7BAC29125F096A002AD5DA /* ofxBarrier.cpp */; };
 		2D7BAC32125F096A002AD5DA /* ofxMutex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D7BAC2B125F096A002AD5DA /* ofxMutex.cpp */; };
@@ -301,6 +304,11 @@
 		2D45B82E136D7F5F0058DEC9 /* background_segm.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = background_segm.hpp; sourceTree = "<group>"; };
 		2D45B82F136D7F5F0058DEC9 /* tracking.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = tracking.hpp; sourceTree = "<group>"; };
 		2D47705D1275ACC600C08A92 /* guiTypeTextInput.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = guiTypeTextInput.cpp; sourceTree = "<group>"; };
+		2D5BFF28136DA39F00CE8451 /* openFileDialog.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = openFileDialog.cpp; path = ../src/openFileDialog.cpp; sourceTree = "<group>"; };
+		2D5BFF29136DA3A000CE8451 /* openFileDialog.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = openFileDialog.h; path = ../src/openFileDialog.h; sourceTree = "<group>"; };
+		2D5BFF2B136DA4B100CE8451 /* openFileDialogOSX.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = openFileDialogOSX.mm; sourceTree = "<group>"; };
+		2D5BFF2C136DA4B100CE8451 /* openFileDialogOSX.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = openFileDialogOSX.h; sourceTree = "<group>"; };
+		2D5BFF2E136DC19E00CE8451 /* models.xml */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; name = models.xml; path = bin/data/models.xml; sourceTree = "<group>"; };
 		2D5DC23A1276F75800CB8A0F /* ArtvertList.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ArtvertList.h; sourceTree = "<group>"; };
 		2D5DC23B1276F75800CB8A0F /* ArtvertList.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ArtvertList.cpp; sourceTree = "<group>"; };
 		2D7BAC29125F096A002AD5DA /* ofxBarrier.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ofxBarrier.cpp; sourceTree = "<group>"; };
@@ -1073,6 +1081,10 @@
 				2DFC530F125CA38F00ED1872 /* multithreadcapture.h */,
 				2DBC92ED12731058008CC9C9 /* ThreadSafeString.h */,
 				2DBC92EE12731058008CC9C9 /* ThreadSafeString.cpp */,
+				2D5BFF28136DA39F00CE8451 /* openFileDialog.cpp */,
+				2D5BFF29136DA3A000CE8451 /* openFileDialog.h */,
+				2D5BFF2B136DA4B100CE8451 /* openFileDialogOSX.mm */,
+				2D5BFF2C136DA4B100CE8451 /* openFileDialogOSX.h */,
 			);
 			path = artvertiser;
 			sourceTree = SOURCE_ROOT;
@@ -1411,6 +1423,7 @@
 		E4B69B4A0A3A1720003C02F2 = {
 			isa = PBXGroup;
 			children = (
+				2D5BFF2E136DC19E00CE8451 /* models.xml */,
 				2D3ACEAE125B7FCF00782E83 /* addons */,
 				E4B69B5B0A3A1756003C02F2 /* TheArtvertiser.app */,
 				2DCBDEB91269E87C003B8749 /* artvertiser.icns */,
@@ -1589,6 +1602,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2DCBDEC31269E8A0003B8749 /* artvertiser.icns in Resources */,
+				2D5BFF2F136DC19E00CE8451 /* models.xml in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1705,6 +1719,8 @@
 				2D87DD65127866F900F9A580 /* model3DS.cpp in Sources */,
 				2D87DD66127866F900F9A580 /* texture3DS.cpp in Sources */,
 				2D87DD67127866F900F9A580 /* ofx3dModelLoader.cpp in Sources */,
+				2D5BFF2A136DA3A000CE8451 /* openFileDialog.cpp in Sources */,
+				2D5BFF2D136DA4B200CE8451 /* openFileDialogOSX.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

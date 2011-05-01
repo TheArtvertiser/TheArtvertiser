@@ -44,27 +44,47 @@ MultiGrab::MultiGrab()
 {
 }
 
+int MultiGrab::reinit( const char* avi_bg_path, int v4l_device )
+{
+    return init( avi_bg_path, cams[0]->width, cams[0]->height, v4l_device, cams[0]->detect_width, cams[0]->detect_height, cams[0]->desired_capture_fps );
+}
+
 int MultiGrab::init( const char *avi_bg_path, int width, int height, int v4l_device, int detect_width, int detect_height, int desired_capture_fps )
 {
 
     cams_lock.lock();
     
 	ofBaseVideo *c;
+    
+    for ( int i=0; i<cams.size(); i++ )
+        delete cams[i];
+    
 	cams.clear();
+	
+	cams_lock.unlock();
 
 	// if artvertiser is presented an argv of a background file (-b /path/to/avi), accept it as a capture device.
 
 	if (strlen(avi_bg_path) > 0)
 	{
-		cout << "MultiGrab::init creating capture from avi " << avi_bg_path << " size " << width << "x" << height << " detect at " << detect_width << "x" << detect_height << endl;
+		cout << "MultiGrab::init creating capture from movie " << avi_bg_path << " size " << width << "x" << height << " detect at " << detect_width << "x" << detect_height << endl;
 		ofVideoPlayer* player = new ofVideoPlayer();
-		player->loadMovie( avi_bg_path );
+        player->setUseTexture( false );
+		bool success = player->loadMovie( avi_bg_path );
+		if ( !success )
+		{
+			cerr << "Couldn't open movie " << avi_bg_path <<endl;
+			delete player;
+			return 0;
+		}
 		player->setLoopState( OF_LOOP_NORMAL );
 		player->play();
 		player->update();
-		printf("player has new frame? %c\n", player->isFrameNew()?'y':'n' );
+		//printf("player %x has new frame? %c\n", player, player->isFrameNew()?'y':'n' );
 		ofBaseVideo *c = player;
+		cams_lock.lock();
 		cams.push_back(new Cam(true, c, width, height, detect_width, detect_height, desired_capture_fps ));
+		cams_lock.unlock();
 	}
 	// else capture from the V4L2 device
 	else
@@ -81,17 +101,17 @@ int MultiGrab::init( const char *avi_bg_path, int width, int height, int v4l_dev
 		grabber->setDeviceID(v4l_device);
 		if (!grabber->initGrabber( width, height, false ) )
 		{
-			printf( "couldn't initialise ofVideoGrabber\n");
+			cerr << "couldn't initialise ofVideoGrabber\n";
 			delete grabber;
 			return 0;
 		}
 		grabber->update();
 
 		ofBaseVideo *c = grabber;
+		cams_lock.lock();
 		cams.push_back(new Cam(false, c, width, height, detect_width, detect_height, desired_capture_fps ));
+		cams_lock.unlock();
 	}
-    
-    cams_lock.unlock();
     
 	if (cams.size()==0) {
 		 return 0;
@@ -108,6 +128,26 @@ void MultiGrab::clear()
     cams_lock.unlock();
 }
 
+int MultiGrab::getCaptureWidth()
+{
+	int w = 0;
+	cams_lock.lock();
+	if ( cams.size()>0 && cams[0] != NULL )
+		w = cams[0]->width;
+	cams_lock.unlock();
+	return w;
+}
+
+int MultiGrab::getCaptureHeight()
+{
+	int h = 0;
+	cams_lock.lock();
+	if ( cams.size()>0 && cams[0] != NULL )
+		h = cams[0]->height;
+	cams_lock.unlock();
+	return h;
+}
+
 bool MultiGrab::loadOrTrainCache( bool wants_training, const char* modelfile, bool train_on_binoculars )
 {
     cams_lock.lock();
@@ -117,15 +157,17 @@ bool MultiGrab::loadOrTrainCache( bool wants_training, const char* modelfile, bo
     model.useModelFile( modelfile ) ;
 
     printf("load or train cache\n");
+	
+	cams_lock.unlock();
     
 	if (!model.buildCached(cams.size(), cams[0]->cam, !wants_training, cams[0]->detector, train_on_binoculars)) {
 		cout << "model.buildCached() failed.\n";
 
-        cams_lock.unlock();
-
 		return false;
 	}
     
+	cams_lock.lock();
+
 	for (int i=1; i<cams.size(); ++i) {
 		//! TODO mem to mem copy from cams[0]
 		cams[i]->detector.load(string(modelfile)+".bmp.classifier");
@@ -143,7 +185,8 @@ void MultiGrab::allocLightCollector()
 		(*it)->lc = new LightCollector(model.map.reflc);
     cams_lock.unlock();
 }
-void MultiGrab::Cam::setCam(ofBaseVideo *c, int _width, int _height, int _detect_width, int _detect_height, int desired_capture_fps, bool is_avi )
+
+void MultiGrab::Cam::setCam(ofBaseVideo *c, int _width, int _height, int _detect_width, int _detect_height, int _desired_capture_fps, bool is_avi )
 {
     
 
@@ -170,7 +213,8 @@ void MultiGrab::Cam::setCam(ofBaseVideo *c, int _width, int _height, int _detect
 	// optionally downsample the video to accelerate computation
     detect_width = _detect_width;
     detect_height = _detect_height;
-
+    desired_capture_fps = _desired_capture_fps;
+    
 	/*
 	printf("cvGetCaptureProperty gives: %i %i\n", (int)cvGetCaptureProperty(cam, CV_CAP_PROP_FRAME_WIDTH),
 			(int)cvGetCaptureProperty(cam, CV_CAP_PROP_FRAME_HEIGHT ) );
@@ -184,10 +228,6 @@ void MultiGrab::Cam::setCam(ofBaseVideo *c, int _width, int _height, int _detect
 	}*/
 
    // now mtc
-    if ( mtc )
-    {
-        delete mtc;
-    }
     mtc = new MultiThreadCapture( cam );
     mtc->setupResolution( detect_width, detect_height, /*grayscale*/ 1, desired_capture_fps );
     mtc->startCapture();
@@ -202,6 +242,7 @@ void MultiGrab::Cam::setCam(ofBaseVideo *c, int _width, int _height, int _detect
         timeout -= 50;
         got = mtc->getCopyOfLastFrame( &f );
     }
+    
 	assert(f != 0 && "camera did not become ready");
 
 	width = f->width; //cvRound(cvGetCaptureProperty(cam, CV_CAP_PROP_FRAME_WIDTH));
@@ -217,6 +258,7 @@ void MultiGrab::Cam::setCam(ofBaseVideo *c, int _width, int _height, int _detect
 
 MultiGrab::Cam::~Cam() {
     // gray is owned by mtc
+    printf("in ~Cam()\n");
 	//if (gray && gray != frame) cvReleaseImage(&gray);
 	if (frame_detectsize && frame_detectsize != gray && frame_detectsize != frame ) cvReleaseImage(&frame_detectsize);
 	if (mtc) delete mtc;
@@ -242,6 +284,19 @@ int MultiGrab::getNumCams()
     return count;
 }
 
+bool MultiGrab::detectWithCam( int index, bool &retrieved, bool &succeeded )
+{
+	cams_lock.lock();
+	bool result = false;
+	if ( index < cams.size() )
+		result = cams[index]->detect( retrieved, succeeded );
+	else
+		retrieved = false;
+	cams_lock.unlock();
+	return result;
+}
+
+
 
 
 void MultiGrab::Cam::shutdownMultiThreadCapture()
@@ -260,6 +315,11 @@ bool MultiGrab::Cam::detect( bool &frame_retrieved, bool &detect_succeeded )
     PROFILE_SECTION_PUSH("retrieve");
     IplImage *gray_temp, *frame_temp;
     FTime timestamp;
+	if ( !mtc )
+	{
+		frame_retrieved = false;
+		return false;
+	}
     bool got = mtc->getLastDetectFrame( &gray_temp, &frame_temp, &timestamp,/*block until available*/ false );
     PROFILE_SECTION_POP();
     if ( !got || frame_temp == 0 || gray_temp == 0 )

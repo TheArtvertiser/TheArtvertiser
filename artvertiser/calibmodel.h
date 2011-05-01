@@ -52,8 +52,10 @@ public:
     void interactiveTrainUpdateBinoculars(IplImage* frame, bool button_red, bool button_green, bool button_blue );
 	/// update the interactive training inline
     void interactiveTrainUpdate(IplImage* frame, 
-									  int mouse_x, int mouse_y, bool mouse_button_down, 
-									  int key );
+										float mouse_x_pct /* 0..1 */, 
+										float mouse_y_pct /* 0..1 */, 
+										bool mouse_button_down, 
+										int key );
 	
     /// draw the interactive training on binucolurs
     void interactiveTrainDraw();

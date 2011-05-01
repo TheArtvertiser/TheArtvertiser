@@ -38,7 +38,7 @@ public:
 		#ifdef TARGET_WIN32
 			EnterCriticalSection(&critSec);
 		#else
-        printf("locking %x\n", this );
+        //printf("locking %x\n", this );
 			pthread_mutex_lock(&myMutex);
 		#endif
 	}
@@ -64,7 +64,7 @@ public:
 		#ifdef TARGET_WIN32
 			LeaveCriticalSection(&critSec);
 		#else
-        printf("unlocking %x\n", this );
+        //printf("unlocking %x\n", this );
 			pthread_mutex_unlock(&myMutex);
 		#endif
 	}

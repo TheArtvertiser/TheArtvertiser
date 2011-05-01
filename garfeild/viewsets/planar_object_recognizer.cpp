@@ -922,7 +922,7 @@ void planar_object_recognizer::construct_match_lut()
             if ( table_pos >= MATCH_LOOKUP_TABLE_SIZE )
                 break;
         }
-        assert( match_number ==0 || table_pos == MATCH_LOOKUP_TABLE_SIZE );
+        //assert( match_number ==0 || table_pos == MATCH_LOOKUP_TABLE_SIZE );
     }
     else
     {

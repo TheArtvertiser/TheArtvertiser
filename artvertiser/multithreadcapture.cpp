@@ -79,18 +79,20 @@ MultiThreadCapture::MultiThreadCapture( ofBaseVideo* _capture )
     capture_frame(0), process_thread_should_exit(false), process_thread_semaphore(0), /* start semaphore in busy state */
     new_draw_frame_available(false),
     new_detect_frame_available(false),
-    frame_counter(0)
+    frame_counter(0),
+    new_capture(0)
 {
     MultiThreadCaptureManager* manager = MultiThreadCaptureManager::getInstance();
     assert( manager->getCaptureForCam( capture ) == NULL );
     manager->addCaptureForCam( capture, this );
 
+    printf("MultiThreadCapture %x constructed with capture %x\n", this, capture );
 
 }
 
 MultiThreadCapture::~MultiThreadCapture()
 {
-    printf("in ~MultiThreadCapture\n");
+    printf("in ~MultiThreadCapture %x with capture %x\n", this , capture );
     stopCapture();
 
     MultiThreadCaptureManager* manager = MultiThreadCaptureManager::getInstance();
@@ -166,7 +168,7 @@ void MultiThreadCapture::startCapture()
 
     // start the processing thread
     startProcessThread();
-    // start the capturing trhead
+    // start the capturing thread
     FThread::StartThread( 2 );
 }
 
@@ -574,7 +576,7 @@ bool MultiThreadCapture::getLastDrawFrame( IplImage** rawFrame, FTime* timeStamp
             PROFILE_SECTION_POP();
             if ( !new_draw_frame_available )
             {
-                printf("getLastCapturedFrame timed out waiting for new_draw_frame_available\n");
+                printf("getLastDrawFrame timed out waiting for new_draw_frame_available\n");
                 return false;
             }
         }

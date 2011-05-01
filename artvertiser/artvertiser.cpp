@@ -80,7 +80,7 @@ static const float CONTROL_PANEL_SHOW_TIME = 10.0f;
 
 #include <calib/camera.h>
 
-
+#include "openFileDialog.h"
 
 /*
 #include "/usr/include/freetype2/freetype/config/ftconfig.h"
@@ -1313,7 +1313,7 @@ void Artvertiser::setup( int argc, char** argv )
 		artvertfile_lister.allowExt("mkv");
 		artvertfile_lister.allowExt("3ds");
 		artvertfile_lister.listDir("artverts/");
-		current_artvertfile_lister = control_panel.addFileLister( "double-click to select new artvert file:", &artvertfile_lister, ofGetWidth()/2-40, 50);
+		current_artvertfile_lister = control_panel.addFileLister( "double-click to select new artvert:", &artvertfile_lister, ofGetWidth()/2-40, 50);
 
 		artvert_title_input = control_panel.addTextInput( "title:", "<none>", ofGetWidth()/2-40 );
 		main_panel->setElementSpacing( 10, 14 );
@@ -1321,13 +1321,13 @@ void Artvertiser::setup( int argc, char** argv )
 
         
         capture_panel = control_panel.addPanel( "capture", 0, false );
+        control_panel.setWhichPanel( 1 );
         capture_panel->addColumn( ofGetWidth() - 20 );
         capture_panel->setBackgroundColor( 0,0,0,16 );
         avi_capture_toggle = control_panel.addToggle( "use movie file as capture source", "<none>", 0 );
+        avi_capture_toggle->value.clearChangedFlag();
         
         //camera_selection_dropdown = control_panel.addTextDropDown( "camera source:", "current camera", capture_sources );
-        
-        
         
 
 		control_panel.show();
@@ -2135,8 +2135,8 @@ static void*
 
 			bool frame_retrieved = false;
 			bool frame_retrieved_and_ok;
-			if ( multi && current_cam>= 0 )
-				frame_retrieved_and_ok = multi->getCam( current_cam )->detect( frame_retrieved, frame_ok );
+			if ( multi && current_cam >= 0 )
+				frame_retrieved_and_ok = multi->detectWithCam( current_cam, frame_retrieved, frame_ok );
 			else
 				frame_retrieved_and_ok = false;
 			//printf( "detect returned frame_ok of %c\n", frame_ok?'y':'n' );
@@ -2228,6 +2228,22 @@ void Artvertiser::update()
 			IplImage* captured_frame;
 			multi->getCam( current_cam )->getLastDrawFrame( &captured_frame, &raw_frame_timestamp );
 
+            CvSize captured_sz = cvGetSize( captured_frame );
+            while( frameRingBuffer.size()>0 )
+            {
+                IplImage* check_size = frameRingBuffer.front().first;
+                CvSize check_size_sz = cvGetSize( check_size );
+                if ( check_size_sz.width != captured_sz.width || 
+                    check_size_sz.height != captured_sz.height ||
+                    captured_frame->depth != check_size->depth )
+                {
+                    cvReleaseImage( &check_size );
+                    frameRingBuffer.pop_front();
+                }
+                else
+                    break;
+            }
+            
 			while ( frameRingBuffer.size()<VIDEO_DELAY_FRAMES )
 			{
 				IplImage* first_frame =  cvCreateImage( cvGetSize( captured_frame ), captured_frame->depth, captured_frame->nChannels );
@@ -2291,7 +2307,7 @@ void Artvertiser::update()
 		else
 		{
 			multi->model.interactiveTrainUpdate( raw_frame_texture->getImage(),
-												mouse_x, mouse_y,
+												float(mouse_x)/ofGetWidth(), float(mouse_y)/ofGetHeight(),
 												lbutton_down, last_key );
 
 			// );
@@ -2594,20 +2610,36 @@ void Artvertiser::update()
         if ( avi_capture_toggle->hasValueChanged() )
         {
             bool should_switch_to_camera = false;
+			// shutdown capture
+			printf("stopping multithread capture\n");
+			multi->getCam( current_cam )->shutdownMultiThreadCapture();
+			
             if ( avi_capture_toggle->value.getValueB(0) )
             {
                 // show open file dialog
+                string filename = openFileDialog();
                 
-                // if ( open file dialog succeeded )
+                printf("got filename '%s'\n", filename.c_str() );
+                if ( filename.length() > 0 )
                 {
                     // switch capture to new device
+                    bool success = multi->init( filename.c_str(), video_width, video_height, v4l_device, detect_width, detect_height, desired_capture_fps );
+					if ( !success )
+					{
+						sleep( 5 );
+						printf("load failed, switching back to camera\n");
+						// switch back to camera
+						multi->init( "", video_width, video_height, v4l_device, detect_width, detect_height, desired_capture_fps );
+					}
                 }
             }
-
-            if ( should_switch_to_camera )
+			else
             {
+                printf("switching back to camera\n");
                 // switch back to camera
+                multi->init( "", video_width, video_height, v4l_device, detect_width, detect_height, desired_capture_fps );
             }
+			
             avi_capture_toggle->value.clearChangedFlag();
             
         }

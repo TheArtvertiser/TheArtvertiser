@@ -151,8 +151,6 @@ bool CalibModel::buildCached(int nbcam, ofBaseVideo *capture,
 
     detector.clear();
 
-	printf("buildCached about to grab a lock\n");
-
     detector.lock();
 
 
@@ -695,7 +693,7 @@ void CalibModel::interactiveTrainDraw()
 //////////////////////////////////////////////////////////////////////////////
 
 void CalibModel::interactiveTrainUpdate( IplImage* frame,
-											  int mouse_x, int mouse_y, bool mouse_button_down,
+											  float mouse_x_pct, float mouse_y_pct, bool mouse_button_down,
 											  int key )
 {
 	static const float DIST_THRESH = 25.0f;
@@ -720,6 +718,18 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 	}
 
     // copy to training
+	if ( train_working_image != 0 && 
+		(	cvGetSize( frame ).width != cvGetSize( train_working_image ).width ||
+			cvGetSize( frame ).height != cvGetSize( train_working_image ).height ||
+			frame->nChannels != train_working_image->nChannels ||
+			frame->depth != train_working_image->depth ) )
+	{
+		cvReleaseImage( &train_working_image );
+		train_working_image = 0;
+		cvReleaseImage( &train_shot );
+		train_shot = 0;
+	}
+
     if ( train_working_image == 0 )
     {
         train_working_image = cvCreateImage( cvGetSize( frame ), frame->depth, frame->nChannels );
@@ -728,6 +738,9 @@ void CalibModel::interactiveTrainUpdate( IplImage* frame,
 
 	//printf("interactiveTrainUpdate: mouse %3i %3i %c key %3i '%c'\n", mouse_x, mouse_y, mouse_button_down?'x':' ', key, key );
 
+	int mouse_x = mouse_x_pct * cvGetSize( frame ).width;
+	int mouse_y = mouse_y_pct * cvGetSize( frame ).height;
+	
     // for drawing
     int four = 4;
     CvPoint *ptr;

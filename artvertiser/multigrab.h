@@ -39,11 +39,13 @@ public:
 	MultiGrab();
     ~MultiGrab();
 
+    /// initialise. if strlen(avi_bg_path)!=0, capture from avi at avi_bg_path; otherwise setup camera capture using v4l_device.
 	int init( const char *avi_bg_path,
           int capture_width, int capture_height, int v4l_device, int detect_width, int detect_height,
           int desired_capture_fps );
     
-    int reinit( const char* avi_bg_path, int desired_capture_fps );
+    /// re-initialise, using current width/height settings; 
+    int reinit( const char* avi_bg_path, int v4l_device );
     
     /// load or train the cache using the given modelfile. if wants_training is true, train;
     /// otherwise try to load and if load files, train
@@ -52,12 +54,16 @@ public:
 	void clear();
 
 	void allocLightCollector();
+	
+	int getCaptureWidth();
+	int getCaptureHeight();
     
 	class Cam {
     public:
 		ofBaseVideo *cam;
 		int width,height;
 		int detect_width, detect_height;
+        int desired_capture_fps;
 		//PlanarObjectDetector detector;
 		planar_object_recognizer detector;
 		LightCollector *lc;
@@ -102,6 +108,7 @@ public:
 
     Cam* getCam( int index );
     int getNumCams();
+	bool detectWithCam( int index, bool &retrieved, bool &succeeded );
     
 private:
     
